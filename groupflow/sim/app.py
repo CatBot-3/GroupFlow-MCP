@@ -26,6 +26,7 @@ from pydantic import BaseModel
 
 from groupflow.core.settings import LlmSettings, SimSettings
 from groupflow.sim.agent import LlmAgent, compact
+from groupflow.sim.chat import ChatService, ChatStore, register_chat_routes
 from groupflow.sim.demo_script import SCRIPTS
 from groupflow.sim.llm.types import LlmError
 from groupflow.sim.mcp_pool import SessionPool
@@ -71,7 +72,7 @@ def _now() -> str:
 
 
 def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traffic: TrafficLog, mcp_url: str, server_base: str, admin_key: str,
-                   web_dist: str | None = None, demo_passcodes: bool = True) -> FastAPI:
+                   web_dist: str | None = None, demo_passcodes: bool = True, chat_store: ChatStore | None = None) -> FastAPI:
     from groupflow.templates import get_template
 
     loop_ref: dict[str, asyncio.AbstractEventLoop] = {}
@@ -85,6 +86,8 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
             try:
                 yield
             finally:
+                if chat is not None:
+                    await chat.close()
                 await sessions.close_all()
                 backend_clients.clear()
 
@@ -92,6 +95,11 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
     app.state.agent = agent
     app.state.sessions = sessions
     app.state.traffic = traffic
+    # The group chat: a second host on the same MCP server, for people who sign up as well as the demo world's people.
+    chat = ChatService(chat_store, agent, sessions, lambda: backend_clients["http"]) if chat_store is not None else None
+    app.state.chat = chat
+    if chat is not None:
+        register_chat_routes(app, chat)
     members: dict[str, dict[str, Any]] = {}
     for p in world.people:
         groups = [g["id"] for g in world.groups if any(m["id"] == p.id for m in g["members"])]
@@ -146,7 +154,7 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
 
         templates = [{"id": t.id, "name": t.name, "description": t.description} for t in load_templates().values()]
         return {"scenarios": scenarios, "templates": templates, "provider": agent.provider_info, "mcpUrl": mcp_url, "serverBase": server_base,
-                "showcase": {"group": "friends", "plan": "friday_dinner", "script": SCRIPTS.get('friends', [])[:9]}}
+                "showcase": {"group": "friends", "plan": "friday_dinner", "script": SCRIPTS.get('friends', [])[:9]}, "chat": chat is not None}
 
     @app.get("/api/health")
     async def health() -> JSONResponse:
@@ -287,6 +295,10 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
             agent.reset(m)
             transcripts.pop(m, None)
             evidence.pop(m, None)
+        if chat is not None:
+            # A demo group's chat room restarts with its plans; groups people created themselves are never reset.
+            base = (scenario or "all").split(":", 1)[0]
+            chat.store.clear([g["id"] for g in world.groups if base == "all" or g["id"] == base])
         traffic.clear()
         broadcast("reset", {"scenario": scenario})
         return JSONResponse({"ok": True})
@@ -403,4 +415,4 @@ def build_sim_app(sim: SimSettings | None = None, llm: LlmSettings | None = None
     sessions = SessionPool(tokens, sim.mcp_url, traffic)
     agent = LlmAgent(sessions=sessions, provider=create_provider(llm), member_names=names, timezone=sim.timezone, max_steps=llm.max_steps)
     return create_sim_app(world=world, agent=agent, sessions=sessions, traffic=traffic, mcp_url=sim.mcp_url, server_base=sim.server_base,
-                          admin_key=sim.admin_key, web_dist=sim.web_dist)
+                          admin_key=sim.admin_key, web_dist=sim.web_dist, chat_store=ChatStore(sim.chat_db))

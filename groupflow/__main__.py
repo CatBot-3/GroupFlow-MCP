@@ -110,8 +110,10 @@ def cmd_demo(args: argparse.Namespace) -> int:
         print(f"[groupflow] could not start the server on port {settings.port}: {err}. Is another copy already running?", file=sys.stderr)
         return 1
     print(f"[groupflow] MCP server on {bg.base}/mcp, human confirmation API on {bg.base}/human", flush=True)
+    from groupflow.core.settings import chat_db_for, env
+
     sim = SimSettings()
-    sim = replace(sim, mcp_url=f"{bg.base}/mcp", port=args.sim_port or sim.port)
+    sim = replace(sim, mcp_url=f"{bg.base}/mcp", port=args.sim_port or sim.port, chat_db=env("GROUPFLOW_CHAT_DB") or chat_db_for(settings.db_path))
     app = build_sim_app(sim, world_path=settings.world_path)
     _sim_banner(sim, _provider_info(app))
     try:
@@ -159,6 +161,7 @@ def cmd_check(_args: argparse.Namespace) -> int:
     print(f".env          {'found' if (REPO_ROOT / '.env').is_file() else 'not found (optional)'}")
     print(f"server        http://{s.host}:{s.port}/mcp   db {s.db_path}")
     print(f"simulator     http://{sim.host}:{sim.port}   web {'built' if Path(sim.web_dist, 'index.html').is_file() else 'not built'}")
+    print(f"group chat    http://localhost:{sim.port}/chat   store {sim.chat_db}   sign-up {s.signup}")
     from groupflow.templates import load_templates
     from groupflow.world import load_world
 

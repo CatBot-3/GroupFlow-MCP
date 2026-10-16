@@ -63,12 +63,13 @@ async def recording_transport(url: str, http: httpx2.AsyncClient, record):
 
 
 class MemberSession:
-    def __init__(self, member_id: str, token: str, url: str, source: str, traffic: TrafficLog):
+    def __init__(self, member_id: str, token: str, url: str, source: str, traffic: TrafficLog, headers: dict[str, str] | None = None):
         self.member_id = member_id
         self.token = token
         self.url = url
         self.source = source
         self.traffic = traffic
+        self.headers = dict(headers or {})  # e.g. X-GroupFlow-Listeners for a group chat session
         self.client: Client | None = None
         self._lock = asyncio.Lock()
         self._tools: list[Any] | None = None
@@ -87,7 +88,7 @@ class MemberSession:
         async def own() -> None:
             try:
                 async with contextlib.AsyncExitStack() as stack:
-                    http = httpx2.AsyncClient(headers={"Authorization": f"Bearer {self.token}"}, timeout=60)
+                    http = httpx2.AsyncClient(headers={"Authorization": f"Bearer {self.token}", **self.headers}, timeout=60)
 
                     async def hook(response: httpx2.Response) -> None:
                         sid = response.headers.get("mcp-session-id")
@@ -157,7 +158,7 @@ class MemberSession:
 def _client_info(member: str):
     from mcp_types import Implementation
 
-    return Implementation(name=f"groupflow-echo-{member}", version="0.5.0")
+    return Implementation(name=f"groupflow-echo-{member}", version="0.6.0")
 
 
 class SessionPool:
@@ -167,15 +168,25 @@ class SessionPool:
         self.traffic = traffic
         self.pools: dict[str, MemberSession] = {}
 
-    def get(self, member_id: str, source: str = "alexa") -> MemberSession:
+    def get(self, member_id: str, source: str = "alexa", headers: dict[str, str] | None = None) -> MemberSession:
+        """One MCP session per (person, source). A source with headers (a group chat room declaring its listeners) is its own session."""
         key = f"{member_id}:{source}"
         s = self.pools.get(key)
         if s is None:
             if member_id not in self.tokens:
                 raise KeyError(f"Unknown member {member_id}")
-            s = MemberSession(member_id, self.tokens[member_id], self.url, source, self.traffic)
+            s = MemberSession(member_id, self.tokens[member_id], self.url, source, self.traffic, headers)
             self.pools[key] = s
         return s
+
+    def has(self, member_id: str) -> bool:
+        return member_id in self.tokens
+
+    async def set_token(self, member_id: str, token: str) -> None:
+        """A person linked (or re-linked) this host: later sessions use the new token, open ones are closed."""
+        self.tokens[member_id] = token
+        for key in [k for k in self.pools if k.startswith(f"{member_id}:")]:
+            await self.pools.pop(key).close()
 
     async def close_all(self) -> None:
         for s in list(self.pools.values()):

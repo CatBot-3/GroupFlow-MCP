@@ -198,6 +198,7 @@ export function App() {
               Speak replies
             </label>
           )}
+          {config.chat && <a className="ghost chat-link" href="/chat" target="_blank" rel="noreferrer">Open the group chat</a>}
           <button type="button" className="ghost" onClick={() => void reset()}>Reset this group</button>
         </div>
       </header>

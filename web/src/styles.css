@@ -163,6 +163,7 @@ button:disabled { cursor: default; }
   border: 1px solid var(--rule); background: transparent; border-radius: var(--r-pill); padding: 5px 12px; font-size: 13px;
 }
 .ghost:hover { background: var(--paper); }
+a.ghost { color: var(--ink); text-decoration: none; display: inline-flex; align-items: center; }
 .primary {
   border: 0; background: var(--ink); color: var(--paper); border-radius: var(--r-pill); padding: 9px 18px;
   font-weight: 650; font-size: 14px; white-space: nowrap;
