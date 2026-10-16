@@ -39,7 +39,7 @@ log = logging.getLogger("groupflow.server")
 
 SERVER_NAME = "groupflow"
 SERVER_TITLE = "GroupFlow"
-SERVER_VERSION = "0.6.0"
+SERVER_VERSION = "0.7.0"
 PROTOCOL_VERSION = LATEST_HANDSHAKE_VERSION  # "2025-11-25"
 
 
@@ -128,7 +128,9 @@ class McpAuth:
 
 
 def create_server_app(services: Services, *, host: str = "127.0.0.1", allowed_origins: list[str] | None = None,
-                      demo_admin: bool = True, admin_key: str = "gf_demo_admin", worker: Any = None) -> "GroupFlowServer":
+                      demo_admin: bool = True, admin_key: str = "gf_demo_admin", worker: Any = None, responses: str = "json") -> "GroupFlowServer":
+    if responses not in ("json", "sse"):
+        raise ValueError('MCP responses must be "json" or "sse".')
     origins = allowed_origins or []
     mcp = build_mcp(services)
     security = TransportSecuritySettings(
@@ -136,7 +138,8 @@ def create_server_app(services: Services, *, host: str = "127.0.0.1", allowed_or
         allowed_hosts=["127.0.0.1:*", "localhost:*", "[::1]:*", "127.0.0.1", "localhost"],
         allowed_origins=origins,
     )
-    starlette_mcp = mcp.streamable_http_app(json_response=True, host=host, transport_security=security, streamable_http_path="/mcp")
+    # Streamed (SSE) responses can carry a server request mid-call, which is how ask_followup asks the person through the host.
+    starlette_mcp = mcp.streamable_http_app(json_response=responses == "json", host=host, transport_security=security, streamable_http_path="/mcp")
     auth = McpAuth(starlette_mcp, services.identity, origins, listeners=services.engine.resolve_listeners)
 
     @contextlib.asynccontextmanager
@@ -160,7 +163,7 @@ def create_server_app(services: Services, *, host: str = "127.0.0.1", allowed_or
     @app.get("/healthz")
     async def healthz() -> dict[str, Any]:
         return {"ok": True, "server": {"name": SERVER_NAME, "version": SERVER_VERSION}, "protocol": PROTOCOL_VERSION,
-                "transport": "streamable-http", "sessions": len(auth.sessions)}
+                "transport": "streamable-http", "responses": responses, "sessions": len(auth.sessions)}
 
     if demo_admin:
         def admin_ok(request: Request) -> bool:

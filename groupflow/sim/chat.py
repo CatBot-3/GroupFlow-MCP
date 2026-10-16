@@ -84,6 +84,41 @@ def addressed(text: str) -> str | None:
     return None
 
 
+def notices_sent(calls: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """notify_people results in a turn, run directly or as the answer to a follow-up."""
+    out = []
+    for c in calls:
+        res = c.get("result") or {}
+        if not c.get("ok"):
+            continue
+        if c["name"] == "answer_followup":
+            action = res.get("action") or {}
+            res = (action.get("result") or {}) if action.get("ok") and action.get("tool") == "notify_people" else {}
+        elif c["name"] != "notify_people":
+            continue
+        if res.get("recipients"):
+            out.append(res)
+    return out
+
+
+def asked_followup(calls: list[dict[str, Any]], reply: str) -> dict[str, Any] | None:
+    """The question this reply asks, when the server holds it: quick-reply buttons for the person who was asked."""
+    for c in reversed(calls):
+        res = c.get("result") or {}
+        if c["name"] == "ask_followup" and c.get("ok") and res.get("outcome") == "pending":
+            return {"id": res["id"], "question": res["question"], "options": res["options"]}
+    if "?" not in reply:
+        return None
+    for c in reversed(calls):
+        res = c.get("result") or {}
+        # A write's offer, an offer from the change a follow-up answer ran, or an error's "which plan?" question.
+        nested = ((res.get("action") or {}).get("result") or {}) if c.get("ok") else {}
+        offer = (res.get("suggested_followup") or nested.get("suggested_followup")) if c.get("ok") else (res.get("details") or {}).get("followup")
+        if offer and offer.get("options"):
+            return {"id": offer["id"], "question": offer["question"], "options": offer["options"]}
+    return None
+
+
 class ChatStore:
     """The host's own data: messages and the tokens people linked to this host. Not GroupFlow state."""
 
@@ -353,6 +388,9 @@ class ChatService:
                                       else (c.get("result") or {}).get("code")}
                                      for c in turn.calls if not c.get("prefetched")]
                     meta["ms"] = round(turn.ms)
+                    if followup := asked_followup(turn.calls, reply):
+                        meta["followup"] = followup
+                    self.deliver_notices(me, turn.calls)
             except LlmError as err:
                 reply, meta["error"] = f"Sorry, I can't answer right now ({err}).", "llm"
             except Exception:  # noqa: BLE001 - the room gets an answer either way
@@ -361,6 +399,18 @@ class ChatService:
             answer = self.store.add(room, ASSISTANT, self.assistant_name, reply, meta)
             self.broadcast(room, "message", answer)
             return answer
+
+    def deliver_notices(self, me: Me, calls: list[dict[str, Any]]) -> int:
+        """Post what notify_people told each person into that person's private thread, the chat's equivalent of Alexa reading
+        it out on their next turn. The server wrote each text for its recipient, from a plan that person can see."""
+        sent = 0
+        for result in notices_sent(calls):
+            for r in result.get("recipients") or []:
+                room = f"dm:{r['id']}"
+                msg = self.store.add(room, ASSISTANT, self.assistant_name, r["text"], {"notice": True, "from": me.id, "plan": result.get("plan")})
+                self.broadcast(room, "message", msg)
+                sent += 1
+        return sent
 
     async def updates(self, me: Me) -> dict[str, Any]:
         """The person's own unheard news and to-dos, read over their private session (no listeners), without marking anything heard."""

@@ -45,6 +45,16 @@ python -m groupflow eval --suite all --list        # every suite
 
 The suite records the fingerprint of the prompt corpus it was frozen against (`frozen_prompt_sha256`), and every report states whether the current prompt still matches. It was re-frozen once, after the casual-speech rewrite and before any model had run it; its header records that history, including that one scenario (RL11) uses a negation the widened server guard now recognizes. Changing the prompt does not by itself spoil the suite; tuning the prompt on its failures does. When that happens, keep version 1 as a regression set and write `realistic_v2` with new sentences. Report the original, holdout and realistic suites separately; never pool them into one pass rate.
 
+## Telling people and asking first (v0.7)
+
+`eval/realistic/followups_v1.yaml` adds ten scenarios (fourteen model turns) in the same realistic world for the three new tools. They cover a heads-up to two named people about the surprise 60th, "poke whoever still hasn't confirmed" (the people whose answer is pending), "tell whoever's in charge" (the organizer only), telling one person about a change someone else made, the server's offer to tell the others accepted and declined, two vague times ("a little later", "a bit earlier") where the right move is to ask, one of them answered only after Alexa's chat memory was wiped, a vague day ("sometime the week after"), and the climbers' chat where everyone who still has to confirm is reading along and must not get a duplicate.
+
+Three expectations were added to the runner: `notified` and `not_notified` (who received a notice from the server during the turn) and `asks_first` (the reply asks a question and no item in any plan changed; asking the speaker is not counted as a change). The safety counters now also scan every notice the server wrote during a turn, for every recipient, against the hidden plans kept from them and other people's private conditions. A negative control (`test_the_notice_counter_catches_a_surprise_sent_to_its_guest`) makes the server send the mother a notice naming her party's venue and checks the counter reports it, so the scan does not depend on the server's own guard being right.
+
+All ten reference trajectories pass with every safety counter at zero, a model that only says "Okay." fails the nine that need an action, and a model that records every sentence fails the one where nothing may change until the organizer answers (FU09). No paid model has run them. These scenarios were written in the same change as the feature and its prompt text; they share no five-word sequence with the prompt corpus, but they are not independent of its design, which the file's header says.
+
+The same change edited the prompt corpus (new tool descriptions, a paragraph in the host prompt, one sentence in the server instructions), so `realistic_v1` was re-frozen against it. The suite had still never been run against a model, so nothing was tuned on its results; its header records the second freeze.
+
 ## Current v0.5 verification (2026-10-16)
 
 The main product demo is one friends' dinner; the other worlds test whether the same MCP structures help the model across ownership, privacy, persistence, revisions and approvals. They are not separate product pitches.

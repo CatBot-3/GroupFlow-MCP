@@ -99,6 +99,17 @@ def _context_view(payload: dict[str, Any]) -> dict[str, Any]:
     return {"jsonrpc": "2.0", "id": payload.get("id"), "result": {"structuredContent (excerpt)": excerpt}}
 
 
+def _result_view(payload: dict[str, Any]) -> dict[str, Any]:
+    """structuredContent of a tool result, or the error a refused call returns, without the text copy."""
+    result = payload.get("result", {})
+    if result.get("isError"):
+        return {"jsonrpc": "2.0", "id": payload.get("id"), "result": {"isError": True, "content (parsed)": json.loads(result["content"][0]["text"])}}
+    sc = dict(result.get("structuredContent") or {})
+    for r in sc.get("recipients") or []:
+        r.pop("id", None)
+    return {"jsonrpc": "2.0", "id": payload.get("id"), "result": {"structuredContent": sc}}
+
+
 async def capture() -> str:
     tmp = Path(tempfile.mkdtemp(prefix="gf-evidence-"))
     settings = ServerSettings(db_path=str(tmp / "evidence.db"), admin_key="evidence", allowed_origins=["http://localhost:8788"],
@@ -117,8 +128,9 @@ async def capture() -> str:
         h = {**alice, "mcp-session-id": sid, "mcp-protocol-version": "2025-11-25"}
         await rec.post("notifications/initialized", {"jsonrpc": "2.0", "method": "notifications/initialized"}, h, "A notification: no id, answered with 202 and no body.")
         await rec.post("tools/list", {"jsonrpc": "2.0", "id": 2, "method": "tools/list"}, h,
-                       "Everyone gets the same 23 generic tools (14 core, 2 template discovery, 5 structured-project, 2 group tools); none can approve an "
-                       "activity, accept an invite or link an account. Each has an input schema, an output schema and annotations.", show_body=_tool_list_view)
+                       "Everyone gets the same 26 generic tools (14 core, 2 template discovery, 5 structured-project, 2 group tools, 3 for telling people and "
+                       "asking first); none can approve an activity, accept an invite or link an account. Each has an input schema, an output schema and "
+                       "annotations.", show_body=_tool_list_view)
         await rec.post("tools/call get_context", {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "get_context", "arguments": {"mark_read": False}}}, h,
                        "Results come back as structuredContent (validated against the output schema) plus a text copy for older clients. Alice sees the "
                        "surprise party, the family's Home plan and the Friday dinner.", show_body=_context_view)
@@ -165,7 +177,36 @@ async def capture() -> str:
                                                       "params": {"name": "invite_to_group", "arguments": {}}}, mh,
                        "The assistant can make an invite code; only the invited person can accept it, on their own page.")
 
-        rec.parts += ["## 5. Refusals", ""]
+        rec.parts += ["## 5. Telling people and asking first", ""]
+        await rec.post("tools/call propose_change (a decision, and the server's offer)", {"jsonrpc": "2.0", "id": 11, "method": "tools/call", "params": {
+            "name": "propose_change", "arguments": {"item": "party.venue", "value": "Lucky Star karaoke", "quote": "let's just do karaoke at lucky star"}}}, h,
+            "Alice owns the venue, so the change takes effect. The result carries the server's offer to tell the people who can see the plan and did "
+            "not hear about it; Linda is not among them.", show_body=_result_view)
+        await rec.post("tools/call answer_followup", {"jsonrpc": "2.0", "id": 12, "method": "tools/call", "params": {
+            "name": "answer_followup", "arguments": {"choice": "yeah go for it"}}}, h,
+            "Alice says yes. The server matches her words to the offer and runs exactly the notify_people call behind it, as Alice. Each notice is "
+            "written by the server from the plan's state.", show_body=_result_view)
+        await rec.post("tools/call notify_people with a note that names the surprise", {"jsonrpc": "2.0", "id": 13, "method": "tools/call", "params": {
+            "name": "notify_people", "arguments": {"plan": "home", "note": "the surprise party is at Lucky Star karaoke now"}}}, h,
+            "The family's Home plan reaches Linda, and the note names a plan kept from her, so nobody is told.", show_body=_result_view)
+        await rec.post("tools/call propose_change from vague words", {"jsonrpc": "2.0", "id": 14, "method": "tools/call", "params": {
+            "name": "propose_change", "arguments": {"item": "party.date", "value": "Saturday, Oct 24, 7:00 pm", "quote": "can we push it back a bit"}}}, h,
+            "The words name no time, so the server refuses to record one the model would have to invent.", show_body=_result_view)
+        await rec.post("tools/call ask_followup", {"jsonrpc": "2.0", "id": 15, "method": "tools/call", "params": {"name": "ask_followup", "arguments": {
+            "question": "Push it to 6:30 or 7?", "options": [
+                {"label": "6:30", "action": {"tool": "propose_change", "arguments": {"item": "party.date", "value": "Saturday, Oct 24, 6:30 pm",
+                                                                                    "quote": "can we push it back a bit"}}},
+                {"label": "7:00", "action": {"tool": "propose_change", "arguments": {"item": "party.date", "value": "Saturday, Oct 24, 7:00 pm",
+                                                                                    "quote": "can we push it back a bit"}}}]}}}, h,
+            "The server keeps the question and the exact call behind each option. This server sends JSON responses, so it cannot ask through "
+            "the host (elicitation needs GROUPFLOW_MCP_RESPONSES=sse); the question comes back for the assistant to ask.", show_body=_result_view)
+        await rec.post("tools/call answer_followup with a bare time", {"jsonrpc": "2.0", "id": 16, "method": "tools/call", "params": {
+            "name": "answer_followup", "arguments": {"choice": "7"}}}, h,
+            "\"7\" picks the 7:00 option and the change runs as Alice, with every check. Bob and Charlie own work that watches the date, so the "
+            "change itself flags it for them, and there is nobody left to offer to tell.",
+            show_body=_result_view)
+
+        rec.parts += ["## 6. Refusals", ""]
         await rec.post("No bearer token", init, {}, "Identity comes only from the token. Without one the server answers 401 with a WWW-Authenticate challenge.")
         await rec.post("Browser request from an unknown origin", init, {**alice, "origin": "https://evil.example"}, "Origin validation (DNS-rebinding and cross-site protection).")
         await rec.post("Another member reusing Alice's session", {"jsonrpc": "2.0", "id": 9, "method": "tools/list"},
@@ -174,7 +215,7 @@ async def capture() -> str:
         await rec.post("A tool that does not exist", {"jsonrpc": "2.0", "id": 10, "method": "tools/call", "params": {"name": "approve_plan", "arguments": {"member": "dana"}}}, h,
                        "There is no tool that approves, declines or withdraws for anyone.")
 
-        rec.parts += ["## 6. Version negotiation with the official SDK client", ""]
+        rec.parts += ["## 7. Version negotiation with the official SDK client", ""]
         from mcp import Client
         from mcp.client.streamable_http import streamable_http_client
 

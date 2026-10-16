@@ -158,7 +158,7 @@ class MemberSession:
 def _client_info(member: str):
     from mcp_types import Implementation
 
-    return Implementation(name=f"groupflow-echo-{member}", version="0.6.0")
+    return Implementation(name=f"groupflow-echo-{member}", version="0.7.0")
 
 
 class SessionPool:

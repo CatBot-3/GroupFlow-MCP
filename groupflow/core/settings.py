@@ -68,6 +68,9 @@ class ServerSettings:
     world_path: str = field(default_factory=lambda: env("GROUPFLOW_WORLD", str(REPO_ROOT / "demo" / "world.yaml")))
     signup: str = field(default_factory=lambda: env("GROUPFLOW_SIGNUP", "open"))  # open | invite | off
     join_url: str = field(default_factory=lambda: env("GROUPFLOW_JOIN_URL", "http://localhost:8788/chat"))
+    # json: one JSON body per MCP request (simplest for proxies). sse: streamed responses, which also let the server ask the person a
+    # follow-up through the host (MCP elicitation) when the host supports it.
+    mcp_responses: str = field(default_factory=lambda: env("GROUPFLOW_MCP_RESPONSES", "json"))
 
 
 @dataclass(frozen=True)

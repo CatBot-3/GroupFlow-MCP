@@ -17,6 +17,8 @@ Most planning between friends already happens in group chats, which is why this 
 | Talk to Alexa privately | The "Alexa (private)" thread | Private limits, private notes and plans hidden from someone in a room belong here |
 | Confirm or decline a plan, verify a private condition | Cards in the chat that call the person's own page | Consent never comes from a message; the tap goes to the human-only API with the person's own session, a one-time challenge and the scope digest |
 | Leave a group | Their own page (`/human/groups/leave`) | Visibility of the group's shared plans ends at once; organizing passes to another member |
+| Hear what someone asked Alexa to tell them | Their private thread, marked as an update from that plan (v0.7) | The server wrote it for them from a plan they can see; the chat posts it the moment `notify_people` runs |
+| Answer Alexa's question with one tap | Quick-answer buttons under the question, for the person who was asked | Tapping says the answer in the conversation, so the model and the server treat it exactly like a typed reply |
 
 The demo world's thirteen people are pre-linked, so judges can open two browser tabs, sign in as Alice and Linda, and watch the family room.
 
@@ -37,6 +39,8 @@ The fix lives in the MCP server, because a host should not have to re-implement 
 5. `get_context` returns `shared_with` (who else reads the reply) and a short note, so the model can explain why it is not answering something rather than claiming it does not exist.
 
 The declaration can only narrow access, never widen it, so a host that omits it is no less safe than a personal device. The same mechanism fits a shared kitchen Echo: Alexa+ could declare the household as listeners when it cannot tell who is in the room. `docs/PROTOCOL_EVIDENCE.md` shows the real traffic: the same `get_context` call for Alice, with and without the header.
+
+In a room, telling people uses the same rule from the other side: everyone in the room has just read the reply, so `notify_people` for a role (everyone, whoever still has to confirm) skips them instead of sending a duplicate to their private thread. People who are in the plan but not in the room, which is everyone when the request comes from a private thread, get the notice there. See [Telling people and asking first](TELLING_PEOPLE.md).
 
 ## How a room turn reaches the model
 
@@ -76,8 +80,8 @@ When a room message addresses Alexa, the chat builds the model's input from the 
 
 ## Tests
 
-`tests/engine/test_membership.py` covers sign-up, invites (hashed, expiring, organizer-only), joining and leaving, linked tokens and the listener restriction at engine level, including a version out for confirmation that must be resent after someone joins. `tests/mcp/test_accounts.py` repeats the important cases over real HTTP and MCP. `tests/sim/test_chat.py` drives the chat API: sign-up, linking, group creation, invite links, joining, live events reaching members only, room turns running with the room's listener session, a family room that never sees the surprise, revoked links, and resets.
+`tests/engine/test_membership.py` covers sign-up, invites (hashed, expiring, organizer-only), joining and leaving, linked tokens and the listener restriction at engine level, including a version out for confirmation that must be resent after someone joins. `tests/mcp/test_accounts.py` repeats the important cases over real HTTP and MCP. `tests/sim/test_chat.py` drives the chat API: sign-up, linking, group creation, invite links, joining, live events reaching members only, room turns running with the room's listener session, a family room that never sees the surprise, revoked links, resets, notices landing in each recipient's private thread, and quick answers for the person who was asked.
 
 ## Limits
 
-The chat is a demonstration host, not a messaging product. Messages and linked tokens sit unencrypted in the host's SQLite file; a production host would encrypt tokens at rest and use real OAuth for linking. Sign-in is a name and passcode on the person's GroupFlow page, without email verification or recovery. There is no push delivery outside the open page. A person who leaves a group is removed from shared plans, but activities that list them as a participant still need the organizer to update who is coming. Rooms map one to one to groups; there are no sub-group rooms.
+The chat is a demonstration host, not a messaging product. Messages and linked tokens sit unencrypted in the host's SQLite file; a production host would encrypt tokens at rest and use real OAuth for linking. Sign-in is a name and passcode on the person's GroupFlow page, without email verification or recovery. There is no push delivery outside the open page: a notice reaches a person's private thread at once, but they see it when they next open the chat. A person who leaves a group is removed from shared plans, but activities that list them as a participant still need the organizer to update who is coming. Rooms map one to one to groups; there are no sub-group rooms.

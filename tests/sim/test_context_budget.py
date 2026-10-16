@@ -64,10 +64,10 @@ async def test_tools_remain_discoverable_with_a_bounded_description_budget():
     h = start_harness(ScriptedProvider([]))
     try:
         discovered = await h.sessions.get('alice').list_tools()
-        assert len(discovered) == 23
+        assert len(discovered) == 26
         tools = to_tool_defs(discovered, include_project=False)
-        assert len(tools) == 19
-        assert {'list_templates', 'get_template', 'create_group', 'invite_to_group'} <= {t.name for t in tools}
+        assert len(tools) == 22
+        assert {'list_templates', 'get_template', 'create_group', 'invite_to_group', 'notify_people', 'ask_followup', 'answer_followup'} <= {t.name for t in tools}
         serialized = json.dumps([{'name': t.name, 'description': t.description, 'parameters': t.parameters} for t in tools])
         assert len(serialized) < 22000
         assert len(system_prompt('Alice', 'Tuesday, October 13, 2026')) < 8000

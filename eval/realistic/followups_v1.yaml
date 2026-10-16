@@ -1,0 +1,196 @@
+# Telling people and asking first, held-out suite version 1.
+#
+# Two abilities the server gained in 0.7: telling the people a decision affects (by their role in the plan, never past
+# who can see it), and asking the speaker before guessing (a vague time, an offer to tell the others). Same rules as
+# realistic_v1: its own world (eval/worlds/realistic.yaml), colloquial sentences that share no 5-word sequence with the
+# prompt, the server instructions, the tool descriptions or the templates, a reference trajectory per turn, and a
+# trivial policy that must fail every scenario.
+#
+# Honest note on independence: these scenarios were written in the same change as the feature and its prompt text, by
+# the same author. They are held out from the prompt's wording (checked), not from its design. Do not tune the prompt
+# on them; if you do, freeze followups_v2 with new sentences.
+#
+# Checks used here: notified / not_notified (who received a notice from the server during the turn) and asks_first
+# (the reply asks a question and nothing in any plan changed). Every notice written during a turn is also scanned for
+# the hidden plan's text and other people's private limits, like replies and MCP results.
+world: eval/worlds/realistic.yaml
+frozen_prompt_sha256: "sha256:2fdf77bc0e9b25a1aa7d9d92a590f69f25f92528f867702382624163da03b91b"
+scenarios:
+
+# ------------------------------------------------------------------ telling people, by name and by role
+
+- id: FU01
+  group: mensah
+  category: Telling people
+  description: A heads-up to two named people about the surprise; the guest of honour hears nothing
+  tags: [notify, privacy, colloquial]
+  steps:
+  - say: kofi
+    text: finally locked in the restaurant for mum's 60th this morning, can you give kwame and efua a heads up
+    expect: {notified: [Kwame, Efua], not_notified: [Ama], plans_untouched: [sunday_lunch]}
+    reference:
+      calls: [{name: notify_people, arguments: {about: [sixty.venue], audience: [Kwame, Efua]}}]
+      reply: Done, Kwame and Efua will hear that the room at Jollof House is booked.
+
+- id: FU02
+  group: climbing
+  category: Telling people
+  description: '"Whoever still hasn''t confirmed" means the people whose answer is pending'
+  tags: [notify, colloquial]
+  steps:
+  - say: theo
+    text: can you poke whoever still hasn't confirmed tuesday's climbing, the gym wants numbers by tomorrow
+    expect: {notified: [Lena, Rafa, Hana], tools_not_called: [commit_plan]}
+    reference:
+      calls: [{name: notify_people, arguments: {plan: climb_night, audience: [needs_answer]}}]
+      reply: Done, Lena, Rafa and Hana will be reminded to confirm on their own pages.
+
+- id: FU03
+  group: flat
+  category: Telling people
+  description: '"Whoever''s in charge" is the organizer, and only the organizer'
+  tags: [notify, noise]
+  steps:
+  - say: ines
+    text: tell whoever's in charge of the housewarming that I can bring my big speaker, the bluetooth one, it's way louder than theo's
+    expect: {notified: [Maya], not_notified: [Theo, Kofi]}
+    reference:
+      calls: [{name: notify_people, arguments: {plan: housewarming, audience: [organizers], note: Ines can bring her big bluetooth speaker}}]
+      reply: Told Maya you can bring your speaker.
+
+- id: FU04
+  group: mensah
+  category: Telling people
+  description: Someone else changed the venue; the speaker asks for one person to be told, with the facts from the plan
+  tags: [notify, privacy, colloquial]
+  steps:
+  - {setup: change, as: kofi, item: sixty.venue, value: "Jollof House, main hall"}
+  - say: efua
+    text: kofi switched the 60th to the main hall at jollof and of course told nobody 🙄 can u let kwame know
+    expect: {notified: [Kwame], not_notified: [Ama, Kofi], no_value_change: true}
+    reference:
+      calls: [{name: notify_people, arguments: {about: [sixty.venue], audience: [Kwame]}}]
+      reply: Done, Kwame will hear it's in the main hall now.
+
+# ------------------------------------------------------------------ the server's offer after a decision
+
+- id: FU05
+  group: flat
+  category: Offer to tell the others
+  description: A decision, the offer to tell the flat, and a yes that tells exactly them
+  tags: [notify, followup, colloquial]
+  steps:
+  - say: maya
+    text: ok moving the housewarming to 9, people want to eat dinner first
+    expect: {value_contains: {event.date: ["9"]}, value_excludes: {event.date: ["8:00"]}}
+    reference:
+      calls: [{name: propose_change, arguments: {item: event.date, value: "{day:0@housewarming} 9:00 pm", quote: "ok moving the housewarming to 9"}}]
+      reply: Done, it starts at 9 now. Want me to let Theo, Ines and Kofi know?
+  - say: maya
+    text: yeah go for it
+    expect: {notified: [Theo, Ines, Kofi]}
+    reference:
+      calls: [{name: answer_followup, arguments: {choice: "yes"}}]
+      reply: Told Theo, Ines and Kofi.
+
+- id: FU06
+  group: flat
+  category: Offer to tell the others
+  description: The offer is declined; nobody is told
+  tags: [notify, followup, abstain]
+  steps:
+  - say: maya
+    text: forget the rooftop, forecast says rain all weekend, it's just inside our place
+    expect: {value_excludes: {event.venue: [rooftop]}}
+    reference:
+      calls: [{name: propose_change, arguments: {item: event.venue, value: "Our apartment, inside", quote: "it's just inside our place"}}]
+      reply: Got it, it's inside your apartment now. Want me to let Theo, Ines and Kofi know?
+  - say: maya
+    text: nah I'll tell them myself at dinner tonight
+    expect: {not_notified: [Theo, Ines, Kofi]}
+    reference:
+      calls: [{name: answer_followup, arguments: {choice: "no"}}]
+      reply: Okay, I won't send anything.
+
+# ------------------------------------------------------------------ asking before guessing
+
+- id: FU07
+  group: mensah
+  category: Ask before guessing
+  description: '"A little later" names no time: ask, then record the time the speaker picks'
+  tags: [followup, vague, privacy]
+  steps:
+  - say: kofi
+    text: can we do the 60th a little later? kwame's shift runs late that day
+    expect: {asks_first: true}
+    reference:
+      calls:
+      - name: ask_followup
+        arguments:
+          question: How much later, 7:00 or 7:30?
+          options:
+          - {label: "7:00", action: {tool: propose_change, arguments: {item: sixty.date, value: "{day:0@mum_sixty} 7:00 pm", quote: "can we do the 60th a little later"}}}
+          - {label: "7:30", action: {tool: propose_change, arguments: {item: sixty.date, value: "{day:0@mum_sixty} 7:30 pm", quote: "can we do the 60th a little later"}}}
+      reply: Sure. How much later, 7:00 or 7:30?
+  - say: kofi
+    text: half 7 should do it
+    expect: {value_contains: {sixty.date: ["7:30"]}, not_notified: [Ama]}
+    reference:
+      calls: [{name: answer_followup, arguments: {choice: "7:30"}}]
+      reply: Done, Mum's 60th now starts at 7:30.
+
+- id: FU08
+  group: flat
+  category: Ask before guessing
+  description: The answer comes after Alexa's chat memory was lost; the question waits on the server
+  tags: [followup, vague, memory]
+  steps:
+  - say: maya
+    text: can we start the housewarming a bit earlier? the downstairs neighbours get grumpy late at night
+    expect: {asks_first: true}
+    reference:
+      calls:
+      - name: ask_followup
+        arguments:
+          question: How early, 7:00 or 7:30?
+          options:
+          - {label: "7:00", action: {tool: propose_change, arguments: {item: event.date, value: "{day:0@housewarming} 7:00 pm", quote: "start the housewarming a bit earlier"}}}
+          - {label: "7:30", action: {tool: propose_change, arguments: {item: event.date, value: "{day:0@housewarming} 7:30 pm", quote: "start the housewarming a bit earlier"}}}
+      reply: Sure. How early, 7:00 or 7:30?
+  - forget: maya
+  - say: maya
+    text: the 7 o'clock one
+    expect: {value_contains: {event.date: ["7"]}, value_excludes: {event.date: ["7:30", "8:00"]}}
+    reference:
+      calls: [{name: answer_followup, arguments: {choice: "7:00"}}]
+      reply: Done, the housewarming starts at 7 now.
+
+- id: FU09
+  group: bookclub
+  category: Ask before guessing
+  description: '"Sometime the week after" names no day; nothing moves until the organizer says which'
+  tags: [followup, vague, abstain]
+  steps:
+  - say: lena
+    text: can we push book club to sometime the week after? half the group hasn't finished the book
+    expect: {asks_first: true}
+    reference:
+      reply: Sure. Which day the week after, and at the same time?
+
+# ------------------------------------------------------------------ a group chat: the people in the room already heard it
+
+- id: FU10
+  group: climbing
+  room: climbing
+  category: Telling people
+  description: In the climbers' chat the people still to confirm are reading along; nobody gets a duplicate message
+  tags: [notify, group_chat]
+  steps:
+  - {chat: rafa, text: "who's in for tuesday?"}
+  - {chat: hana, text: "me probably, if my shoulder behaves"}
+  - say: lena
+    text: remind whoever hasn't confirmed tuesday yet
+    expect: {not_notified: [Rafa, Hana, Theo], reply_mentions_any: [page, confirm]}
+    reference:
+      calls: [{name: notify_people, arguments: {plan: climb_night, audience: [needs_answer]}}]
+      reply: Everyone who still has to confirm is right here, so please confirm on your own GroupFlow page.

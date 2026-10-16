@@ -60,7 +60,7 @@ def build_runtime(settings: ServerSettings | None = None, db_path: str | None = 
     services = Services(db=db, identity=identity, engine=engine, on_call=on_call, on_reset=reset)
     worker = Worker(engine, interval_s=worker_interval_s)
     app = create_server_app(services, host=settings.host, allowed_origins=settings.allowed_origins, demo_admin=settings.demo_admin,
-                            admin_key=settings.admin_key, worker=worker)
+                            admin_key=settings.admin_key, worker=worker, responses=settings.mcp_responses)
     return Runtime(db=db, services=services, worker=worker, app=app, world=world)
 
 

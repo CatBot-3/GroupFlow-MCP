@@ -6,7 +6,10 @@ export interface ChatMember { id: string; name: string; role: string; label?: st
 export interface ToolNote { name: string; ok: boolean; outcome: string | null }
 export interface ChatMessage {
   id: number; room: string; author: string; author_name: string; text: string; at: string;
-  meta: { for?: string; in_reply_to?: number; calls?: ToolNote[]; ms?: number; error?: string };
+  meta: {
+    for?: string; in_reply_to?: number; calls?: ToolNote[]; ms?: number; error?: string;
+    followup?: { id: string; question: string; options: string[] }; notice?: boolean; from?: string; plan?: string;
+  };
 }
 export interface Room { id: string; title: string; kind: 'group' | 'dm'; members: ChatMember[]; your_role?: string; last: ChatMessage | null }
 export interface ChatMe { member: { id: string; name: string; color: string | null }; linked: boolean; links: { id: string; host: string }[]; assistant: string; rooms: Room[] }

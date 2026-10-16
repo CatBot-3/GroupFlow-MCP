@@ -7,12 +7,14 @@ exist only on the human-only API, behind the person's own login.
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Annotated, Any, Literal
 
 from mcp.server.mcpserver import Context, MCPServer
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, create_model
 
 from groupflow.engine import UNSET, GroupFlow
+from groupflow.engine.notices import FOLLOWUP_TOOLS
 from groupflow.engine.views import (
     AlternativesResult, ChangeResult, CommitResult, ConditionsResult, ConfirmationsResult, ContextView, CreatePlanResult, DecisionResult,
     ExplainView, HistoryView, LinkResult, ObservationResult, SearchView, TemplateListView, TemplateSpecView,
@@ -29,12 +31,16 @@ INSTRUCTIONS = (
     "and activities need each person's own page confirmation followed by organizer commit. You can never confirm, decline or withdraw for "
     "anyone; reported group agreement changes no approvals. Report tool outcomes exactly. The server filters visibility and private conditions. "
     "create_group starts a group and invite_to_group makes a code; people join only on their own page. When get_context lists shared_with, "
-    "those people also read the reply and only plans all of them can see are included."
+    "those people also read the reply and only plans all of them can see are included. "
+    "To tell others about a decision use notify_people; it reaches only people who can see the plan. If a result has suggested_followup, "
+    "offer it at the end of your reply and pass their answer to answer_followup. Never guess a vague time, amount or plan: ask with "
+    "ask_followup (concrete options, each with the exact call), then send their reply to answer_followup. get_context lists open_questions."
 )
 
 NAMES = ["get_context", "search_plan", "create_plan", "propose_change", "decide_change", "link_items", "set_my_conditions", "report_observation",
          "request_confirmations", "find_alternatives", "get_alternatives", "commit_plan", "explain", "get_history", "list_templates", "get_template",
-         "get_project", "configure_project", "upsert_work", "manage_recurrence", "repair_project", "create_group", "invite_to_group"]
+         "get_project", "configure_project", "upsert_work", "manage_recurrence", "repair_project", "create_group", "invite_to_group",
+         "notify_people", "ask_followup", "answer_followup"]
 
 PLAN_ARG = Field(description='Plan id/title; pass it when more than one plan could match.')
 
@@ -43,6 +49,29 @@ def result_dict(value) -> dict[str, Any]:
     # A union return annotation causes the SDK to wrap results in {result:...}.
     # Preserve the existing top-level MCP wire contract for all plan types.
     return value.model_dump(mode="json") if isinstance(value, BaseModel) else value
+
+
+log = logging.getLogger("groupflow.mcp")
+
+
+class FollowupAction(BaseModel):
+    tool: Literal[FOLLOWUP_TOOLS] = Field(description="Tool to run if this option is chosen.")  # type: ignore[valid-type]
+    arguments: dict[str, Any] = Field(default_factory=dict, description="Its arguments, exactly as you would pass them.")
+
+
+class FollowupOption(BaseModel):
+    label: str = Field(max_length=60, description='A short answer, e.g. "7:30", "Saturday" or "yes".')
+    action: FollowupAction | None = Field(default=None, description="What to run if chosen; omit if the answer only informs you.")
+
+
+def can_elicit(ctx: Context) -> bool:
+    """The host declared form elicitation and this request's channel can carry a server request (streamed responses)."""
+    try:
+        session = ctx.request_context.session
+        caps = session.client_capabilities
+        return bool(caps is not None and caps.elicitation is not None and session.can_send_request)
+    except Exception:  # noqa: BLE001 - no session details means no elicitation
+        return False
 
 
 class Condition(BaseModel):
@@ -349,6 +378,60 @@ def register(mcp: MCPServer, engine: GroupFlow, runner: ToolRunner) -> None:
               annotations=annotations(read_only=False))
     async def invite_to_group(ctx: Context, group: Annotated[str | None, Field(description="Group id or name; needed when the speaker is in several groups.")] = None) -> dict[str, Any]:
         return runner.run(ctx, "invite_to_group", lambda m: engine.invite_to_group(m.id, group))
+
+    @mcp.tool(title="Tell people about an update", description=(
+        'When the speaker asks to let people know ("tell everyone", "remind whoever hasn\'t answered") or agrees to an offered follow-up. '
+        "audience: everyone (default), organizers, participants, owners, needs_answer, or names. The server writes the facts from the plan, "
+        "adds what each person must do, skips people listening now, and reaches only people who can see the plan. Changes nothing; nobody's agreement."),
+              annotations=annotations(read_only=False))
+    async def notify_people(
+        ctx: Context,
+        plan: Annotated[str | None, PLAN_ARG] = None,
+        about: Annotated[list[str] | str | None, Field(description="Item ids or names the update is about (one plan).")] = None,
+        audience: Annotated[list[str] | None, Field(description='Roles and/or names, e.g. ["organizers"] or ["Bob", "Chen"].')] = None,
+        note: Annotated[str | None, Field(max_length=280, description="Short message in the speaker's words, if they gave one.")] = None,
+    ) -> dict[str, Any]:
+        return runner.run(ctx, "notify_people", lambda m: engine.notify_people(m.id, plan=plan, about=about, audience=audience, note=note))
+
+    @mcp.tool(title="Ask the speaker before acting", description=(
+        'Ask instead of guessing a vague time or amount ("push it back a bit"), which plan or item, or an extra step. 2-5 short options; '
+        "an option's action is the exact call to run if chosen. The server keeps the question for answer_followup, even if chat memory is lost. "
+        "Pass followup to ask a suggested_followup. If the host supports it, the person answers here directly."),
+              annotations=annotations(read_only=False))
+    async def ask_followup(
+        ctx: Context,
+        question: Annotated[str | None, Field(max_length=300, description="The question, as you will say it.")] = None,
+        options: Annotated[list[FollowupOption] | None, Field(description="2 to 5 options.")] = None,
+        followup: Annotated[str | None, Field(description="Id of a suggested_followup to ask instead.")] = None,
+    ) -> dict[str, Any]:
+        pending = runner.run(ctx, "ask_followup", lambda m: engine.ask_followup(
+            m.id, question, [o.model_dump() for o in options or []], followup=followup))
+        if not isinstance(pending, dict) or not can_elicit(ctx):
+            return pending  # type: ignore[return-value]
+        # The host can ask the person itself (MCP elicitation): one question, one choice, and the server acts on the answer.
+        answer_model = create_model("FollowupAnswer", choice=(Literal[tuple(pending["options"])], Field(title="Answer")))  # type: ignore[call-overload]
+        try:
+            asked = await ctx.elicit(pending["question"], answer_model)
+        except Exception as exc:  # noqa: BLE001 - the host could not ask; the question stays open for the assistant to ask
+            log.info("elicitation failed, falling back to a spoken question: %s", exc)
+            return dict(pending, asked_by_host=False)
+        if asked.action != "accept":
+            dropped = runner.run(ctx, "answer_followup", lambda m: engine.dismiss_followup(m.id, pending["id"]))
+            return dropped if not isinstance(dropped, dict) else dict(dropped, outcome="declined" if asked.action == "decline" else "cancelled")
+        return runner.run(ctx, "answer_followup", lambda m: dict(engine.answer_followup(m.id, asked.data.choice, followup=pending["id"]),
+                                                                 asked_by_host=True))
+
+    @mcp.tool(title="Act on the speaker's answer", description=(
+        "The speaker answered a question: from ask_followup, a suggested_followup, an error's followup, or open_questions. Pass their words "
+        "(and the id when you have it); without an id the newest question they answer is used. The server runs the chosen option's action "
+        "as the speaker, with every permission check."),
+              annotations=annotations(read_only=False))
+    async def answer_followup(
+        ctx: Context,
+        choice: Annotated[str, Field(max_length=200, description='Their answer, e.g. "yeah", "the second one", "7:30".')],
+        followup: Annotated[str | None, Field(description="Question id. Default: the newest question you asked.")] = None,
+    ) -> dict[str, Any]:
+        return runner.run(ctx, "answer_followup", lambda m: engine.answer_followup(m.id, choice, followup=followup))
 
 
 __all__ = ["register", "INSTRUCTIONS", "NAMES"]

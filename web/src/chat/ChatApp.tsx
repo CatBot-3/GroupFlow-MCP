@@ -115,7 +115,9 @@ function AuthScreen({ invite, preview, onSession }: { invite: string | null; pre
 
 // ------------------------------------------------------------------ messages
 
-function Message({ m, mine, colors }: { m: ChatMessage; mine: boolean; colors: Record<string, string> }) {
+function Message({ m, mine, colors, onQuick }: {
+  m: ChatMessage; mine: boolean; colors: Record<string, string>; onQuick?: (answer: string) => void;
+}) {
   if (m.author === 'system') return <li className="chat-msg system"><span>{m.text}</span></li>;
   const alexa = m.author === 'assistant';
   const calls = (m.meta.calls ?? []).filter((c) => c.name !== 'get_context');
@@ -130,9 +132,15 @@ function Message({ m, mine, colors }: { m: ChatMessage; mine: boolean; colors: R
         <p className="chat-meta">
           <strong>{alexa ? 'Alexa' : mine ? 'You' : m.author_name}</strong>
           {alexa && m.meta.for && <span> answering {colors[`name:${m.meta.for}`] ?? 'someone'}</span>}
+          {alexa && m.meta.notice && <span className="chat-notice-tag" title="Someone asked Alexa to let you know">update{m.meta.plan ? ` · ${m.meta.plan}` : ''}</span>}
           <time dateTime={m.at}>{time(m.at)}</time>
         </p>
         <p className={alexa ? 'spoken' : undefined}>{m.text}</p>
+        {onQuick && m.meta.followup && (
+          <p className="chat-quick" role="group" aria-label="Quick answers (the server runs what you pick)">
+            {m.meta.followup.options.map((o) => <button key={o} type="button" className="ghost" onClick={() => onQuick(o)}>{o}</button>)}
+          </p>
+        )}
         {alexa && calls.length > 0 && (
           <p className="chat-tools" title="MCP tools Alexa called for this answer, and what the GroupFlow server decided">
             {calls.map((c, i) => <span key={i} className={c.ok ? '' : 'refused'}>{c.name.replace(/_/g, ' ')}{c.outcome ? ` · ${c.outcome.replace(/_/g, ' ')}` : ''}</span>)}
@@ -339,12 +347,12 @@ export function ChatApp() {
     void guard(fn).finally(() => setBusy(false));
   };
 
-  const send = () => {
-    const text = draft.trim();
+  const send = (spoken?: string) => {
+    const text = (spoken ?? draft).trim();
     if (!text || !room) return;
     act(async () => {
       const r = await chatApi.send(session, room.id, text);
-      setDraft('');
+      if (spoken === undefined) setDraft('');
       setMessages((all) => {
         const cur = all[room.id] ?? [];
         return cur.some((m) => m.id === r.message.id) ? all : { ...all, [room.id]: [...cur, r.message] };
@@ -356,6 +364,10 @@ export function ChatApp() {
   const pending = (inbox?.pending.length ?? 0) + (inbox?.conditions.filter((c) => c.status === 'unverified').length ?? 0);
   const organizer = room?.kind === 'group' && room.your_role === 'organizer';
   const roomMessages = room ? messages[room.id] ?? [] : [];
+  // Quick answers only on the newest message, and only for the person Alexa asked; tapping one simply says it.
+  const lastMessage = roomMessages[roomMessages.length - 1];
+  const quickFor = lastMessage?.author === 'assistant' && lastMessage.meta.followup && lastMessage.meta.for === me.member.id ? lastMessage.id : null;
+  const quick = (answer: string) => send(room?.kind === 'group' ? `@Alexa ${answer}` : answer);
 
   return (
     <div className="chat-app">
@@ -469,7 +481,8 @@ export function ChatApp() {
                 {roomMessages.length === 0 && (
                   <li className="chat-msg system"><span>{room.kind === 'group' ? 'Say hello. Start a message with @Alexa to ask the assistant, for example "@Alexa start a plan for Saturday".' : 'Ask Alexa anything about your plans.'}</span></li>
                 )}
-                {roomMessages.map((m) => <Message key={m.id} m={m} mine={m.author === me.member.id} colors={colors} />)}
+                {roomMessages.map((m) => <Message key={m.id} m={m} mine={m.author === me.member.id} colors={colors}
+                  onQuick={m.id === quickFor && !busy ? quick : undefined} />)}
                 {typing[room.id] && <li className="chat-msg alexa typing"><span className="chat-avatar" aria-hidden="true">A</span><div className="chat-bubble"><p>Alexa is working on {typing[room.id] === me.member.name ? 'your' : `${typing[room.id]}'s`} request…</p></div></li>}
               </ol>
               <form className="chat-compose" onSubmit={(e) => { e.preventDefault(); send(); }}>

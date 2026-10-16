@@ -2,7 +2,7 @@
 
 GroupFlow is a shared planning MCP server demonstrated through an Alexa+ web simulation. Four friends have agreed a Friday evening; their restaurant closes. The assistant reads their authorized shared memory, finds the smallest valid repair, preserves confirmations for unchanged parts, and asks each person to confirm only the changed dinner. The model can propose and commit a ready plan, but cannot give anyone's consent.
 
-There is one generic core with fourteen core MCP tools, two template discovery tools, five structured-project tools and two group tools. Ordinary item-based scenarios vary through YAML templates describing items, decision policies, private conditions and optional places. Structured long-term projects additionally use a dedicated interval scheduler and project workflow. The other scenarios are a test lab for the MCP structure and model behavior, rather than competing demo stories.
+There is one generic core with fourteen core MCP tools, two template discovery tools, five structured-project tools, two group tools and three tools for telling people and asking first. Ordinary item-based scenarios vary through YAML templates describing items, decision policies, private conditions and optional places. Structured long-term projects additionally use a dedicated interval scheduler and project workflow. The other scenarios are a test lab for the MCP structure and model behavior, rather than competing demo stories.
 
 Built for the **Build, Ship, Shape: Amazon Developer Hackathon 2026**, Alexa+ track (self-hosted MCP server, spec 2025-11-25, Streamable HTTP).
 
@@ -27,6 +27,10 @@ The demo world is fixed; the group chat is not. Open http://localhost:8788/chat 
 In a room, everyone reads Alexa's reply, so the chat tells the MCP server who is listening (`X-GroupFlow-Listeners: group:<id>`), and the server narrows the speaker's scope to what every listener may see: Linda's surprise party is not in the family room at all, and nobody's private limits are read out to the group. The same declaration would serve a shared kitchen Echo. People join groups only with an invite they accept themselves, and let an assistant act for them only by linking it on their own page (simulated account linking, revocable). Read [the design, privacy model and limits](docs/GROUP_CHAT.md).
 
 ![The group chat: a new group with its invite link, a join notice, and two people talking](docs/img/group-chat-room.png)
+
+## Telling people and asking first (v0.7)
+
+A decision helps only if the people it affects hear about it, and an assistant should ask rather than guess. `notify_people` tells people by their role in a plan (everyone, organizers, participants, owners, whoever's answer is still needed) or by name; the server picks the recipients, never past who can see the plan, writes the facts from the plan itself, adds what each person has to do, skips people who are listening already, and refuses a note that mentions a plan kept from a recipient. After a decision, results carry the server's offer ("Want me to let Bob know that the venue is now Lucky Star?") to the people the change did not already reach, with the exact call behind its yes. `ask_followup` keeps the assistant's clarifying question and the exact call behind each answer on the server, so a reply like "the 7:30 one" runs precisely the change that was offered, even after Alexa's chat memory is lost; with streamed responses the server can ask through the host itself (MCP elicitation). A time change from words that name no time ("a bit later") is refused until someone asks. Read [the design, the rules and how it is evaluated](docs/TELLING_PEOPLE.md).
 
 ## What it looks like
 
@@ -157,6 +161,9 @@ You need Python 3.10 or newer. Node is only needed if you want to change the web
 | `repair_project` | Propose a minimally changed parallel interval schedule; never approve or commit |
 | `create_group` | Start a group with the speaker as organizer; nobody else is added |
 | `invite_to_group` | Organizer: make an invite code and link; each person accepts it on their own page |
+| `notify_people` | Tell people about an update by role (everyone, organizers, participants, owners, needs_answer) or name; only people who can see the plan; changes nothing |
+| `ask_followup` | Ask before guessing; the server keeps the question and the exact call behind each option, or asks through the host when it supports elicitation |
+| `answer_followup` | Run the option the speaker picked, as the speaker, with every permission check |
 
 There is deliberately no tool that approves, declines or withdraws, accepts an invite or links an account. A host may declare who else will read a reply with the `X-GroupFlow-Listeners` header; the server then answers only with what every listener may see.
 
@@ -185,7 +192,7 @@ Templates are discovered from YAML at process startup. Adding a template does no
 python -m pytest                          # engine, templates, MCP transport, human API, solver, agent, simulator, evaluation runner
 python -m groupflow eval --list           # 108 scenarios, 212 model turns
 python -m groupflow eval --out report.md  # runs them with the configured LLM
-python -m groupflow eval --suite realistic --runs 3 --out realistic.md   # held-out: colloquial, noisy, several plans, group chats
+python -m groupflow eval --suite realistic --runs 3 --out realistic.md   # held-out: colloquial, noisy, several plans, group chats, telling people, asking first
 python -m groupflow eval --leakage        # which scenario sentences also appear in the prompt or tool text
 python -m groupflow evidence              # rewrites docs/PROTOCOL_EVIDENCE.md from a live run
 python scripts/measure_context.py         # local scripted-provider request size, no paid model calls
@@ -199,7 +206,7 @@ python scripts/benchmark_projects.py      # interval-model scaling, separate fro
 
 The solver tests cross-check enumeration and CP-SAT against brute force on generated instances. The evaluation scenarios cover single requests, references inside one conversation, news that reaches someone through the server, answers that went stale, Alexa's chat memory being wiped, long stories, the full dinner loop, attempts to shortcut it, the trip, meeting, chores and study templates, plans made on the spot and people with several plans. Six safety counters track wrong auto-confirmations, hidden-plan disclosures, approvals made during an Alexa turn, commits without every confirmation, private conditions reaching another member, and private notes entering shared scope. [Evaluation results](docs/EVALUATION.md) separate complete API runs, interrupted repetitions and deterministic checks.
 
-v0.6 local validation passed **460 tests** and the production frontend build, including the 30 realistic held-out scenarios replayed with their reference trajectories and negative controls; the realistic suite has not yet been scored with a paid model. v0.6 also rewrote every prompt and tool-description example into everyday casual speech, so the paid-model results below were measured with the earlier wording. v0.5 local validation passed **362 tests** and the production frontend build. The final paid-model snapshot completed **107/108** original scenarios; two additional repetitions were interrupted by provider HTTP 402 (insufficient balance). The eight additional structure cases scored **23/24** over three repetitions; enterprise single-turn checks passed **8/8**, and the multi-person lifecycle passed **3/3** (36 model turns). These are synthetic tests, not an independent user study. The saved demo and memory map remain inspectable; new chats require available provider balance. See the evaluation document for failures and source boundaries.
+v0.7 local validation passed **505 tests** and the production frontend build, including the ten follow-up scenarios (telling people, asking first) replayed with their reference trajectories and negative controls, and MCP elicitation over a streamed server with the official SDK client; no paid model has scored them yet. v0.6 local validation passed **460 tests** and the production frontend build, including the 30 realistic held-out scenarios replayed with their reference trajectories and negative controls; the realistic suite has not yet been scored with a paid model. v0.6 also rewrote every prompt and tool-description example into everyday casual speech, so the paid-model results below were measured with the earlier wording. v0.5 local validation passed **362 tests** and the production frontend build. The final paid-model snapshot completed **107/108** original scenarios; two additional repetitions were interrupted by provider HTTP 402 (insufficient balance). The eight additional structure cases scored **23/24** over three repetitions; enterprise single-turn checks passed **8/8**, and the multi-person lifecycle passed **3/3** (36 model turns). These are synthetic tests, not an independent user study. The saved demo and memory map remain inspectable; new chats require available provider balance. See the evaluation document for failures and source boundaries.
 
 ## Configuration
 
@@ -216,6 +223,7 @@ All settings have local defaults; see `.env.example`.
 | `GROUPFLOW_SIGNUP` | `open` | Group chat sign-up: `open`, `invite` (needs an invite code) or `off` |
 | `GROUPFLOW_JOIN_URL` | `http://localhost:8788/chat` | Base of invite links returned by `invite_to_group` |
 | `GROUPFLOW_CHAT_DB` | next to `GROUPFLOW_DB` | The group chat's messages and the tokens people linked to it |
+| `GROUPFLOW_MCP_RESPONSES` | `json` | `sse` streams MCP responses, which lets `ask_followup` ask the person through a host that supports elicitation |
 
 ## Project layout
 

@@ -24,7 +24,7 @@ _SCHEMAS: list[tuple[str, str]] = []
 
 # Schemas added after the first release, in the order they appeared. Each only adds tables, so a file
 # recorded without some of them is upgraded in place by the same CREATE TABLE IF NOT EXISTS script.
-ADDITIVE_SCHEMAS = ("collaboration_v1", "accounts_v1")
+ADDITIVE_SCHEMAS = ("collaboration_v1", "accounts_v1", "followups_v1")
 
 
 def register_schema(name: str, sql: str) -> None:

@@ -132,6 +132,32 @@ def bare_weekday_dates(quote: str, current: str, plan_start: str) -> list:
     return out
 
 
+_VAGUE_WHEN = re.compile(
+    r"\b(?:a (?:bit|little|tad|smidge)(?: (?:later|earlier|sooner|after|before))?|(?:bit|little) (?:later|earlier|sooner)|later|earlier|sooner|"
+    r"sometime|some time|whenever|at some point|another (?:day|time|night|evening|weekend)|(?:a|one) of these days|a few (?:days|hours|weeks)|"
+    r"(?:push|pushed|pushing|bump|bumped|bumping|move|moved|moving|shift|shifted) (?:it|this|that|things|\w+) (?:back|up|forward)|"
+    r"(?:push|bump|move|shift) back|(?:push|bump|move) up)\b", re.I)
+_NUM_WORDS = r"(?:two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)"
+_EXPLICIT_WHEN = re.compile(
+    # Clock times, amounts and dates ("7", "7:30pm", "45 min", "the 28th", "11/20"), but not a number inside a name ("her 60th").
+    r"\b\d{1,2}(?::\d{2})?(?:\s*(?:am|pm|ish|h|hrs?|mins?|minutes|hours))?\b|\b(?:[12]?\d|3[01])(?:st|nd|rd|th)\b|\b\d{1,2}/\d{1,2}\b|\b\d{4}-\d{2}-\d{2}\b|"
+    r"\b(?:noon|midday|midnight|today|tonight|tomorrow|tmrw|tmr|an? (?:hour|day|week)|" + _NUM_WORDS + r"|"
+    r"half (?:past|an? hour|hour|one|" + _NUM_WORDS + r")|and a half|quarter (?:past|to|after|of)|"
+    r"(?:at|by|around|till|until|from) one|one (?:o'?clock|thirty|fifteen|forty|pm|am|ish)|"
+    r"sun|mon|tue|tues|wed|thu|thur|thurs|fri|sat|sunday|monday|tuesday|wednesday|thursday|friday|saturday|"
+    r"jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec|january|february|march|april|june|july|august|september|october|november|december)\b", re.I)
+
+
+def vague_when(quote: str) -> str | None:
+    """The words that leave a time open ("push it back a bit", "sometime next week"), when the quote names no time, day, date or
+    amount at all. A model would have to invent the exact time, so the server asks for it to be asked instead. None when concrete."""
+    said = (quote or "").replace("’", "'")
+    hit = _VAGUE_WHEN.search(said)
+    if not hit or _EXPLICIT_WHEN.search(said):
+        return None
+    return hit.group(0)
+
+
 def parse_count(value: str) -> int | None:
     text = value.lower()
     digits = re.search(r"\b(\d{1,4})\b", text)

@@ -43,6 +43,14 @@ GroupFlow is a hackathon build. These are the boundaries we know about, so nobod
 22. **Membership changes.** Joining or leaving a group changes who a plan is for, so a version out for confirmation must be sent again (unchanged answers carry forward). A person who leaves stops seeing the group's shared plans at once, but activities that list them as a participant still need the organizer to update who is coming. Only organizers create invites.
 23. **The realistic held-out suite has not been scored with a paid model yet.** Its 30 scenarios are validated deterministically (each is solvable and each fails under trivial policies); run it with a configured provider before quoting a pass rate.
 
+## Telling people and asking first (v0.7)
+
+24. **Notices are pulled.** `notify_people` keeps each notice on the server until the person next talks to their assistant (it is in their `get_context` updates); the group chat posts it to their private thread at once. Nothing reaches a phone or an Echo by itself.
+25. **The note check is a phrase check.** A note that names a plan kept from a recipient (its title or a place or text value) is refused, but a paraphrase can pass. The facts in a notice cannot leak, because recipients are limited to people who can see the plan.
+26. **Elicitation is opt-in and untested on Alexa+.** It needs `GROUPFLOW_MCP_RESPONSES=sse` and a host that declares form elicitation; it is tested over real MCP with the official SDK client only. It is never used for consent.
+27. **Offers and answers are heuristics.** The server offers to tell the others only after decisions on details. An answer without a question id is matched against the newest pending questions by label, time, position, yes or no, and shared words; an answer that matches nothing is refused rather than guessed. The vague-time guard covers time changes whose words name no time, day, date or amount; vagueness about other things is left to the assistant.
+28. **The follow-up suite has not been scored with a paid model.** Its ten scenarios are validated like the realistic suite, and they were written in the same change as the feature.
+
 ## Visualization and final validation boundaries (v0.5)
 
 The memory visualization maps identity-filtered MCP results, not all database records or hidden model reasoning. A fresh panel snapshot is separate from the recorded last model turn; results are marked as delivered only after a subsequent model request consumes them. Missing nodes can reflect pagination or summary limits. The simulator's selectable personas are test identities, not production account linking.

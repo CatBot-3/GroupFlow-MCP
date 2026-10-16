@@ -22,12 +22,15 @@
 # prompt change was tuned on its results, and the rewrite's examples share no 4-word sequence with these sentences.
 # The same change widened four server guards to casual phrasings ("not doing X", "isn't coming", "keep this to myself",
 # "im"); RL11 uses one of them ("def not doing"), so that scenario is not fully independent of the change.
+# Re-frozen a second time (v0.7, sha256:3fbb43e6... before) after three tools were added for telling people and asking first
+# (notify_people, ask_followup, answer_followup), with a paragraph in the host prompt and one sentence in the server instructions.
+# Still never run against a model, so nothing was tuned on these results; the new text shares no 5-word sequence with this file.
 #
 # room: <group> means the turn comes from that group's chat: chat steps are messages people wrote to
 # each other (no model call), and everyone in the room reads Alexa's reply. Without room the person
 # talks to Alexa alone (their Echo or private thread).
 world: eval/worlds/realistic.yaml
-frozen_prompt_sha256: "sha256:3fbb43e6974b4fc6fbe35977622e86e088548a592fdc30b02792b6934b19dc55"
+frozen_prompt_sha256: "sha256:2fdf77bc0e9b25a1aa7d9d92a590f69f25f92528f867702382624163da03b91b"
 scenarios:
 
 # ------------------------------------------------------------------ requests buried in noise

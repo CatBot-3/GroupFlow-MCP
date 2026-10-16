@@ -229,3 +229,30 @@ async def test_a_link_revoked_on_the_persons_page_stops_the_assistant(chat):
     sent = await maya.say(f"dm:{maya.id}", "What's on this week?")
     reply = await wait_for_reply(maya, f"dm:{maya.id}", sent["message"]["id"])
     assert reply["meta"]["error"] == "not_linked" and not chat.model.requests
+
+
+async def test_telling_people_reaches_their_private_threads_and_a_question_gets_quick_answers(chat):
+    alice = await sign_in(chat, "alice", "alice-demo")
+    chat.model.push(
+        {"tool_calls": [{"name": "notify_people", "arguments": {"plan": "home", "note": "grabbing milk on the way home"}}]},
+        {"text": "Told Bob, Charlie and Linda."},
+    )
+    sent = await alice.say("dm:alice", "tell the fam I'm grabbing milk on the way home")
+    reply = await wait_for_reply(alice, "dm:alice", sent["message"]["id"])
+    assert reply["meta"]["calls"] == [{"name": "notify_people", "ok": True, "outcome": "sent"}]
+    linda = await sign_in(chat, "linda", "linda-demo")
+    thread = (await linda.get("/api/chat/rooms/dm:linda/messages")).json()["messages"]
+    assert thread[-1]["author"] == "assistant" and thread[-1]["meta"]["notice"] is True
+    assert thread[-1]["text"].startswith("Alice asked Alexa to let you know about Home") and "grabbing milk" in thread[-1]["text"]
+    # Nobody else's thread gets it, and Alice's own thread only has her conversation.
+    assert not [m for m in (await alice.get("/api/chat/rooms/dm:alice/messages")).json()["messages"] if m["meta"].get("notice")]
+
+    later = [{"label": "7 pm", "action": {"tool": "propose_change", "arguments": {"item": "party.date", "value": "Saturday, Oct 24, 7:00 pm"}}},
+             {"label": "7:30 pm", "action": {"tool": "propose_change", "arguments": {"item": "party.date", "value": "Saturday, Oct 24, 7:30 pm"}}}]
+    chat.model.push(
+        {"tool_calls": [{"name": "ask_followup", "arguments": {"question": "Push it to 7 or 7:30?", "options": later}}]},
+        {"text": "Sure, 7 or 7:30?"},
+    )
+    sent = await alice.say("dm:alice", "can we push the party back a bit")
+    reply = await wait_for_reply(alice, "dm:alice", sent["message"]["id"])
+    assert reply["meta"]["followup"]["options"] == ["7 pm", "7:30 pm"] and reply["meta"]["for"] == "alice"

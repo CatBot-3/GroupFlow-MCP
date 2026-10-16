@@ -16,9 +16,9 @@ GroupFlow's central rule is that the agent can never agree for a person. Approva
 
 ## 3. Telling a specific person something
 
-When a plan breaks (a venue closes, someone withdraws), the affected people should hear it. GroupFlow can only queue notifications and deliver them the next time someone talks to Alexa.
+When a plan breaks (a venue closes, someone withdraws), the affected people should hear it. Since v0.7 GroupFlow has a `notify_people` tool that picks recipients by their role in a plan (organizers, participants, owners, whoever's answer is pending), never past who can see the plan, and writes each notice from the plan's own state. But it can only keep the notice until the person next talks to Alexa: we found no documented way for an MCP add-on to start a conversation or raise a notification.
 
-**Ask:** a way for an MCP server to send a notification to a specific linked person, rate-limited and opt-in, delivered by Alexa as a notification rather than by the model.
+**Ask:** a way for an MCP server to send a notification to a specific linked person, rate-limited and opt-in, delivered by Alexa as a notification rather than by the model. GroupFlow already produces exactly the payload this needs: one recipient, one plan, a short text written for that person.
 
 ## 4. Clear protocol and capability support
 
@@ -37,3 +37,9 @@ Testing GroupFlow meant building a simulator with thirteen people in five groups
 The biggest quality gains came from tool descriptions and server instructions, not code: telling the model which words are hedges, that a negation is never a value, that it must not claim a change unless a tool call made it, and that the server, not the model, decides permissions.
 
 **Ask:** published guidance on how Alexa+ uses server `instructions` and tool descriptions (length limits, precedence over its own prompt), and an evaluation harness for add-on developers.
+
+## 7. What an elicitation answer means
+
+The MCP toolkit documentation says Alexa+ first tries to gather missing details from context and then uses MCP elicitation to ask the customer. GroupFlow 0.7 uses elicitation for clarifying questions ("7:00 or 7:30?") and runs the chosen option as the speaker, with every permission check, so an answer can do nothing the speaker could not ask for anyway. It deliberately does not use elicitation for consent, because if the client may fill an elicitation from context, an elicited "yes" is not proof that the person said it.
+
+**Ask:** document when Alexa+ asks the customer and when it answers an elicitation itself, which response modes and form shapes it supports (single choice from an enum, free text), how it reads a choice list aloud, and what a decline or a timeout returns. A flag in the elicitation result saying "answered by the customer" would let servers use it for more than clarifications.

@@ -11,9 +11,10 @@ from .agreement import Agreement
 from .collaboration import Collaboration
 from .core import LISTENERS, UNSET, Scope, fixed_clock
 from .membership import Membership
+from .notices import Notices
 
 
-class GroupFlow(Membership, Collaboration, Agreement):
+class GroupFlow(Notices, Membership, Collaboration, Agreement):
     """Everything the MCP tools, the human-only API and the demo console call."""
 
     def __init__(self, db: Db, identity: Identity | None = None, solver_budget_s: float = 3.0, method: str = "auto"):

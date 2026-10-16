@@ -36,6 +36,7 @@ from groupflow.templates import Template, get_template, load_templates
 from . import schema  # noqa: F401  (registers the tables)
 from .text import (
     canonical, dates_text, humanize, normalize_slot_key, same_value, slugify, stem_word, topic_stems, bare_weekday_dates, parse_datetime,
+    vague_when,
 )
 from .views import (
     BlockerPath, ChangeResult, ConditionView, ContextView, DecisionResult, DetailView, ExplainView, FlagView, HistoryEntry, HistoryView,
@@ -942,6 +943,15 @@ class Core:
                     selected = matches[0]
                     raise DomainError("ITEM_TYPE_MISMATCH", f"That explicit list uses new_type={selected.name} ({selected.policy} policy), not {new_type}. Retry with the template's named list type.")
             activity_fields = any(x is not None for x in (day, start, end, place, participants))
+            when_change = (target is not None and target["shape"] == "detail" and target["value_kind"] == "datetime" and bool(value)) or \
+                          ((target is None or target["shape"] == "activity") and any(x is not None for x in (day, start, end)))
+            open_words = vague_when(quote) if quote and when_change else None
+            if open_words:
+                current = self._current_value(target) if target is not None and target["shape"] == "detail" else None
+                raise DomainError("VAGUE_TIME", f'The speaker did not say exactly when ("{open_words}"), so nothing changed. Ask which time they mean '
+                                  "before changing anything: ask_followup with two or three concrete times as options (each option's action is this "
+                                  "same change with that time), or ask in your reply and record the time they give.",
+                                  {"said": open_words, **({"current": current} if current else {})})
 
             if target is None:
                 # A new item. Which shape: from the type, else from the fields given. Without a type or a title, an unknown

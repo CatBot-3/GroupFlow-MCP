@@ -8,7 +8,7 @@ viewer from what that viewer may see.
 """
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -224,6 +224,8 @@ class ContextView(BaseModel):
     group_next_offset: int | None = None
     shared_with: list[str] = Field(default_factory=list, description="Other people who will read or hear this reply (a group chat, a shared device). Empty: only the speaker.")
     shared_note: str | None = None
+    open_questions: list[dict[str, Any]] = Field(default_factory=list, description=(
+        "Questions the assistant asked this speaker that are still unanswered (newest first). If the speaker's words answer one, call answer_followup."))
 
 
 # ---------------------------------------------------------------- search
@@ -273,6 +275,9 @@ class ChangeResult(BaseModel):
     impacts: ImpactView | None = None
     plan_status: PlanStatus | None = None
     problems: list[str] = Field(default_factory=list, description="Hard conditions the changed version would break (no names).")
+    suggested_followup: dict[str, Any] | None = Field(default=None, description=(
+        "A next step the server offers (e.g. telling the others about this decision). Ask it at the end of your reply; if the speaker agrees, "
+        "call answer_followup with its id."))
 
 
 class CreatePlanResult(BaseModel):
@@ -357,6 +362,9 @@ class DecisionResult(BaseModel):
     item: str | None = None
     impacts: ImpactView | None = None
     plan_status: PlanStatus | None = None
+    suggested_followup: dict[str, Any] | None = Field(default=None, description=(
+        "A next step the server offers (e.g. telling the others about this decision). Ask it at the end of your reply; if the speaker agrees, "
+        "call answer_followup with its id."))
 
 
 # ---------------------------------------------------------------- explain and history

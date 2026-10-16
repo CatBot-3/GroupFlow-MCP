@@ -1,6 +1,6 @@
 # Protocol evidence
 
-Captured 2026-10-16T21:00:51Z by `python -m groupflow evidence` (Python 3.13.16, MCP Python SDK 2.3.0, Linux).
+Captured 2026-10-16T22:34:16Z by `python -m groupflow evidence` (Python 3.13.16, MCP Python SDK 2.3.0, Linux).
 
 GroupFlow is a remote MCP server: Streamable HTTP on `/mcp`, JSON-RPC 2.0, protocol version **2025-11-25**, bearer-token identity. Everything below is the real traffic of one run against a throwaway database; only the tokens are redacted.
 
@@ -38,7 +38,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: a1c569e28c7849d49ef13f16cfd403a1
+mcp-session-id: f9b58b3e070949b19328364fc9963c59
 
 {
   "jsonrpc": "2.0",
@@ -56,12 +56,12 @@ mcp-session-id: a1c569e28c7849d49ef13f16cfd403a1
         "listChanged": false
       }
     },
-    "instructions": "GroupFlow keeps shared, permission-checked plans. The connection fixes the speaker. Start each turn with get_context(detail='summary'); read one plan in full when needed. Discover templates in the short directory or list_templates, then get_template for one specification. Record statements with propose_change; hedged ideas are tentative. Owner items wait for their owner, open items allow any member, and activities need each person's own page confirmation followed by organizer commit. You can never confirm, decline or withdraw for anyone; reported group agreement changes no approvals. Report tool outcomes exactly. The server filters visibility and private conditions. create_group starts a group and invite_to_group makes a code; people join only on their own page. When get_context lists shared_with, those people also read the reply and only plans all of them can see are included.",
+    "instructions": "GroupFlow keeps shared, permission-checked plans. The connection fixes the speaker. Start each turn with get_context(detail='summary'); People talk casually (slang, typos, jokes, venting, side chatter): act only on what they ask or state about a plan, let the last version of a self-correction win, and change nothing for chatter. read one plan in full when needed. Discover templates in the short directory or list_templates, then get_template for one specification. Record statements with propose_change; hedged ideas are tentative. Owner items wait for their owner, open items allow any member, and activities need each person's own page confirmation followed by organizer commit. You can never confirm, decline or withdraw for anyone; reported group agreement changes no approvals. Report tool outcomes exactly. The server filters visibility and private conditions. create_group starts a group and invite_to_group makes a code; people join only on their own page. When get_context lists shared_with, those people also read the reply and only plans all of them can see are included. To tell others about a decision use notify_people; it reaches only people who can see the plan. If a result has suggested_followup, offer it at the end of your reply and pass their answer to answer_followup. Never guess a vague time, amount or plan: ask with ask_followup (concrete options, each with the exact call), then send their reply to answer_followup. get_context lists open_questions.",
     "protocolVersion": "2025-11-25",
     "serverInfo": {
       "name": "groupflow",
       "title": "GroupFlow",
-      "version": "0.6.0"
+      "version": "0.7.0"
     }
   }
 }
@@ -78,7 +78,7 @@ POST /mcp HTTP/1.1
 content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <alice's token>
-mcp-session-id: a1c569e28c7849d49ef13f16cfd403a1
+mcp-session-id: f9b58b3e070949b19328364fc9963c59
 mcp-protocol-version: 2025-11-25
 
 {
@@ -92,14 +92,14 @@ Response:
 ```http
 HTTP/1.1 202 Accepted
 content-type: application/json
-mcp-session-id: a1c569e28c7849d49ef13f16cfd403a1
+mcp-session-id: f9b58b3e070949b19328364fc9963c59
 
 "(empty body)"
 ```
 
 ### tools/list
 
-Everyone gets the same 23 generic tools (14 core, 2 template discovery, 5 structured-project, 2 group tools); none can approve an activity, accept an invite or link an account. Each has an input schema, an output schema and annotations.
+Everyone gets the same 26 generic tools (14 core, 2 template discovery, 5 structured-project, 2 group tools, 3 for telling people and asking first); none can approve an activity, accept an invite or link an account. Each has an input schema, an output schema and annotations.
 
 Request:
 
@@ -108,7 +108,7 @@ POST /mcp HTTP/1.1
 content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <alice's token>
-mcp-session-id: a1c569e28c7849d49ef13f16cfd403a1
+mcp-session-id: f9b58b3e070949b19328364fc9963c59
 mcp-protocol-version: 2025-11-25
 
 {
@@ -123,7 +123,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: a1c569e28c7849d49ef13f16cfd403a1
+mcp-session-id: f9b58b3e070949b19328364fc9963c59
 
 {
   "jsonrpc": "2.0",
@@ -152,7 +152,10 @@ mcp-session-id: a1c569e28c7849d49ef13f16cfd403a1
       "manage_recurrence",
       "repair_project",
       "create_group",
-      "invite_to_group"
+      "invite_to_group",
+      "notify_people",
+      "ask_followup",
+      "answer_followup"
     ],
     "first tool in full": {
       "annotations": {
@@ -251,7 +254,7 @@ POST /mcp HTTP/1.1
 content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <alice's token>
-mcp-session-id: a1c569e28c7849d49ef13f16cfd403a1
+mcp-session-id: f9b58b3e070949b19328364fc9963c59
 mcp-protocol-version: 2025-11-25
 
 {
@@ -272,7 +275,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: a1c569e28c7849d49ef13f16cfd403a1
+mcp-session-id: f9b58b3e070949b19328364fc9963c59
 
 {
   "jsonrpc": "2.0",
@@ -341,7 +344,7 @@ POST /mcp HTTP/1.1
 content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <linda's token>
-mcp-session-id: 796177741872487c9c3edce72dbb1bdb
+mcp-session-id: 34442d15b6354a4795c9422edfa99b46
 mcp-protocol-version: 2025-11-25
 
 {
@@ -362,7 +365,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: 796177741872487c9c3edce72dbb1bdb
+mcp-session-id: 34442d15b6354a4795c9422edfa99b46
 
 {
   "jsonrpc": "2.0",
@@ -402,7 +405,7 @@ POST /mcp HTTP/1.1
 content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <linda's token>
-mcp-session-id: 796177741872487c9c3edce72dbb1bdb
+mcp-session-id: 34442d15b6354a4795c9422edfa99b46
 mcp-protocol-version: 2025-11-25
 
 {
@@ -423,7 +426,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: 796177741872487c9c3edce72dbb1bdb
+mcp-session-id: 34442d15b6354a4795c9422edfa99b46
 
 {
   "jsonrpc": "2.0",
@@ -475,7 +478,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: 22a15b8f88be42fc8b0e280be867eaaf
+mcp-session-id: 615dacc5b8d04d35ae22dc959b823ef1
 
 {
   "jsonrpc": "2.0",
@@ -493,12 +496,12 @@ mcp-session-id: 22a15b8f88be42fc8b0e280be867eaaf
         "listChanged": false
       }
     },
-    "instructions": "GroupFlow keeps shared, permission-checked plans. The connection fixes the speaker. Start each turn with get_context(detail='summary'); read one plan in full when needed. Discover templates in the short directory or list_templates, then get_template for one specification. Record statements with propose_change; hedged ideas are tentative. Owner items wait for their owner, open items allow any member, and activities need each person's own page confirmation followed by organizer commit. You can never confirm, decline or withdraw for anyone; reported group agreement changes no approvals. Report tool outcomes exactly. The server filters visibility and private conditions. create_group starts a group and invite_to_group makes a code; people join only on their own page. When get_context lists shared_with, those people also read the reply and only plans all of them can see are included.",
+    "instructions": "GroupFlow keeps shared, permission-checked plans. The connection fixes the speaker. Start each turn with get_context(detail='summary'); People talk casually (slang, typos, jokes, venting, side chatter): act only on what they ask or state about a plan, let the last version of a self-correction win, and change nothing for chatter. read one plan in full when needed. Discover templates in the short directory or list_templates, then get_template for one specification. Record statements with propose_change; hedged ideas are tentative. Owner items wait for their owner, open items allow any member, and activities need each person's own page confirmation followed by organizer commit. You can never confirm, decline or withdraw for anyone; reported group agreement changes no approvals. Report tool outcomes exactly. The server filters visibility and private conditions. create_group starts a group and invite_to_group makes a code; people join only on their own page. When get_context lists shared_with, those people also read the reply and only plans all of them can see are included. To tell others about a decision use notify_people; it reaches only people who can see the plan. If a result has suggested_followup, offer it at the end of your reply and pass their answer to answer_followup. Never guess a vague time, amount or plan: ask with ask_followup (concrete options, each with the exact call), then send their reply to answer_followup. get_context lists open_questions.",
     "protocolVersion": "2025-11-25",
     "serverInfo": {
       "name": "groupflow",
       "title": "GroupFlow",
-      "version": "0.6.0"
+      "version": "0.7.0"
     }
   }
 }
@@ -516,7 +519,7 @@ content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <alice's token>
 x-groupflow-listeners: group:family
-mcp-session-id: 22a15b8f88be42fc8b0e280be867eaaf
+mcp-session-id: 615dacc5b8d04d35ae22dc959b823ef1
 mcp-protocol-version: 2025-11-25
 
 {
@@ -537,7 +540,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: 22a15b8f88be42fc8b0e280be867eaaf
+mcp-session-id: 615dacc5b8d04d35ae22dc959b823ef1
 
 {
   "jsonrpc": "2.0",
@@ -584,7 +587,7 @@ content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <alice's token>
 x-groupflow-listeners: group:family
-mcp-session-id: 22a15b8f88be42fc8b0e280be867eaaf
+mcp-session-id: 615dacc5b8d04d35ae22dc959b823ef1
 mcp-protocol-version: 2025-11-25
 
 {
@@ -607,7 +610,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: 22a15b8f88be42fc8b0e280be867eaaf
+mcp-session-id: 615dacc5b8d04d35ae22dc959b823ef1
 
 {
   "jsonrpc": "2.0",
@@ -658,7 +661,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: 81fe580dcb854039aabb71efcdd24cd8
+mcp-session-id: 10ae1d277e9c45f68d2401f448e144ee
 
 {
   "jsonrpc": "2.0",
@@ -676,12 +679,12 @@ mcp-session-id: 81fe580dcb854039aabb71efcdd24cd8
         "listChanged": false
       }
     },
-    "instructions": "GroupFlow keeps shared, permission-checked plans. The connection fixes the speaker. Start each turn with get_context(detail='summary'); read one plan in full when needed. Discover templates in the short directory or list_templates, then get_template for one specification. Record statements with propose_change; hedged ideas are tentative. Owner items wait for their owner, open items allow any member, and activities need each person's own page confirmation followed by organizer commit. You can never confirm, decline or withdraw for anyone; reported group agreement changes no approvals. Report tool outcomes exactly. The server filters visibility and private conditions. create_group starts a group and invite_to_group makes a code; people join only on their own page. When get_context lists shared_with, those people also read the reply and only plans all of them can see are included.",
+    "instructions": "GroupFlow keeps shared, permission-checked plans. The connection fixes the speaker. Start each turn with get_context(detail='summary'); People talk casually (slang, typos, jokes, venting, side chatter): act only on what they ask or state about a plan, let the last version of a self-correction win, and change nothing for chatter. read one plan in full when needed. Discover templates in the short directory or list_templates, then get_template for one specification. Record statements with propose_change; hedged ideas are tentative. Owner items wait for their owner, open items allow any member, and activities need each person's own page confirmation followed by organizer commit. You can never confirm, decline or withdraw for anyone; reported group agreement changes no approvals. Report tool outcomes exactly. The server filters visibility and private conditions. create_group starts a group and invite_to_group makes a code; people join only on their own page. When get_context lists shared_with, those people also read the reply and only plans all of them can see are included. To tell others about a decision use notify_people; it reaches only people who can see the plan. If a result has suggested_followup, offer it at the end of your reply and pass their answer to answer_followup. Never guess a vague time, amount or plan: ask with ask_followup (concrete options, each with the exact call), then send their reply to answer_followup. get_context lists open_questions.",
     "protocolVersion": "2025-11-25",
     "serverInfo": {
       "name": "groupflow",
       "title": "GroupFlow",
-      "version": "0.6.0"
+      "version": "0.7.0"
     }
   }
 }
@@ -698,7 +701,7 @@ POST /mcp HTTP/1.1
 content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <maya (linked)'s token>
-mcp-session-id: 81fe580dcb854039aabb71efcdd24cd8
+mcp-session-id: 10ae1d277e9c45f68d2401f448e144ee
 mcp-protocol-version: 2025-11-25
 
 {
@@ -719,7 +722,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: 81fe580dcb854039aabb71efcdd24cd8
+mcp-session-id: 10ae1d277e9c45f68d2401f448e144ee
 
 {
   "jsonrpc": "2.0",
@@ -767,7 +770,7 @@ POST /mcp HTTP/1.1
 content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <maya (linked)'s token>
-mcp-session-id: 81fe580dcb854039aabb71efcdd24cd8
+mcp-session-id: 10ae1d277e9c45f68d2401f448e144ee
 mcp-protocol-version: 2025-11-25
 
 {
@@ -786,7 +789,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: 81fe580dcb854039aabb71efcdd24cd8
+mcp-session-id: 10ae1d277e9c45f68d2401f448e144ee
 
 {
   "jsonrpc": "2.0",
@@ -794,7 +797,7 @@ mcp-session-id: 81fe580dcb854039aabb71efcdd24cd8
   "result": {
     "content": [
       {
-        "text": "{\n  \"outcome\": \"created\",\n  \"group\": {\n    \"id\": \"flatmates\",\n    \"name\": \"Flatmates\"\n  },\n  \"code\": \"QM65-RJ3R\",\n  \"expires_at\": \"2026-10-23T21:00:50.810Z\",\n  \"message\": \"Invite code for Flatmates: QM65-RJ3R. Share it; each person opens it and joins on their own GroupFlow page. Nobody can be added for them.\",\n  \"join_url\": \"http://localhost:8788/chat?invite=QM65-RJ3R\"\n}",
+        "text": "{\n  \"outcome\": \"created\",\n  \"group\": {\n    \"id\": \"flatmates\",\n    \"name\": \"Flatmates\"\n  },\n  \"code\": \"W9QX-NGUK\",\n  \"expires_at\": \"2026-10-23T22:34:15.772Z\",\n  \"message\": \"Invite code for Flatmates: W9QX-NGUK. Share it; each person opens it and joins on their own GroupFlow page. Nobody can be added for them.\",\n  \"join_url\": \"http://localhost:8788/chat?invite=W9QX-NGUK\"\n}",
         "type": "text"
       }
     ],
@@ -805,16 +808,430 @@ mcp-session-id: 81fe580dcb854039aabb71efcdd24cd8
         "id": "flatmates",
         "name": "Flatmates"
       },
-      "code": "QM65-RJ3R",
-      "expires_at": "2026-10-23T21:00:50.810Z",
-      "message": "Invite code for Flatmates: QM65-RJ3R. Share it; each person opens it and joins on their own GroupFlow page. Nobody can be added for them.",
-      "join_url": "http://localhost:8788/chat?invite=QM65-RJ3R"
+      "code": "W9QX-NGUK",
+      "expires_at": "2026-10-23T22:34:15.772Z",
+      "message": "Invite code for Flatmates: W9QX-NGUK. Share it; each person opens it and joins on their own GroupFlow page. Nobody can be added for them.",
+      "join_url": "http://localhost:8788/chat?invite=W9QX-NGUK"
     }
   }
 }
 ```
 
-## 5. Refusals
+## 5. Telling people and asking first
+
+### tools/call propose_change (a decision, and the server's offer)
+
+Alice owns the venue, so the change takes effect. The result carries the server's offer to tell the people who can see the plan and did not hear about it; Linda is not among them.
+
+Request:
+
+```http
+POST /mcp HTTP/1.1
+content-type: application/json
+accept: application/json, text/event-stream
+authorization: Bearer <alice's token>
+mcp-session-id: f9b58b3e070949b19328364fc9963c59
+mcp-protocol-version: 2025-11-25
+
+{
+  "jsonrpc": "2.0",
+  "id": 11,
+  "method": "tools/call",
+  "params": {
+    "name": "propose_change",
+    "arguments": {
+      "item": "party.venue",
+      "value": "Lucky Star karaoke",
+      "quote": "let's just do karaoke at lucky star"
+    }
+  }
+}
+```
+
+Response:
+
+```http
+HTTP/1.1 200 OK
+content-type: application/json
+mcp-session-id: f9b58b3e070949b19328364fc9963c59
+
+{
+  "jsonrpc": "2.0",
+  "id": 11,
+  "result": {
+    "structuredContent": {
+      "outcome": "confirmed",
+      "message": "Venue is now \"Lucky Star karaoke\" (was \"Rosa's Trattoria, back room\").",
+      "plan": "Linda's surprise party",
+      "item": "party.venue",
+      "request": null,
+      "impacts": {
+        "reopened": [
+          "Book Rosa's back room"
+        ],
+        "flagged": [
+          "Send invitations"
+        ],
+        "downstream": [
+          "Decorate the back room",
+          "Drive Linda to the party"
+        ],
+        "notified": [
+          "Charlie"
+        ],
+        "unblocked": []
+      },
+      "plan_status": null,
+      "problems": [],
+      "suggested_followup": {
+        "id": "fu_2017c07a",
+        "question": "Want me to let Bob know that Venue is now \"Lucky Star karaoke\"?",
+        "options": [
+          "yes",
+          "no"
+        ]
+      }
+    }
+  }
+}
+```
+
+### tools/call answer_followup
+
+Alice says yes. The server matches her words to the offer and runs exactly the notify_people call behind it, as Alice. Each notice is written by the server from the plan's state.
+
+Request:
+
+```http
+POST /mcp HTTP/1.1
+content-type: application/json
+accept: application/json, text/event-stream
+authorization: Bearer <alice's token>
+mcp-session-id: f9b58b3e070949b19328364fc9963c59
+mcp-protocol-version: 2025-11-25
+
+{
+  "jsonrpc": "2.0",
+  "id": 12,
+  "method": "tools/call",
+  "params": {
+    "name": "answer_followup",
+    "arguments": {
+      "choice": "yeah go for it"
+    }
+  }
+}
+```
+
+Response:
+
+```http
+HTTP/1.1 200 OK
+content-type: application/json
+mcp-session-id: f9b58b3e070949b19328364fc9963c59
+
+{
+  "jsonrpc": "2.0",
+  "id": 12,
+  "result": {
+    "structuredContent": {
+      "outcome": "answered",
+      "id": "fu_2017c07a",
+      "question": "Want me to let Bob know that Venue is now \"Lucky Star karaoke\"?",
+      "choice": "yes",
+      "action": {
+        "tool": "notify_people",
+        "ok": true,
+        "result": {
+          "outcome": "sent",
+          "plan": "Linda's surprise party",
+          "about": [
+            "Venue"
+          ],
+          "recipients": [
+            {
+              "id": "bob",
+              "name": "Bob",
+              "role": "fyi",
+              "text": "Alice asked Alexa to let you know about Linda's surprise party: Venue is \"Lucky Star karaoke\"."
+            }
+          ],
+          "skipped": [],
+          "message": "Told Bob. They hear it next time they talk to Alexa or open GroupFlow. Nothing in the plan changed, and nobody's agreement was given."
+        }
+      },
+      "message": "Ran notify_people as they chose; report its outcome exactly."
+    }
+  }
+}
+```
+
+### tools/call notify_people with a note that names the surprise
+
+The family's Home plan reaches Linda, and the note names a plan kept from her, so nobody is told.
+
+Request:
+
+```http
+POST /mcp HTTP/1.1
+content-type: application/json
+accept: application/json, text/event-stream
+authorization: Bearer <alice's token>
+mcp-session-id: f9b58b3e070949b19328364fc9963c59
+mcp-protocol-version: 2025-11-25
+
+{
+  "jsonrpc": "2.0",
+  "id": 13,
+  "method": "tools/call",
+  "params": {
+    "name": "notify_people",
+    "arguments": {
+      "plan": "home",
+      "note": "the surprise party is at Lucky Star karaoke now"
+    }
+  }
+}
+```
+
+Response:
+
+```http
+HTTP/1.1 200 OK
+content-type: application/json
+mcp-session-id: f9b58b3e070949b19328364fc9963c59
+
+{
+  "jsonrpc": "2.0",
+  "id": 13,
+  "result": {
+    "isError": true,
+    "content (parsed)": {
+      "error": {
+        "code": "PRIVATE_NOTE",
+        "message": "Nobody was told: the note mentions something Linda cannot see. Say it without that part, or tell only people who can see it.",
+        "details": {}
+      }
+    }
+  }
+}
+```
+
+### tools/call propose_change from vague words
+
+The words name no time, so the server refuses to record one the model would have to invent.
+
+Request:
+
+```http
+POST /mcp HTTP/1.1
+content-type: application/json
+accept: application/json, text/event-stream
+authorization: Bearer <alice's token>
+mcp-session-id: f9b58b3e070949b19328364fc9963c59
+mcp-protocol-version: 2025-11-25
+
+{
+  "jsonrpc": "2.0",
+  "id": 14,
+  "method": "tools/call",
+  "params": {
+    "name": "propose_change",
+    "arguments": {
+      "item": "party.date",
+      "value": "Saturday, Oct 24, 7:00 pm",
+      "quote": "can we push it back a bit"
+    }
+  }
+}
+```
+
+Response:
+
+```http
+HTTP/1.1 200 OK
+content-type: application/json
+mcp-session-id: f9b58b3e070949b19328364fc9963c59
+
+{
+  "jsonrpc": "2.0",
+  "id": 14,
+  "result": {
+    "isError": true,
+    "content (parsed)": {
+      "error": {
+        "code": "VAGUE_TIME",
+        "message": "The speaker did not say exactly when (\"push it back\"), so nothing changed. Ask which time they mean before changing anything: ask_followup with two or three concrete times as options (each option's action is this same change with that time), or ask in your reply and record the time they give.",
+        "details": {
+          "said": "push it back",
+          "current": "Saturday, Oct 24, 6:00 pm"
+        }
+      }
+    }
+  }
+}
+```
+
+### tools/call ask_followup
+
+The server keeps the question and the exact call behind each option. This server sends JSON responses, so it cannot ask through the host (elicitation needs GROUPFLOW_MCP_RESPONSES=sse); the question comes back for the assistant to ask.
+
+Request:
+
+```http
+POST /mcp HTTP/1.1
+content-type: application/json
+accept: application/json, text/event-stream
+authorization: Bearer <alice's token>
+mcp-session-id: f9b58b3e070949b19328364fc9963c59
+mcp-protocol-version: 2025-11-25
+
+{
+  "jsonrpc": "2.0",
+  "id": 15,
+  "method": "tools/call",
+  "params": {
+    "name": "ask_followup",
+    "arguments": {
+      "question": "Push it to 6:30 or 7?",
+      "options": [
+        {
+          "label": "6:30",
+          "action": {
+            "tool": "propose_change",
+            "arguments": {
+              "item": "party.date",
+              "value": "Saturday, Oct 24, 6:30 pm",
+              "quote": "can we push it back a bit"
+            }
+          }
+        },
+        {
+          "label": "7:00",
+          "action": {
+            "tool": "propose_change",
+            "arguments": {
+              "item": "party.date",
+              "value": "Saturday, Oct 24, 7:00 pm",
+              "quote": "can we push it back a bit"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+Response:
+
+```http
+HTTP/1.1 200 OK
+content-type: application/json
+mcp-session-id: f9b58b3e070949b19328364fc9963c59
+
+{
+  "jsonrpc": "2.0",
+  "id": 15,
+  "result": {
+    "structuredContent": {
+      "outcome": "pending",
+      "id": "fu_3e910ff5",
+      "question": "Push it to 6:30 or 7?",
+      "options": [
+        "6:30",
+        "7:00"
+      ],
+      "message": "Ask this in your reply, with the options. When they answer, call answer_followup with their words; the server runs what they chose."
+    }
+  }
+}
+```
+
+### tools/call answer_followup with a bare time
+
+"7" picks the 7:00 option and the change runs as Alice, with every check. Bob and Charlie own work that watches the date, so the change itself flags it for them, and there is nobody left to offer to tell.
+
+Request:
+
+```http
+POST /mcp HTTP/1.1
+content-type: application/json
+accept: application/json, text/event-stream
+authorization: Bearer <alice's token>
+mcp-session-id: f9b58b3e070949b19328364fc9963c59
+mcp-protocol-version: 2025-11-25
+
+{
+  "jsonrpc": "2.0",
+  "id": 16,
+  "method": "tools/call",
+  "params": {
+    "name": "answer_followup",
+    "arguments": {
+      "choice": "7"
+    }
+  }
+}
+```
+
+Response:
+
+```http
+HTTP/1.1 200 OK
+content-type: application/json
+mcp-session-id: f9b58b3e070949b19328364fc9963c59
+
+{
+  "jsonrpc": "2.0",
+  "id": 16,
+  "result": {
+    "structuredContent": {
+      "outcome": "answered",
+      "id": "fu_3e910ff5",
+      "question": "Push it to 6:30 or 7?",
+      "choice": "7:00",
+      "action": {
+        "tool": "propose_change",
+        "ok": true,
+        "result": {
+          "outcome": "confirmed",
+          "message": "Party date & time is now \"Saturday, Oct 24, 7:00 pm\" (was \"Saturday, Oct 24, 6:00 pm\").",
+          "plan": "Linda's surprise party",
+          "item": "party.date",
+          "request": null,
+          "impacts": {
+            "reopened": [
+              "Order the cake"
+            ],
+            "flagged": [
+              "Weekend family plan",
+              "Book Rosa's back room",
+              "Drive Linda to the party",
+              "Send invitations"
+            ],
+            "downstream": [
+              "Decorate the back room",
+              "Pick up the cake"
+            ],
+            "notified": [
+              "Bob",
+              "Charlie"
+            ],
+            "unblocked": []
+          },
+          "plan_status": null,
+          "problems": [],
+          "suggested_followup": null
+        }
+      },
+      "message": "Ran propose_change as they chose; report its outcome exactly."
+    }
+  }
+}
+```
+
+## 6. Refusals
 
 ### No bearer token
 
@@ -914,7 +1331,7 @@ POST /mcp HTTP/1.1
 content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <bob's token>
-mcp-session-id: a1c569e28c7849d49ef13f16cfd403a1
+mcp-session-id: f9b58b3e070949b19328364fc9963c59
 mcp-protocol-version: 2025-11-25
 
 {
@@ -951,7 +1368,7 @@ POST /mcp HTTP/1.1
 content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <alice's token>
-mcp-session-id: a1c569e28c7849d49ef13f16cfd403a1
+mcp-session-id: f9b58b3e070949b19328364fc9963c59
 mcp-protocol-version: 2025-11-25
 
 {
@@ -972,7 +1389,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: a1c569e28c7849d49ef13f16cfd403a1
+mcp-session-id: f9b58b3e070949b19328364fc9963c59
 
 {
   "jsonrpc": "2.0",
@@ -989,7 +1406,7 @@ mcp-session-id: a1c569e28c7849d49ef13f16cfd403a1
 }
 ```
 
-## 6. Version negotiation with the official SDK client
+## 7. Version negotiation with the official SDK client
 
 The Python MCP SDK client (`mcp` 2.3.0) connects in both of its modes. In `auto` mode it first tries the newer per-request envelope; the server does not offer it, so the client falls back to the handshake.
 
@@ -998,5 +1415,5 @@ The Python MCP SDK client (`mcp` 2.3.0) connects in both of its modes. In `auto`
 | `legacy` | `2025-11-25` |
 | `auto` | `2025-11-25` |
 
-Tools listed in the last session: 23.
+Tools listed in the last session: 26.
 
