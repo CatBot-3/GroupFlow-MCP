@@ -91,10 +91,12 @@ def _tool_list_view(payload: dict[str, Any]) -> dict[str, Any]:
 def _context_view(payload: dict[str, Any]) -> dict[str, Any]:
     sc = payload.get("result", {}).get("structuredContent") or {}
     plans = sc.get("plans") or []
-    return {"jsonrpc": "2.0", "id": payload.get("id"), "result": {"structuredContent (excerpt)": {
-        "you": sc.get("you"), "headline": sc.get("headline"),
-        "plans": [{k: p.get(k) for k in ("title", "kind", "visible_to", "status", "next_step")} for p in plans],
-        "your_conditions": [c.get("description") for c in sc.get("your_conditions") or []]}}}
+    excerpt = {"you": sc.get("you"), "headline": sc.get("headline"),
+               "plans": [{k: p.get(k) for k in ("title", "kind", "visible_to", "status", "next_step")} for p in plans],
+               "your_conditions": [c.get("description") for c in sc.get("your_conditions") or []]}
+    if sc.get("shared_with"):
+        excerpt.update(shared_with=sc["shared_with"], shared_note=sc.get("shared_note"))
+    return {"jsonrpc": "2.0", "id": payload.get("id"), "result": {"structuredContent (excerpt)": excerpt}}
 
 
 async def capture() -> str:
@@ -115,8 +117,8 @@ async def capture() -> str:
         h = {**alice, "mcp-session-id": sid, "mcp-protocol-version": "2025-11-25"}
         await rec.post("notifications/initialized", {"jsonrpc": "2.0", "method": "notifications/initialized"}, h, "A notification: no id, answered with 202 and no body.")
         await rec.post("tools/list", {"jsonrpc": "2.0", "id": 2, "method": "tools/list"}, h,
-                       "Everyone gets the same generic tools (14 core tools plus 2 template discovery tools); none can approve an activity. Each has an input schema, "
-                       "an output schema and annotations.", show_body=_tool_list_view)
+                       "Everyone gets the same 23 generic tools (14 core, 2 template discovery, 5 structured-project, 2 group tools); none can approve an "
+                       "activity, accept an invite or link an account. Each has an input schema, an output schema and annotations.", show_body=_tool_list_view)
         await rec.post("tools/call get_context", {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "get_context", "arguments": {"mark_read": False}}}, h,
                        "Results come back as structuredContent (validated against the output schema) plus a text copy for older clients. Alice sees the "
                        "surprise party, the family's Home plan and the Friday dinner.", show_body=_context_view)
@@ -130,7 +132,40 @@ async def capture() -> str:
                                                                     "params": {"name": "get_context", "arguments": {"plan": "party"}}}, linda,
                        "Asking for it by id is refused like any plan that does not exist for her.")
 
-        rec.parts += ["## 3. Refusals", ""]
+        rec.parts += ["## 3. A shared conversation: the host declares who else will read the reply", ""]
+        room = {"authorization": f"Bearer {tokens['alice']}", "x-groupflow-listeners": "group:family"}
+        r = await rec.post("initialize with X-GroupFlow-Listeners", init, room,
+                           "A group chat host (or a shared kitchen device) opens Alice's session declaring the family group as listeners. "
+                           "The header can only narrow what Alice's connection reads, never widen it.")
+        rh = {**room, "mcp-session-id": r.headers["mcp-session-id"], "mcp-protocol-version": "2025-11-25"}
+        await rec.http.post("/mcp", json={"jsonrpc": "2.0", "method": "notifications/initialized"}, headers={"content-type": "application/json", "accept": ACCEPT, **rh})
+        await rec.post("tools/call get_context in the family chat", {"jsonrpc": "2.0", "id": 5, "method": "tools/call",
+                                                                   "params": {"name": "get_context", "arguments": {"mark_read": False}}}, rh,
+                       "Same tool, same speaker: Linda is listening, so the party is not in this conversation at all, and Alice's own private "
+                       "conditions are left out too.", show_body=_context_view)
+        await rec.post("tools/call create_plan private in the family chat", {"jsonrpc": "2.0", "id": 6, "method": "tools/call",
+                                                                           "params": {"name": "create_plan", "arguments": {"template": "general_event", "title": "Gift ideas", "private": True}}},
+                       rh, "A plan some listener could not see cannot be started where they are listening.")
+
+        rec.parts += ["## 4. A person who signed up links an assistant (simulated account linking)", ""]
+        signup = (await rec.http.post("/human/signup", json={"name": "Maya", "passcode": "evidence-pass"})).json()
+        page = {"authorization": f"Bearer {signup['token']}", "x-gf-csrf": signup["csrf"]}
+        link = (await rec.http.post("/human/links", json={"host": "GroupFlow chat"}, headers=page)).json()
+        rec.tokens["maya (linked)"] = link["token"]
+        rec.parts += ["Maya signs up and, on her own page (`POST /human/links` with her session and CSRF token), lets the chat host act for her. "
+                      "The host receives a revocable token once; it is an ordinary bearer token for Maya on `/mcp`.", ""]
+        maya = {"authorization": f"Bearer {link['token']}"}
+        r = await rec.post("initialize with a linked token", init, maya)
+        mh = {**maya, "mcp-session-id": r.headers["mcp-session-id"], "mcp-protocol-version": "2025-11-25"}
+        await rec.http.post("/mcp", json={"jsonrpc": "2.0", "method": "notifications/initialized"}, headers={"content-type": "application/json", "accept": ACCEPT, **mh})
+        await rec.post("tools/call create_group", {"jsonrpc": "2.0", "id": 7, "method": "tools/call",
+                                                   "params": {"name": "create_group", "arguments": {"name": "Flatmates"}}}, mh,
+                       "Starting a group adds nobody else.")
+        await rec.post("tools/call invite_to_group", {"jsonrpc": "2.0", "id": 8, "method": "tools/call",
+                                                      "params": {"name": "invite_to_group", "arguments": {}}}, mh,
+                       "The assistant can make an invite code; only the invited person can accept it, on their own page.")
+
+        rec.parts += ["## 5. Refusals", ""]
         await rec.post("No bearer token", init, {}, "Identity comes only from the token. Without one the server answers 401 with a WWW-Authenticate challenge.")
         await rec.post("Browser request from an unknown origin", init, {**alice, "origin": "https://evil.example"}, "Origin validation (DNS-rebinding and cross-site protection).")
         await rec.post("Another member reusing Alice's session", {"jsonrpc": "2.0", "id": 9, "method": "tools/list"},
@@ -139,7 +174,7 @@ async def capture() -> str:
         await rec.post("A tool that does not exist", {"jsonrpc": "2.0", "id": 10, "method": "tools/call", "params": {"name": "approve_plan", "arguments": {"member": "dana"}}}, h,
                        "There is no tool that approves, declines or withdraws for anyone.")
 
-        rec.parts += ["## 4. Version negotiation with the official SDK client", ""]
+        rec.parts += ["## 6. Version negotiation with the official SDK client", ""]
         from mcp import Client
         from mcp.client.streamable_http import streamable_http_client
 

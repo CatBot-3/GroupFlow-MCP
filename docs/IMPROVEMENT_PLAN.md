@@ -1,6 +1,8 @@
 # GroupFlow improvement plan
 
-Written 2026-10-16 against commit `3b7dbd0` (v0.5). The local suite passes (362 tests in about two minutes), so this plan is about direction and missing pieces, not about broken code. Time to implement is deliberately ignored; the order still reflects what matters most for an Alexa+ submission and for real use.
+Written 2026-10-16 against commit `3b7dbd0` (v0.5).
+
+**Status (v0.6, same day).** Two parts of this plan are now implemented on this branch. From item 3: a realistic held-out evaluation suite in its own world, with zero sentence overlap with the prompt, reference trajectories and negative controls ([evaluation](EVALUATION.md)); it has not been scored with a paid model yet. From item 4 (and the listener part of item 12): a group chat that people can sign up to, with groups, invite links, simulated account linking and a server-side listener restriction for shared conversations ([group chat](GROUP_CHAT.md)). The other items are unchanged. The local suite passes (362 tests in about two minutes), so this plan is about direction and missing pieces, not about broken code. Time to implement is deliberately ignored; the order still reflects what matters most for an Alexa+ submission and for real use.
 
 ## Where the project stands
 

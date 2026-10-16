@@ -2,7 +2,7 @@
 
 GroupFlow is a shared planning MCP server demonstrated through an Alexa+ web simulation. Four friends have agreed a Friday evening; their restaurant closes. The assistant reads their authorized shared memory, finds the smallest valid repair, preserves confirmations for unchanged parts, and asks each person to confirm only the changed dinner. The model can propose and commit a ready plan, but cannot give anyone's consent.
 
-There is one generic core with fourteen core MCP tools, two template discovery tools and five structured-project tools. Ordinary item-based scenarios vary through YAML templates describing items, decision policies, private conditions and optional places. Structured long-term projects additionally use a dedicated interval scheduler and project workflow. The other scenarios are a test lab for the MCP structure and model behavior, rather than competing demo stories.
+There is one generic core with fourteen core MCP tools, two template discovery tools, five structured-project tools and two group tools. Ordinary item-based scenarios vary through YAML templates describing items, decision policies, private conditions and optional places. Structured long-term projects additionally use a dedicated interval scheduler and project workflow. The other scenarios are a test lab for the MCP structure and model behavior, rather than competing demo stories.
 
 Built for the **Build, Ship, Shape: Amazon Developer Hackathon 2026**, Alexa+ track (self-hosted MCP server, spec 2025-11-25, Streamable HTTP).
 
@@ -19,6 +19,14 @@ python -m groupflow demo --world demo/enterprise.yaml --db data/enterprise.db
 ```
 
 Read [the implemented project workflow, architecture, migration and limits](docs/PROJECTS.md). The normal five-group demo remains available.
+
+## Group chat: GroupFlow for real people (v0.6)
+
+The demo world is fixed; the group chat is not. Open http://localhost:8788/chat while the demo runs: sign up, start a group, share the invite link, and talk. A message that starts with `@Alexa` (or `Alexa,`) asks the simulated Alexa+, which acts as the person who wrote it over that person's own MCP session. Each person also has a private thread with Alexa, and answers that need their consent appear as cards only they can tap, which go to their own GroupFlow page, never through the model. The demo world's people are pre-linked, so two browser tabs signed in as Alice and Linda show the family room.
+
+In a room, everyone reads Alexa's reply, so the chat tells the MCP server who is listening (`X-GroupFlow-Listeners: group:<id>`), and the server narrows the speaker's scope to what every listener may see: Linda's surprise party is not in the family room at all, and nobody's private limits are read out to the group. The same declaration would serve a shared kitchen Echo. People join groups only with an invite they accept themselves, and let an assistant act for them only by linking it on their own page (simulated account linking, revocable). Read [the design, privacy model and limits](docs/GROUP_CHAT.md).
+
+![The group chat: a new group with its invite link, a join notice, and two people talking](docs/img/group-chat-room.png)
 
 ## What it looks like
 
@@ -91,7 +99,7 @@ You need Python 3.10 or newer. Node is only needed if you want to change the web
 
    Then open http://localhost:8788. The MCP server listens on http://127.0.0.1:8787/mcp.
 
-4. The **Friends demo** opens by default. Press **Play step 1** (or N) to follow its nine-step story, or talk to one speaker yourself. Choose **Test lab** for all other scenarios. Use a separate database such as `python -m groupflow demo --db data/friends-demo.db` for demonstration work; **Reset this group** intentionally restores that demo group.
+4. The **Friends demo** opens by default. The group chat is at http://localhost:8788/chat (linked from the page header). Press **Play step 1** (or N) to follow its nine-step story, or talk to one speaker yourself. Choose **Test lab** for all other scenarios. Use a separate database such as `python -m groupflow demo --db data/friends-demo.db` for demonstration work; **Reset this group** intentionally restores that demo group.
 
 `python -m groupflow check` shows the configuration, including whether the LLM key is present (never its value). The page's demo console can reset a group to a stage, report a place closed as a trusted source would, and clear Alexa's chat memory. `python scripts/play_demo.py` replays every group's guided story against the running demo and prints each reply and the final plan status, which is a quick way to check the stories before recording.
 
@@ -101,7 +109,7 @@ You need Python 3.10 or newer. Node is only needed if you want to change the web
  Echo page (simulator, :8788)                       GroupFlow server (:8787)
  ┌──────────────────────────┐   MCP 2025-11-25     ┌──────────────────────────────────────┐
  │ Alice's Echo ─ LLM agent ├──── Streamable HTTP ─►│ /mcp    bearer token = who speaks    │
- │ Bob's Echo   ─ LLM agent │    one session per    │         21 tools, permission checked  │
+ │ Bob's Echo   ─ LLM agent │    one session per    │         23 tools, permission checked  │
  │ ...                      │    person             │                                      │
  └──────────────────────────┘                      │ Engine   groups, spaces, plans,      │
  ┌──────────────────────────┐   human-only HTTP    │          items, requests, links      │
@@ -147,8 +155,10 @@ You need Python 3.10 or newer. Node is only needed if you want to change the web
 | `upsert_work` | Add/edit ISO dates, effort, workstreams, milestones, resource demand and dependencies |
 | `manage_recurrence` | Create/expand independent DAILY/WEEKLY occurrences idempotently |
 | `repair_project` | Propose a minimally changed parallel interval schedule; never approve or commit |
+| `create_group` | Start a group with the speaker as organizer; nobody else is added |
+| `invite_to_group` | Organizer: make an invite code and link; each person accepts it on their own page |
 
-There is deliberately no tool that approves, declines or withdraws.
+There is deliberately no tool that approves, declines or withdraws, accepts an invite or links an account. A host may declare who else will read a reply with the `X-GroupFlow-Listeners` header; the server then answers only with what every listener may see.
 
 ## Templates
 
@@ -175,6 +185,8 @@ Templates are discovered from YAML at process startup. Adding a template does no
 python -m pytest                          # engine, templates, MCP transport, human API, solver, agent, simulator, evaluation runner
 python -m groupflow eval --list           # 108 scenarios, 212 model turns
 python -m groupflow eval --out report.md  # runs them with the configured LLM
+python -m groupflow eval --suite realistic --runs 3 --out realistic.md   # held-out: colloquial, noisy, several plans, group chats
+python -m groupflow eval --leakage        # which scenario sentences also appear in the prompt or tool text
 python -m groupflow evidence              # rewrites docs/PROTOCOL_EVIDENCE.md from a live run
 python scripts/measure_context.py         # local scripted-provider request size, no paid model calls
 python scripts/benchmark_solver.py        # route-domain CP-SAT vs enumeration
@@ -187,7 +199,7 @@ python scripts/benchmark_projects.py      # interval-model scaling, separate fro
 
 The solver tests cross-check enumeration and CP-SAT against brute force on generated instances. The evaluation scenarios cover single requests, references inside one conversation, news that reaches someone through the server, answers that went stale, Alexa's chat memory being wiped, long stories, the full dinner loop, attempts to shortcut it, the trip, meeting, chores and study templates, plans made on the spot and people with several plans. Six safety counters track wrong auto-confirmations, hidden-plan disclosures, approvals made during an Alexa turn, commits without every confirmation, private conditions reaching another member, and private notes entering shared scope. [Evaluation results](docs/EVALUATION.md) separate complete API runs, interrupted repetitions and deterministic checks.
 
-v0.5 local validation passed **362 tests** and the production frontend build. The final paid-model snapshot completed **107/108** original scenarios; two additional repetitions were interrupted by provider HTTP 402 (insufficient balance). The eight additional structure cases scored **23/24** over three repetitions; enterprise single-turn checks passed **8/8**, and the multi-person lifecycle passed **3/3** (36 model turns). These are synthetic tests, not an independent user study. The saved demo and memory map remain inspectable; new chats require available provider balance. See the evaluation document for failures and source boundaries.
+v0.6 local validation passed **456 tests** and the production frontend build, including the 30 realistic held-out scenarios replayed with their reference trajectories and negative controls; the realistic suite has not yet been scored with a paid model. v0.5 local validation passed **362 tests** and the production frontend build. The final paid-model snapshot completed **107/108** original scenarios; two additional repetitions were interrupted by provider HTTP 402 (insufficient balance). The eight additional structure cases scored **23/24** over three repetitions; enterprise single-turn checks passed **8/8**, and the multi-person lifecycle passed **3/3** (36 model turns). These are synthetic tests, not an independent user study. The saved demo and memory map remain inspectable; new chats require available provider balance. See the evaluation document for failures and source boundaries.
 
 ## Configuration
 
@@ -201,6 +213,9 @@ All settings have local defaults; see `.env.example`.
 | `GROUPFLOW_PORT`, `SIMULATOR_PORT` | `8787`, `8788` | Ports |
 | `GROUPFLOW_DB` | `data/groupflow.db` | SQLite file |
 | `GROUPFLOW_ADMIN_KEY` | `gf_demo_admin` | Demo console and reset endpoints (local demo only) |
+| `GROUPFLOW_SIGNUP` | `open` | Group chat sign-up: `open`, `invite` (needs an invite code) or `off` |
+| `GROUPFLOW_JOIN_URL` | `http://localhost:8788/chat` | Base of invite links returned by `invite_to_group` |
+| `GROUPFLOW_CHAT_DB` | next to `GROUPFLOW_DB` | The group chat's messages and the tokens people linked to it |
 
 ## Project layout
 
@@ -211,11 +226,11 @@ All settings have local defaults; see `.env.example`.
 | `groupflow/templates` | Eight canonical templates, frozen legacy definitions and explicit presets |
 | `groupflow/repair` | Domain, validator, enumeration, CP-SAT, conflict explanation |
 | `groupflow/world` | Loads `demo/world.yaml` (people, groups, plans, stages) and seeds it |
-| `groupflow/mcp_server` | MCP server (official Python SDK 2.3.0), authentication, 21 tools including template discovery and structured projects |
+| `groupflow/mcp_server` | MCP server (official Python SDK 2.3.0), authentication, listener declarations, 23 tools including template discovery, structured projects and groups |
 | `groupflow/human_api` | The human-only confirmation API and demo console endpoints |
-| `groupflow/sim` | Simulator backend: MCP client per person, traffic recorder, LLM agent, providers, guided demo scripts |
-| `groupflow/evals` | Evaluation runner; scenarios are in `eval/scenarios` |
-| `web/` | React page (group switch, Echo devices, plan board, each person's own page) |
+| `groupflow/sim` | Simulator backend: MCP client per person, traffic recorder, LLM agent, providers, guided demo scripts, the group chat host (`chat.py`) |
+| `groupflow/evals` | Evaluation runner and prompt-leakage check; suites in `eval/scenarios` (original), `eval/holdout`, `eval/realistic` (held-out, own world in `eval/worlds`) |
+| `web/` | React page (group switch, Echo devices, plan board, each person's own page) and the group chat (`web/src/chat`) |
 | `docs/` | Protocol evidence, demo script, evaluation, product feedback, friction log, known limitations |
 
 ## License

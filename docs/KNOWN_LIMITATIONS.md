@@ -12,7 +12,7 @@ GroupFlow is a hackathon build. These are the boundaries we know about, so nobod
 
 ## Security
 
-6. **Demo credentials.** Bearer tokens and page passcodes for the thirteen demo people are in `demo/world.yaml`, and the demo page fills the passcode in for you. A real deployment needs per-person account linking (OAuth) for the MCP token and a real sign-in for the confirmation page.
+6. **Demo credentials.** Bearer tokens and page passcodes for the thirteen demo people are in `demo/world.yaml`, and the demo page fills the passcode in for you. People who sign up in the group chat choose their own passcode (stored with salted scrypt) and link an assistant on their own page, which issues that host a revocable token: a simulation of account linking, not OAuth. A real deployment needs OAuth account linking for the MCP token and a real sign-in (with recovery) for the confirmation page.
 7. **The demo console and reset endpoints** are protected by a shared admin key meant for a local demo only. Turn them off with `GROUPFLOW_DEMO_ADMIN=0`.
 8. **Rate limiting** of agent writes is per person and in memory.
 
@@ -35,6 +35,13 @@ GroupFlow is a hackathon build. These are the boundaries we know about, so nobod
 17. **SQLite, one process.** The worker that runs searches for alternatives runs inside the server process. The data access layer is in one module, so PostgreSQL could replace SQLite later.
 18. **OR-Tools on Windows** needs the Microsoft Visual C++ runtime 14.40 or newer. Some Python distributions (Anaconda, for one) ship an older copy next to `python.exe`; GroupFlow loads the system copy first, and if none is new enough route repair uses exact enumeration instead. Project scheduling returns an explicit unavailable result because that model requires interval CP-SAT.
 19. **Windows event loop.** The servers run on asyncio's selector event loop on Windows, because with the default proactor loop one abruptly closed browser connection can stop the server from accepting new ones (see the friction log). The selector loop is limited to about 500 open sockets, far above what the demo uses.
+
+## Group chat (v0.6)
+
+20. **A demonstration host.** The group chat keeps messages and the tokens people linked to it unencrypted in its own SQLite file next to the GroupFlow database. It delivers live events only while the page is open; there is no email, SMS or push.
+21. **Listeners are declared by the host.** `X-GroupFlow-Listeners` narrows the speaker's scope to what every listener may see and can never widen it, but the server cannot check who is really reading a chat or standing near a device. A host that forgets the header answers as on a personal device.
+22. **Membership changes.** Joining or leaving a group changes who a plan is for, so a version out for confirmation must be sent again (unchanged answers carry forward). A person who leaves stops seeing the group's shared plans at once, but activities that list them as a participant still need the organizer to update who is coming. Only organizers create invites.
+23. **The realistic held-out suite has not been scored with a paid model yet.** Its 30 scenarios are validated deterministically (each is solvable and each fails under trivial policies); run it with a configured provider before quoting a pass rate.
 
 ## Visualization and final validation boundaries (v0.5)
 

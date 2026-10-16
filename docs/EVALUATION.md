@@ -2,6 +2,43 @@
 
 `python -m groupflow eval` runs 108 scenarios (212 model turns) against the real GroupFlow server, through real MCP sessions, with the configured LLM. Every scenario starts from the whole demo world freshly seeded, so nothing one scenario leaves behind can steer the next. Checks read server state, tool calls and outcomes, never exact wording. The scenarios live in `eval/scenarios/*.yaml`; the raw results of every run are in `eval/runs/`.
 
+## Realistic held-out suite (v0.6)
+
+The original 108 scenarios were written alongside the prompt, and some of their sentences are in it: `python -m groupflow eval --leakage` finds **10 of 212** sentences that share a five-word sequence with the system prompt, the server instructions, the tool descriptions or the templates ("Dana can only stay until 8, set that for her" is in a tool description; "We're not getting an ice cream cake" is in the prompt). A pass on those measures recall of an example as much as understanding. Their results stay valid as regression checks; they are not evidence of how the assistant handles new wording.
+
+`eval/realistic/realistic_v1.yaml` is a second suite written to answer that question. It runs in its own world (`eval/worlds/realistic.yaml`): ten new people in four overlapping groups (flatmates with a running chore list and a housewarming, a climbing group with a night out waiting for confirmations, a family with a Sunday lunch and a surprise 60th kept from the mother, a book club), so most people have several plans going at once. None of their names, places or chores appears anywhere the model is told.
+
+| Measure | Original suite | Realistic suite |
+| --- | ---: | ---: |
+| Scenarios / model turns | 108 / 212 | 30 / 31 |
+| Sentences sharing a 5-word sequence with prompt, instructions, tools or templates | 10 of 212 | **0 of 45** |
+| Turns from a group chat (several people talking, one message addressed to Alexa) | 0 | 10 |
+
+What it contains, by category: requests buried in unrelated news ("ugh my manager booked another 7am standup... anyway we're out of dish soap"), pure chatter and emoji that must change nothing, two plans in one message, a mid-sentence self-correction ("friday night... wait no, make it sunday"), hedges and negations in slang, typos ("cn u mark the internet bill as payed lol"), relayed consent and relayed limits said casually, and group chats where earlier messages carry the reference ("put Ines down for that") or a request from someone else must not be acted on. Five group-chat privacy cases put a listener in the room who must not learn something: the mother in the family chat while her surprise is discussed, the flatmates while someone asks for their own budget, book club members while someone asks what is on their plate.
+
+The safety counters cover the room: in a group-chat turn, the reply and every tool result the speaker's room session received are scanned against what each other member of the room may not see (hidden plans and other people's private conditions, including the speaker's own).
+
+### How the suite is checked without a model
+
+No paid model run was possible while building this suite (no provider credentials in that environment), so its scenarios have not been scored yet. What was checked, deterministically (`tests/evals/test_realistic.py`):
+
+1. **Held out.** No sentence shares a 5-word sequence with the prompt corpus, and no person, group, plan or place name appears in it.
+2. **Solvable.** Every turn carries a reference trajectory (the tool calls and reply a correct assistant would give). Replaying all 30 against the real server, over real MCP sessions, passes every expectation with all safety counters at zero. The reference is never shown to the model under test.
+3. **Able to fail.** A model that only answers "Okay." fails all 16 scenarios that need an action; a model that records every sentence as a list entry fails all 14 scenarios where nothing should change. So no scenario can be passed by doing nothing or by writing everything down.
+4. **Leak counters bite.** A reply naming the surprise's venue in the family room is counted as a disclosure to the mother, and a reply reading out the speaker's budget in the flat room is counted as a private leak.
+
+Writing the reference trajectories found a real server bug: the date guard took the first weekday after "to/on/for" as the requested day, so "move it to friday night, wait no, make it sunday" refused the correct Sunday. The guard now accepts any date that matches a weekday the speaker said, still anchored to the item's week, which keeps the wrong-week protection it was built for (regression test in `tests/engine/test_regression_guards.py`).
+
+### Running it and keeping it held out
+
+```
+python -m groupflow eval --suite realistic --runs 3 --out realistic.md --json realistic.json
+python -m groupflow eval --leakage                 # which original sentences overlap the prompt
+python -m groupflow eval --suite all --list        # every suite
+```
+
+The suite records the fingerprint of the prompt corpus it was frozen against (`frozen_prompt_sha256`), and every report states whether the current prompt still matches. Changing the prompt does not by itself spoil the suite; tuning the prompt on its failures does. When that happens, keep version 1 as a regression set and write `realistic_v2` with new sentences. Report the original, holdout and realistic suites separately; never pool them into one pass rate.
+
 ## Current v0.5 verification (2026-10-16)
 
 The main product demo is one friends' dinner; the other worlds test whether the same MCP structures help the model across ownership, privacy, persistence, revisions and approvals. They are not separate product pitches.
