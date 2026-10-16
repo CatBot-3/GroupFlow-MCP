@@ -17,11 +17,17 @@
 #     expectation is satisfiable, and replay trivial policies (say nothing, record everything) to prove
 #     each scenario can fail.
 #
+# Freeze history: first frozen against prompt corpus sha256:9eb136aa...; re-frozen the same day after the casual-speech
+# rewrite of the prompt, tool descriptions and server instructions. The suite had never been run against a model, so no
+# prompt change was tuned on its results, and the rewrite's examples share no 4-word sequence with these sentences.
+# The same change widened four server guards to casual phrasings ("not doing X", "isn't coming", "keep this to myself",
+# "im"); RL11 uses one of them ("def not doing"), so that scenario is not fully independent of the change.
+#
 # room: <group> means the turn comes from that group's chat: chat steps are messages people wrote to
 # each other (no model call), and everyone in the room reads Alexa's reply. Without room the person
 # talks to Alexa alone (their Echo or private thread).
 world: eval/worlds/realistic.yaml
-frozen_prompt_sha256: "sha256:9eb136aad1671d99305634cf909f7a9b84defb2ca97510ab49501542b243b6c2"
+frozen_prompt_sha256: "sha256:3fbb43e6974b4fc6fbe35977622e86e088548a592fdc30b02792b6934b19dc55"
 scenarios:
 
 # ------------------------------------------------------------------ requests buried in noise

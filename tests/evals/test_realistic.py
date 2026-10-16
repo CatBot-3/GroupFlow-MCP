@@ -137,11 +137,14 @@ def test_no_sentence_or_name_is_in_the_prompt_tools_or_templates():
     assert names_in_corpus(names, corpus) == []
 
 
-def test_the_original_suite_overlap_is_measured_not_hidden():
-    """The original 108 scenarios were written alongside the prompt; the report says how many sentences it shares."""
-    report = overlap_report(load_scenarios())
-    assert report["with_overlap"] > 0
-    assert any("ice cream cake" in h["text"] for h in report["hits"])
+def test_the_leakage_check_finds_a_sentence_copied_from_the_prompt():
+    """A scenario sentence lifted from the tool text is reported; a fresh one is not. The original suite is measured the same way."""
+    corpus = prompt_corpus()
+    copied = next(c for c in corpus if len(c.split()) > 12)
+    planted = [{"id": "X1", "steps": [{"say": "a", "text": " ".join(copied.split()[3:12])}, {"say": "a", "text": "lol where are my keys"}]}]
+    report = overlap_report(planted, corpus)
+    assert report["with_overlap"] == 1 and report["hits"][0]["scenario"] == "X1"
+    assert overlap_report(load_scenarios(), corpus)["utterances"] == 212
 
 
 # ---------------------------------------------------------------- solvable, and able to fail

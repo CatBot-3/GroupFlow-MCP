@@ -22,6 +22,8 @@ from .common import ToolRunner, annotations
 
 INSTRUCTIONS = (
     "GroupFlow keeps shared, permission-checked plans. The connection fixes the speaker. Start each turn with get_context(detail='summary'); "
+    "People talk casually (slang, typos, jokes, venting, side chatter): act only on what they ask or state about a plan, let the last version of "
+    "a self-correction win, and change nothing for chatter. "
     "read one plan in full when needed. Discover templates in the short directory or list_templates, then get_template for one specification. "
     "Record statements with propose_change; hedged ideas are tentative. Owner items wait for their owner, open items allow any member, "
     "and activities need each person's own page confirmation followed by organizer commit. You can never confirm, decline or withdraw for "
@@ -86,7 +88,7 @@ def register(mcp: MCPServer, engine: GroupFlow, runner: ToolRunner) -> None:
     @mcp.tool(
         title="Start a new plan",
         description=(
-            'Create a draft using a template id; get_template supplies fields. For "just for me", personal gift ideas or private notes, set private=true BEFORE recording content, then write in the returned plan. A shared plan with a personal owner is still shared. audience/hidden_from restrict readers; inspect visible_to. Template names do not enforce secrecy. Add items with propose_change.'
+            'Create a draft using a template id; get_template supplies fields. For "just for me", "keep this to myself", personal gift ideas or private notes, set private=true BEFORE recording content, then write in the returned plan. A shared plan with a personal owner is still shared. audience/hidden_from restrict readers; inspect visible_to. Template names do not enforce secrecy. Add items with propose_change.'
         ),
         annotations=annotations(read_only=False),
     )
@@ -112,14 +114,14 @@ def register(mcp: MCPServer, engine: GroupFlow, runner: ToolRunner) -> None:
     @mcp.tool(
         title="Record what the speaker said about a plan",
         description=(
-            'Record statements, completed tasks, deadlines and support for pending proposals. Use exact item ids; new items need new_type. "Sunday at 6 works" must call this even when pending; decide_change is for the assignee deciding. Hedges are tentative. "Not getting ice cream cake" changes no value. Private notes belong in create_plan(private=true), never a shared plan with a personal owner. Non-owner task updates wait for the owner. Do not edit participants to withdraw for someone. Report the exact outcome.'
+            'Record statements, completed tasks, deadlines and support for pending proposals, however casually said. Use exact item ids; new items need new_type. "ya 7:30 works for me too" must call this even when pending; decide_change is for the assignee deciding. Hedges (maybe, idk, what if) are tentative. "nah, no pinata this year" changes no value. Private notes belong in create_plan(private=true), never a shared plan with a personal owner. Non-owner task updates wait for the owner. Do not edit participants to withdraw for someone. Report the exact outcome.'
         ),
         annotations=annotations(read_only=False),
     )
     async def propose_change(
         ctx: Context,
         item: Annotated[str | None, Field(description="Item id from get_context (preferred) or its name. Omit to add a new item.")] = None,
-        value: Annotated[str | None, Field(description='Details: the new value as a short phrase, e.g. "Friday, Mar 6, 7:30 pm" or "12 people". Never a negation.')] = None,
+        value: Annotated[str | None, Field(description='Details: the new value as a short plain phrase, e.g. "Friday, Mar 6, 7:30 pm" or "12 people", even when said in slang. Never a negation.')] = None,
         status: Annotated[Literal["todo", "in_progress", "done"] | None, Field(description="Tasks.")] = None,
         owner: Annotated[str | None, Field(description="Tasks (who does it) or details (who decides it): a name.")] = None,
         due: Annotated[str | None, Field(description='Tasks: due date as a short phrase; "" clears it.')] = None,
@@ -133,7 +135,7 @@ def register(mcp: MCPServer, engine: GroupFlow, runner: ToolRunner) -> None:
         new_type: Annotated[str | None, Field(description='Required for a new item: a type from the selected template.')] = None,
         value_kind: Annotated[Literal["datetime", "place", "count", "text"] | None, Field(description="Only for a new detail.")] = None,
         certainty: Annotated[Literal["committed", "tentative"] | None, Field(description=(
-            'committed for direct requests/statements; tentative for maybe, how about, what if, should we.'))] = None,
+            'committed for direct requests/statements, however casual ("can u push it to 8"); tentative for maybe, idk, prob, we could, how about, what if, should we.'))] = None,
         quote: Annotated[str | None, Field(description="The speaker's own words, kept as evidence.")] = None,
         plan: Annotated[str | None, PLAN_ARG] = None,
     ) -> ChangeResult:
@@ -177,7 +179,7 @@ def register(mcp: MCPServer, engine: GroupFlow, runner: ToolRunner) -> None:
     @mcp.tool(
         title="Save the speaker's own conditions",
         description=(
-            "Draft ONLY the speaker's own private limits. 'Dana can only stay until 8, set that for her' must make NO condition write, including no write to the speaker's own conditions. Direct Dana to her page. Use get_template for accepted formats. The speaker verifies their own drafts on their page before they count."
+            "Draft ONLY the speaker's own private limits. 'jay can only do 40 bucks, set that for him' must make NO condition write, including no write to the speaker's own conditions. Point Jay to his own page. Use get_template for accepted formats. The speaker verifies their own drafts on their page before they count."
         ),
         annotations=annotations(read_only=False),
     )

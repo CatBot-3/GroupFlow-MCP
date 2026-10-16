@@ -911,8 +911,10 @@ class Agreement(Core):
         return f"{name}: " + " ".join(bits) if bits else name
 
     def _change_activity(self, scope: Scope, actor_id: str, item: Row | None, plan: Row, **kw: Any) -> ChangeResult:
-        words = (kw.get("quote") or "").lower()
-        if kw.get("participants") is not None and re.search(r"\b(can't (?:come|attend|make)|cannot (?:come|attend)|withdraw|take (?:him|her|them|me) off)\b|不能参加|退出|不来了", words):
+        words = (kw.get("quote") or "").lower().replace("’", "'")
+        if kw.get("participants") is not None and re.search(r"\b(can'?t (?:come|attend|make)|cannot (?:come|attend)|withdraw|take (?:him|her|them|me) off|"
+                                                            r"won'?t make it|(?:isn'?t|aren'?t|not) coming|bail(?:ed|ing|s)?|count \w+ out|"
+                                                            r"drop (?:me|him|her|them)|drop \w+ (?:from|off))\b|不能参加|退出|不来了", words):
             raise DomainError("SELF_WITHDRAWAL_REQUIRED", "Attendance withdrawal must happen on that person's own page. Record a cannot_attend observation instead; do not edit the roster to withdraw for them.")
         spec = self._activity_spec(scope, plan, item, kw.get("title"), kw.get("day"), kw.get("start"), kw.get("end"), kw.get("place"),
                                    kw.get("participants"), bool(kw.get("remove")), kw.get("type_name"))
@@ -986,7 +988,7 @@ class Agreement(Core):
                           notify: bool = True, quote: str | None = None) -> ConditionsResult:
         self._rate_limit(actor_id)
         if quote and source == "agent":
-            first_person = re.search(r"\b(I|I'm|I’m|my|me)\b|我", quote, re.I)
+            first_person = re.search(r"\b(I|I'm|I’m|im|ive|my|me|mine|myself)\b|我", quote, re.I)
             other_people = [m["name"] for m in self.db.all("SELECT id, name FROM members WHERE id <> ?", actor_id)]
             if not first_person and (any(re.search(r"\b" + re.escape(n) + r"\b", quote, re.I) for n in other_people)
                                      or re.search(r"\b(her|his|their|she|he)\b|她|他", quote, re.I)):

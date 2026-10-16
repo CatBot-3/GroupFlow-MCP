@@ -106,3 +106,41 @@ def test_a_self_corrected_weekday_is_accepted_and_other_weeks_still_are_not(gf):
     with pytest.raises(DomainError) as err:
         gf.propose_change('alice', item='party.date', value='Sunday, Nov 1, 6:00 pm', quote=quote)
     assert err.value.code == 'DATE_REFERENCE_REQUIRED'
+
+
+# ---------------------------------------------------------------- the same guards, said the way people actually talk
+
+def test_casual_private_notes_are_kept_out_of_shared_plans(gf):
+    import pytest
+    from groupflow.core.errors import DomainError
+    for quote in ("keep this to myself: the gift for mom is concert tickets", "note to myself, mom wants the blue scarf",
+                  "for my eyes only lol, gift is a watch", "dont tell anyone but the gift is a kayak"):
+        with pytest.raises(DomainError) as err:
+            gf.propose_change('bob', plan='party', new_type='task', title='Gift idea', quote=quote)
+        assert err.value.code == 'PRIVATE_SCOPE_REQUIRED', quote
+
+
+def test_casual_denials_are_not_stored_but_casual_replacements_are(gf):
+    import pytest
+    from groupflow.core.errors import DomainError
+    for quote in ("we're def not doing chocolate again", "nah not gonna get the bakery cake this time"):
+        with pytest.raises(DomainError) as err:
+            gf.propose_change('bob', item='cake.order', value='No chocolate cake', quote=quote)
+        assert err.value.code == 'NEGATION_NOT_VALUE', quote
+    ok = gf.propose_change('bob', item='cake.order', value='Lemon cake', quote="not doing chocolate, let's do lemon")
+    assert ok.outcome == 'confirmed'
+
+
+def test_casual_withdrawals_cannot_edit_the_roster(gf):
+    import pytest
+    from groupflow.core.errors import DomainError
+    for quote in ("chen bailed, drop him from dinner", "chen isn't coming anymore", "chen won't make it, take him out", "count chen out lol"):
+        with pytest.raises(DomainError) as err:
+            gf.propose_change('alice', plan='friday_dinner', item='dinner', participants=['Alice', 'Bob', 'Dana'], quote=quote)
+        assert err.value.code == 'SELF_WITHDRAWAL_REQUIRED', quote
+
+
+def test_casual_first_person_limits_are_the_speakers_own(gf):
+    r = gf.set_my_conditions('bob', [{'kind': 'home_by', 'value': {'time': '20:30'}}], plan='friday_dinner',
+                             quote="im out by 8:30 tho, chen said he's fine later")
+    assert r.outcome == 'recorded'

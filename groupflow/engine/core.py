@@ -913,8 +913,9 @@ class Core:
             target = self.resolve_item(scope, item, plan_row["id"] if plan_row else None, required=False) if item else None
             if target is not None and plan_row is None:
                 plan_row = scope.plans[target["plan_id"]]
-            words = (quote or "").lower()
-            private_intent = re.search(r"\b(just for me|only for me|private note|keep (?:it|this) private)\b|仅我|只有我|私人便签|仅自己", words)
+            words = (quote or "").lower().replace("’", "'")
+            private_intent = re.search(r"\b(just for me|only for me|private note|keep (?:it|this) private|(?:keep (?:it|this)|note) to myself|for my eyes only|"
+                                       r"don'?t tell anyone)\b|仅我|只有我|私人便签|仅自己", words)
             if private_intent and (plan_row is None or self.plan_audience(plan_row) != [actor_id]):
                 raise DomainError("PRIVATE_SCOPE_REQUIRED", "This is a private note. First create_plan(private=true), then write in that personal plan; owner is not visibility.")
             if target and target["shape"] == "task" and title and title.casefold() != target["label"].casefold() and quote:
@@ -930,8 +931,9 @@ class Core:
                     if expected and all(v is not None for v in month_day) and month_day not in {(d.month, d.day) for d in expected}:
                         raise DomainError("DATE_REFERENCE_REQUIRED", f"A bare weekday refers to the date nearest the existing item ({self._current_value(target)}): use "
                                           f"{' or '.join(d.isoformat() for d in expected)} with the requested time. The speaker did not give the different calendar date you supplied.")
-                denial = re.search(r"\b(not (?:getting|having|moving|changing)|(?:isn't|is not|aren't|are not) (?:moving|changing)|don't (?:change|move))\b|不要改|不换|不是改成", words)
-                replacement = re.search(r"\b(instead|replace .+ with|change .+ to|make it)\b|改成|换成", words)
+                denial = re.search(r"\b(not (?:getting|having|moving|changing|doing)|not gonna (?:do|get|have|move|change)|(?:isn'?t|is not|aren'?t|are not) "
+                                   r"(?:moving|changing)|don'?t (?:change|move))\b|不要改|不换|不是改成", words)
+                replacement = re.search(r"\b(instead|replace .+ with|change .+ to|make it|let'?s (?:do|get|go with)|go with|switch(?:ing)? to)\b|改成|换成", words)
                 if denial and not replacement and not same_value(target["value_kind"], value, self._current_value(target) or ""):
                     raise DomainError("NEGATION_NOT_VALUE", "A denial does not replace the current value. Read the item and leave it unchanged, or reject the speaker's pending idea with decide_change.")
             if target is None and plan_row and new_type and quote:
