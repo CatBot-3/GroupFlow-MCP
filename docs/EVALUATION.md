@@ -4,14 +4,20 @@
 
 ## Realistic held-out suite (v0.6)
 
-The original 108 scenarios were written alongside the prompt, and some of their sentences are in it: `python -m groupflow eval --leakage` finds **10 of 212** sentences that share a five-word sequence with the system prompt, the server instructions, the tool descriptions or the templates ("Dana can only stay until 8, set that for her" is in a tool description; "We're not getting an ice cream cake" is in the prompt). A pass on those measures recall of an example as much as understanding. Their results stay valid as regression checks; they are not evidence of how the assistant handles new wording.
+The original 108 scenarios were written alongside the prompt, and some of their sentences were in it: `python -m groupflow eval --leakage` found **10 of 212** sentences that shared a five-word sequence with the system prompt, the server instructions, the tool descriptions or the templates ("Dana can only stay until 8, set that for her" was in a tool description; "We're not getting an ice cream cake" was in the prompt). A pass on those measured recall of an example as much as understanding.
+
+### Prompt examples in everyday speech (v0.6)
+
+The prompt's examples were formal sentences close to the test cases, while people talk to an assistant the way they text friends. The host prompt, the tool descriptions and the server instructions were rewritten so that every example is everyday casual speech ("can u mark that done", "ya 7:30 works for me too", "nah, no pinata this year", "ugh physio tues 9 to noon", "keep this to myself: the gift for dad is concert tickets"), with each rule kept. A new paragraph teaches how people talk: slang and typos, the real ask buried in a story or a joke, two asks for two plans in one message, the last version of a self-correction winning, and chatter changing nothing. The server instructions, which are what any host including Alexa+ receives, carry the same point in one sentence. Four server guards that only recognized formal wording now also catch casual forms: private notes ("keep this to myself", "dont tell anyone"), negations ("not doing", "not gonna get"), withdrawals while editing who comes ("bailed", "isn't coming", "count her out") and first person in a stated limit ("im").
+
+After the rewrite no suite shares a five-word sequence with the prompt corpus (original 0 of 212, holdout 0 of 11, realistic 0 of 45; the realistic suite shares no four-word sequence either). **The paid-model results below were measured with the earlier prompt**, so re-run the original suite before comparing scores across versions.
 
 `eval/realistic/realistic_v1.yaml` is a second suite written to answer that question. It runs in its own world (`eval/worlds/realistic.yaml`): ten new people in four overlapping groups (flatmates with a running chore list and a housewarming, a climbing group with a night out waiting for confirmations, a family with a Sunday lunch and a surprise 60th kept from the mother, a book club), so most people have several plans going at once. None of their names, places or chores appears anywhere the model is told.
 
 | Measure | Original suite | Realistic suite |
 | --- | ---: | ---: |
 | Scenarios / model turns | 108 / 212 | 30 / 31 |
-| Sentences sharing a 5-word sequence with prompt, instructions, tools or templates | 10 of 212 | **0 of 45** |
+| Sentences sharing a 5-word sequence with prompt, instructions, tools or templates | 10 of 212 before the v0.6 rewrite, 0 after | **0 of 45** |
 | Turns from a group chat (several people talking, one message addressed to Alexa) | 0 | 10 |
 
 What it contains, by category: requests buried in unrelated news ("ugh my manager booked another 7am standup... anyway we're out of dish soap"), pure chatter and emoji that must change nothing, two plans in one message, a mid-sentence self-correction ("friday night... wait no, make it sunday"), hedges and negations in slang, typos ("cn u mark the internet bill as payed lol"), relayed consent and relayed limits said casually, and group chats where earlier messages carry the reference ("put Ines down for that") or a request from someone else must not be acted on. Five group-chat privacy cases put a listener in the room who must not learn something: the mother in the family chat while her surprise is discussed, the flatmates while someone asks for their own budget, book club members while someone asks what is on their plate.
@@ -37,7 +43,7 @@ python -m groupflow eval --leakage                 # which original sentences ov
 python -m groupflow eval --suite all --list        # every suite
 ```
 
-The suite records the fingerprint of the prompt corpus it was frozen against (`frozen_prompt_sha256`), and every report states whether the current prompt still matches. Changing the prompt does not by itself spoil the suite; tuning the prompt on its failures does. When that happens, keep version 1 as a regression set and write `realistic_v2` with new sentences. Report the original, holdout and realistic suites separately; never pool them into one pass rate.
+The suite records the fingerprint of the prompt corpus it was frozen against (`frozen_prompt_sha256`), and every report states whether the current prompt still matches. It was re-frozen once, after the casual-speech rewrite and before any model had run it; its header records that history, including that one scenario (RL11) uses a negation the widened server guard now recognizes. Changing the prompt does not by itself spoil the suite; tuning the prompt on its failures does. When that happens, keep version 1 as a regression set and write `realistic_v2` with new sentences. Report the original, holdout and realistic suites separately; never pool them into one pass rate.
 
 ## Current v0.5 verification (2026-10-16)
 
