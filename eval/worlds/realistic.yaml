@@ -1,0 +1,180 @@
+# A second, held-out world for the realistic evaluation (eval/realistic). All people and data are fictional.
+# Nobody here appears in the assistant's prompt, the server instructions, the tool descriptions or the templates,
+# and neither do their plans, places or chores; tests/evals/test_realistic.py checks that.
+#
+# Ten people in four overlapping groups, so most people have several plans going at once:
+#   flat       Flat 4B: Maya (organizer), Theo, Ines, Kofi. A running list of house jobs and a housewarming.
+#   climbing   Tuesday climbers: Theo (organizer), Lena, Rafa, Hana. A bouldering night, sent out for confirmation.
+#   mensah     The Mensah family: Kofi, Kwame, Efua and their mum Ama. Sunday lunch for everyone, and Ama's 60th,
+#              a surprise kept from Ama.
+#   bookclub   Last Chapter book club: Lena (organizer), Hana, Ines, Maya. An agreed monthly meeting.
+# Dates are relative (next Saturday, next Tuesday), so the suite runs the same way on any day.
+
+people:
+  - {id: maya, name: Maya, token: gf_eval_maya_r81q, passcode: maya-eval, color: "#6B46C1"}
+  - {id: theo, name: Theo, token: gf_eval_theo_c47w, passcode: theo-eval, color: "#2F6FB0"}
+  - {id: ines, name: Ines, token: gf_eval_ines_p02z, passcode: ines-eval, color: "#C0437A"}
+  - {id: kofi, name: Kofi, token: gf_eval_kofi_x95e, passcode: kofi-eval, color: "#2F8A57"}
+  - {id: lena, name: Lena, token: gf_eval_lena_m33t, passcode: lena-eval, color: "#C05621"}
+  - {id: rafa, name: Rafa, token: gf_eval_rafa_h70b, passcode: rafa-eval, color: "#2C7A7B"}
+  - {id: hana, name: Hana, token: gf_eval_hana_v26n, passcode: hana-eval, color: "#B7791F"}
+  - {id: ama, name: Ama, token: gf_eval_ama_d58k, passcode: ama-eval, color: "#B83280"}
+  - {id: kwame, name: Kwame, token: gf_eval_kwame_s14y, passcode: kwame-eval, color: "#8A5A2B"}
+  - {id: efua, name: Efua, token: gf_eval_efua_j62f, passcode: efua-eval, color: "#2B6CB0"}
+
+groups:
+  - id: flat
+    name: Flat 4B
+    description: Four flatmates sharing an apartment.
+    timezone: America/Toronto
+    currency: CAD
+    members:
+      - {id: maya, role: organizer, label: Flatmate}
+      - {id: theo, label: Flatmate}
+      - {id: ines, label: Flatmate}
+      - {id: kofi, label: Flatmate}
+  - id: climbing
+    name: Tuesday climbers
+    description: Friends who go bouldering on Tuesdays.
+    timezone: America/Toronto
+    currency: CAD
+    members:
+      - {id: theo, role: organizer, label: Climber}
+      - {id: lena, label: Climber}
+      - {id: rafa, label: Climber}
+      - {id: hana, label: Climber}
+  - id: mensah
+    name: Mensah family
+    description: Ama, her sons Kofi and Kwame, and her daughter Efua.
+    timezone: America/Toronto
+    currency: CAD
+    members:
+      - {id: kofi, role: organizer, label: Son}
+      - {id: kwame, label: Son}
+      - {id: efua, label: Daughter}
+      - {id: ama, role: organizer, label: Mum}
+  - id: bookclub
+    name: Last Chapter book club
+    description: Four readers who meet once a month.
+    timezone: America/Toronto
+    currency: CAD
+    members:
+      - {id: lena, role: organizer, label: Member}
+      - {id: hana, label: Member}
+      - {id: ines, label: Member}
+      - {id: maya, label: Member}
+
+plans:
+  # ------------------------------------------------------------------ the flat's running list (owner tasks, open list entries, details)
+  - id: flat_jobs
+    group: flat
+    template: shared_tasks
+    title: Flat jobs
+    start_date: {prefer: "2026-11-02", else: next monday}
+    organizer: maya
+    starter: false
+    script:
+      - {as: theo, do: change, new_type: detail, item: flat.internet, title: Internet bill, value: "Theo pays it on the 15th, split four ways",
+         aliases: [internet, wifi, wi-fi, router]}
+      - {as: maya, do: change, new_type: detail, item: flat.landlord_visit, title: Landlord visit, value: "{day:3} 10:00 am, furnace check",
+         aliases: [landlord, inspection, furnace]}
+      - {as: maya, do: change, new_type: task, title: Take out the recycling, owner: kofi}
+      - {as: theo, do: change, new_type: task, title: Pay the internet bill, owner: theo, due: Friday}
+      - {as: ines, do: change, new_type: task, title: Descale the kettle, owner: ines}
+      - {as: maya, do: change, new_type: list_item, title: Paper towels}
+      - {as: kofi, do: change, new_type: list_item, title: Garbage bags}
+
+  # ------------------------------------------------------------------ the housewarming (owner details, prep tasks, a private budget)
+  - id: housewarming
+    group: flat
+    template: gathering
+    title: Housewarming
+    start_date: {prefer: "2026-11-21", else: next saturday}
+    organizer: maya
+    starter: true
+    conditions:
+      - {owner: theo, name: budget, value: {amount: 60}}
+    script:
+      - {as: maya, do: change, item: event.date, value: "{day:0} 8:00 pm"}
+      - {as: maya, do: change, item: event.venue, value: "Our apartment, rooftop if it stays dry"}
+      - {as: maya, do: change, item: event.headcount, value: "about 25 people"}
+      - {as: theo, do: change, new_type: detail, item: housewarming.food, title: Food, value: "Pizza from Nonna's", aliases: [food, pizza, dinner, menu]}
+      - {as: maya, do: change, new_type: task, title: Buy drinks, owner: maya}
+      - {as: maya, do: change, new_type: task, title: Clean the balcony, owner: kofi}
+      - {as: theo, do: change, new_type: task, title: Make a playlist, owner: theo}
+
+  # ------------------------------------------------------------------ bouldering night (participants policy, out for confirmation)
+  - id: climb_night
+    group: climbing
+    template: general_event
+    title: Bouldering night
+    start_date: {prefer: "2026-11-10", else: next tuesday}
+    organizer: theo
+    starter: false
+    activities:
+      - {key: climb_session, title: Bouldering, type: activity, day: 0, start: "18:30", end: "20:30", place: "Up the Wall gym"}
+      - {key: climb_dumplings, title: Dumplings after, type: activity, day: 0, start: "20:45", end: "21:45", place: "Golden Dumpling"}
+    conditions:
+      - {owner: rafa, name: latest_end, value: {time: "22:30"}}
+      - {owner: hana, name: budget, value: {amount: 35}}
+    script:
+      - {as: theo, do: change, new_type: list_item, title: Chalk bag}
+    stages:
+      default: awaiting
+      draft: []
+      awaiting: [send]
+      committed: [send, confirm_all, commit]
+
+  # ------------------------------------------------------------------ the family: a lunch everyone sees, a surprise Ama must not
+  - id: sunday_lunch
+    group: mensah
+    template: general_event
+    title: Sunday lunch
+    start_date: {prefer: "2026-11-08", else: next sunday}
+    organizer: ama
+    starter: false
+    script:
+      - {as: ama, do: change, new_type: detail, item: lunch.where, title: Where and when, value: "At Mum's, 1:00 pm", aliases: [lunch, where, sunday]}
+      - {as: ama, do: change, new_type: task, title: Bring dessert, owner: efua}
+
+  - id: mum_sixty
+    group: mensah
+    template: gathering
+    preset: surprise
+    title: Mum's 60th
+    start_date: {prefer: "2026-11-28", else: next saturday}
+    organizer: kofi
+    hidden_from: [ama]
+    # Its own item names: a generic starter label ("Date and time") also fits Sunday lunch, and the leak scan would flag it.
+    starter: false
+    script:
+      - {as: kofi, do: change, new_type: detail, item: sixty.date, title: 60th date, value_kind: datetime, value: "{day:0} 6:30 pm",
+         aliases: [date, when, the 28th]}
+      - {as: kofi, do: change, new_type: detail, item: sixty.venue, title: 60th venue, value_kind: place, value: "Jollof House, private room",
+         aliases: [venue, where, restaurant]}
+      - {as: efua, do: change, new_type: detail, item: sixty.cake, title: Cake, value: "Coconut cake from Sweet Bites", aliases: [cake, dessert]}
+      - {as: kofi, do: change, new_type: task, title: Book the private room, owner: kofi, ref: room}
+      - {as: kofi, do: change, item: $room, status: done}
+      - {as: kofi, do: change, new_type: task, title: Collect photos for the slideshow, owner: kwame}
+
+  # ------------------------------------------------------------------ the book club (an agreed meeting, prep tasks)
+  - id: book_night
+    group: bookclub
+    template: meeting
+    title: November book club
+    start_date: {prefer: "2026-11-19", else: next thursday}
+    organizer: lena
+    starter: true
+    activities:
+      - {key: book_meeting, title: Book club meeting, type: activity, day: 0, start: "19:00", end: "21:00", place: "Hana's place"}
+    conditions:
+      - {owner: ines, name: latest_end, value: {time: "21:30"}}
+    script:
+      - {as: lena, do: change, item: meeting.agenda, value: "The Salt Orchard, chapters 1 to 14"}
+      - {as: hana, do: change, new_type: detail, item: book.host, title: Host, value: "Hana's place", aliases: [host, where, place]}
+      - {as: lena, do: change, new_type: task, title: Bring snacks, owner: ines}
+      - {as: lena, do: change, new_type: task, title: Pick next month's book, owner: maya}
+    stages:
+      default: committed
+      draft: []
+      committed: [send, confirm_all, commit]

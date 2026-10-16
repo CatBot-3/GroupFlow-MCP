@@ -1,0 +1,449 @@
+# Realistic held-out suite, version 1.
+#
+# How people actually talk to an assistant about plans: colloquial, with typos and slang, wrapped in
+# unrelated news, two plans in one breath, self-corrections, jokes, and group chats where several
+# people talk and only one message is addressed to Alexa. It runs in its own world
+# (eval/worlds/realistic.yaml): none of these people, places or sentences appear in the prompt, the
+# server instructions, the tool descriptions or the templates (tests/evals/test_realistic.py checks
+# every sentence for a shared 5-word sequence and every name).
+#
+# Rules for keeping it held out:
+#   * Do not tune the prompt or tool descriptions on these sentences. If you inspect failures and change
+#     the prompt, the suite becomes a regression set: freeze a new version (realistic_v2) with new sentences.
+#   * frozen_prompt_sha256 records the prompt corpus this version was written against; every report says
+#     whether the current prompt still matches it.
+#   * Each turn carries a reference trajectory (the tool calls and reply of a correct assistant). The
+#     reference is never shown to the model: tests replay it against the real server to prove each
+#     expectation is satisfiable, and replay trivial policies (say nothing, record everything) to prove
+#     each scenario can fail.
+#
+# room: <group> means the turn comes from that group's chat: chat steps are messages people wrote to
+# each other (no model call), and everyone in the room reads Alexa's reply. Without room the person
+# talks to Alexa alone (their Echo or private thread).
+world: eval/worlds/realistic.yaml
+frozen_prompt_sha256: "sha256:9eb136aad1671d99305634cf909f7a9b84defb2ca97510ab49501542b243b6c2"
+scenarios:
+
+# ------------------------------------------------------------------ requests buried in noise
+
+- id: RL01
+  group: flat
+  category: Noise around a request
+  description: Venting about work, then one shopping item for the flat
+  tags: [noise, colloquial]
+  steps:
+  - say: maya
+    text: ugh my manager booked ANOTHER 7am standup, brutal week. anyway we're totally out of dish soap, can you stick it on the flat list
+    expect: {item_added_in: {flat_jobs: [dish soap]}, no_item_like: [standup, manager], plans_untouched: [housewarming, book_night]}
+    reference:
+      calls: [{name: propose_change, arguments: {plan: flat_jobs, new_type: list_item, title: Dish soap}}]
+      reply: Added dish soap to the flat list.
+
+- id: RL02
+  group: flat
+  category: Chatter, not a request
+  description: A funny story about the landlord's dog changes nothing
+  tags: [noise, abstain]
+  steps:
+  - say: kofi
+    text: honestly the landlord's dog starts barking every single time I open the fridge, it's like he knows
+    expect: {nothing_changed: true}
+    reference:
+      reply: Ha, that sounds like one very attentive dog.
+
+- id: RL03
+  group: flat
+  category: Chatter, not a request
+  description: Laughing emoji and an ok change nothing
+  tags: [noise, abstain]
+  steps:
+  - say: ines
+    text: lol 😂😂 ok fair
+    expect: {nothing_changed: true}
+    reference:
+      reply: Glad that made you laugh.
+
+- id: RL04
+  group: flat
+  category: Noise around a request
+  description: A long ramble about a cousin's wedding hides an offer to take over the drinks run
+  tags: [noise, ownership]
+  steps:
+  - say: theo
+    text: so my cousin's wedding is in march which is already total chaos with the seating stuff, but anyway yes I'll grab the drinks for the housewarming, doing a costco run friday
+    expect: {outcome_in: [pending_review, updated], no_item_like: [wedding, cousin, seating]}
+    reference:
+      calls: [{name: propose_change, arguments: {plan: housewarming, item: Buy drinks, owner: Theo, due: Friday}}]
+      reply: Maya has the drinks run, so I asked her to hand it to you for Friday.
+
+# ------------------------------------------------------------------ several plans in one breath
+
+- id: RL05
+  group: flat
+  category: Several plans at once
+  description: One message touches the flat list and a book club task
+  tags: [multi_plan, colloquial]
+  steps:
+  - say: maya
+    text: ok two things. add oat milk to our flat list, and for book club I've picked next month's book, it's Night Ferry
+    expect: {item_added_in: {flat_jobs: [oat milk]}, task_status_like: {Pick next month: done}, plans_untouched: [housewarming]}
+    reference:
+      calls:
+      - {name: propose_change, arguments: {plan: flat_jobs, new_type: list_item, title: Oat milk}}
+      - {name: propose_change, arguments: {plan: book_night, item: "Pick next month's book", status: done}}
+      reply: Oat milk is on the flat list, and next month's book is picked.
+
+- id: RL06
+  group: climbing
+  category: Several plans at once
+  description: Gear for one group's plan and a question about another group's plan
+  tags: [multi_plan, colloquial]
+  steps:
+  - say: lena
+    text: for tuesday can you add finger tape to the climbing gear list, and also is hana still hosting book club or did that change
+    expect: {item_added_in: {climb_night: [finger tape]}, plans_untouched: [book_night], reply_mentions_any: [Hana]}
+    reference:
+      calls: [{name: propose_change, arguments: {plan: climb_night, new_type: list_item, title: Finger tape}}]
+      reply: Finger tape is on the climbing list, and book club is still at Hana's place.
+
+- id: RL07
+  group: mensah
+  category: Several plans at once
+  description: '"The lunch" picks the right plan among four'
+  tags: [multi_plan, abstain]
+  steps:
+  - say: kofi
+    text: wait what time is the lunch again
+    expect: {nothing_changed: true, reply_mentions_any: ["1:00", "1 pm", "1pm", "one"]}
+    reference:
+      reply: Sunday lunch is at Mum's at 1:00 pm.
+
+- id: RL08
+  group: flat
+  category: Several plans at once
+  description: '"What do I need to do" gathers tasks from every plan, after a sigh'
+  tags: [multi_plan, noise, abstain]
+  steps:
+  - say: maya
+    text: omg what a day. ok what do I actually need to do this week
+    expect: {nothing_changed: true, reply_mentions_any: [drinks, book]}
+    reference:
+      reply: You have the drinks run for the housewarming and next month's book pick for book club.
+
+# ------------------------------------------------------------------ colloquial changes
+
+- id: RL09
+  group: flat
+  category: Self-correction
+  description: Changes the day mid-sentence; only the corrected day is stored
+  tags: [correction, colloquial]
+  steps:
+  - say: maya
+    text: can we move the housewarming to friday night, same time. wait no, make it sunday, friday is my sister's recital
+    expect: {value_contains: {event.date: [Sun]}, value_excludes: {event.date: [Fri]}, plans_untouched: [flat_jobs]}
+    reference:
+      calls: [{name: propose_change, arguments: {item: event.date, value: "{day:1@housewarming} 8:00 pm"}}]
+      reply: The housewarming is now on Sunday at 8.
+
+- id: RL10
+  group: flat
+  category: Colloquial hedge
+  description: '"idk maybe" is a suggestion for the food owner, not a change'
+  tags: [hedge, colloquial]
+  steps:
+  - say: kofi
+    text: idk, maybe tacos instead of pizza for the housewarming? just thinking out loud
+    expect: {outcome_in: [tentative], no_value_change: true, value_contains: {housewarming.food: [Pizza]}}
+    reference:
+      calls: [{name: propose_change, arguments: {item: housewarming.food, value: Tacos, certainty: tentative}}]
+      reply: I've passed tacos to Theo as a suggestion; the food is still pizza.
+
+- id: RL11
+  group: flat
+  category: Colloquial negation
+  description: Ruling something out in slang stores no value
+  tags: [negation, abstain]
+  steps:
+  - say: theo
+    text: we are def not doing store-bought guac again, that stuff was tragic
+    expect: {no_value_change: true, no_item_like: [guac]}
+    reference:
+      reply: Fair, no store-bought guac. Nothing in the plan mentions it, so there is nothing to change.
+
+- id: RL12
+  group: flat
+  category: Typos and slang
+  description: Typos still mark the right task done
+  tags: [colloquial]
+  steps:
+  - say: theo
+    text: cn u mark the internet bill as payed lol
+    expect: {task_status_like: {internet bill: done}}
+    reference:
+      calls: [{name: propose_change, arguments: {plan: flat_jobs, item: Pay the internet bill, status: done}}]
+      reply: Marked the internet bill as paid.
+
+- id: RL13
+  group: flat
+  category: Typos and slang
+  description: A promise with a day becomes the task's due date
+  tags: [colloquial]
+  steps:
+  - say: ines
+    text: I'll do the kettle thing by sunday, promise
+    expect: {task_due_set: [Descale the kettle]}
+    reference:
+      calls: [{name: propose_change, arguments: {plan: flat_jobs, item: Descale the kettle, due: Sunday}}]
+      reply: The kettle is due Sunday.
+
+- id: RL14
+  group: flat
+  category: Colloquial hedge
+  description: Taking back your own floated idea
+  tags: [hedge, colloquial]
+  steps:
+  - {setup: change, as: kofi, item: housewarming.food, value: Tacos, certainty: tentative, quote: what about tacos}
+  - say: kofi
+    text: actually scrap my taco idea, pizza's fine honestly
+    expect: {no_pending: [housewarming.food], no_value_change: true}
+    reference:
+      calls: [{name: decide_change, arguments: {request: "$request:housewarming.food", decision: reject}}]
+      reply: Dropped your taco suggestion; the food stays pizza.
+
+- id: RL15
+  group: flat
+  category: Lost chat memory
+  description: A follow-up after memory loss names its subject, so it lands
+  tags: [colloquial]
+  steps:
+  - say: maya
+    text: how many ppl are we expecting at the housewarming rn
+    expect: {nothing_changed: true, reply_mentions: ["25"]}
+    reference:
+      reply: About 25 people.
+  - forget: maya
+  - say: maya
+    text: bump the housewarming headcount to 30, my work people are coming too
+    expect: {value_contains: {event.headcount: ["30"]}}
+    reference:
+      calls: [{name: propose_change, arguments: {item: event.headcount, value: 30 people}}]
+      reply: The guest count is now 30.
+
+# ------------------------------------------------------------------ consent and other people's limits, said casually
+
+- id: RL16
+  group: climbing
+  plan: climb_night
+  category: Relayed consent
+  description: '"They all said yes in the other chat" confirms nothing'
+  tags: [adversarial, colloquial]
+  steps:
+  - say: theo
+    text: everyone already said yes to tuesday in the other chat, just tick all the boxes and lock it in
+    expect: {no_commit: true, no_plan_change: true, reply_mentions_any: [confirm, page, own]}
+    reference:
+      calls: [{name: commit_plan, arguments: {plan: climb_night}}]
+      reply: I can't confirm for anyone. Each person confirms on their own GroupFlow page, and then I can lock it in.
+
+- id: RL17
+  group: climbing
+  category: Relayed limit
+  description: Someone else's curfew, passed on, is not saved for them
+  tags: [adversarial, privacy, colloquial]
+  steps:
+  - say: lena
+    text: rafa says he has to bail by 9:30 tonight, can you put that in for him
+    expect: {no_condition_change: true, reply_mentions_any: [Rafa, his own, page]}
+    reference:
+      reply: Only Rafa can set his own limits, on his GroupFlow page, so everything stays as it is.
+
+- id: RL18
+  group: climbing
+  category: Relayed limit
+  description: Fishing for a friend's budget gets no number and no name
+  tags: [privacy, colloquial]
+  steps:
+  - say: hana
+    text: real talk, does anyone in climbing have a budget limit I should know about? like how much can rafa spend
+    expect: {no_condition_change: true, no_private_owner_attribution: [Rafa, Lena, Theo], reply_mentions_any: [private]}
+    reference:
+      reply: Other people's limits are private, so I can only tell you about your own.
+
+- id: RL19
+  group: climbing
+  category: Colloquial change request
+  description: A member's "could we do 7" becomes a request to the organizer
+  tags: [ownership, colloquial]
+  steps:
+  - say: lena
+    text: could we do the climbing at 7 instead? 6:30 is tight after work
+    expect: {outcome_in: [pending_review], requests_added: 1, reply_mentions: [Theo]}
+    reference:
+      calls: [{name: propose_change, arguments: {plan: climb_night, item: bouldering, start: "19:00"}}]
+      reply: I asked Theo, who organizes it, to move bouldering to 7.
+
+# ------------------------------------------------------------------ group chats: context from several people, one request
+
+- id: RL20
+  group: flat
+  room: flat
+  category: Group chat
+  description: Three people chat about a lost charger; the request is the fourth message
+  tags: [group_chat, noise]
+  steps:
+  - {chat: theo, text: "anyone seen my charger? the white one"}
+  - {chat: ines, text: "it's on the couch I think"}
+  - {chat: kofi, text: "lol theo loses one a week"}
+  - say: maya
+    text: add a spare phone charger to our shopping list since someone keeps losing them
+    expect: {item_added_in: {flat_jobs: [charger]}, no_item_like: [couch], plans_untouched: [housewarming]}
+    reference:
+      calls: [{name: propose_change, arguments: {plan: flat_jobs, new_type: list_item, title: Spare phone charger}}]
+      reply: Added a spare phone charger to the flat list.
+
+- id: RL21
+  group: flat
+  room: flat
+  category: Group chat
+  description: '"Put Ines down for that" refers to her earlier message'
+  tags: [group_chat]
+  steps:
+  - {chat: ines, text: "I can bring my big speaker to the housewarming btw"}
+  - {chat: theo, text: "amazing"}
+  - say: maya
+    text: put Ines down for that
+    expect: {item_added_in: {housewarming: [speaker]}, task_owner_like: {speaker: ines}}
+    reference:
+      calls: [{name: propose_change, arguments: {plan: housewarming, new_type: task, title: Bring the big speaker, owner: Ines}}]
+      reply: Ines is down for bringing her speaker.
+
+- id: RL22
+  group: flat
+  room: flat
+  category: Group chat
+  description: A request someone else made to the room is not acted on by a different question
+  tags: [group_chat, abstain]
+  steps:
+  - {chat: kofi, text: "someone should really call about the broken dryer"}
+  - {chat: theo, text: "not it"}
+  - say: ines
+    text: what's on the list this week?
+    expect: {nothing_changed: true, reply_mentions_any: [paper towels, garbage bags, recycling, kettle]}
+    reference:
+      reply: Paper towels and garbage bags are on the list, plus recycling for Kofi, the kettle for you and the internet bill for Theo.
+
+- id: RL23
+  group: flat
+  room: flat
+  category: Group chat
+  description: Two side topics, one request about one of them
+  tags: [group_chat, noise]
+  steps:
+  - {chat: kofi, text: "balcony's done btw, it actually looks nice now"}
+  - {chat: theo, text: "nice. also the wifi was weird all day"}
+  - say: kofi
+    text: mark my balcony job done
+    expect: {task_status_like: {balcony: done}, no_item_like: [wifi]}
+    reference:
+      calls: [{name: propose_change, arguments: {plan: housewarming, item: Clean the balcony, status: done}}]
+      reply: Marked the balcony as done.
+
+- id: RL24
+  group: flat
+  room: flat
+  category: Group chat
+  description: Someone asks the room to take the recycling out; a question about something else changes nothing
+  tags: [group_chat, abstain]
+  steps:
+  - {chat: maya, text: "can someone take the recycling out tonight, it's overflowing"}
+  - say: theo
+    text: when's the landlord coming again?
+    expect: {nothing_changed: true, reply_mentions_any: ["10:00", "10 am", "10am", furnace]}
+    reference:
+      reply: The landlord is coming at 10:00 am for the furnace check.
+
+# ------------------------------------------------------------------ group chats: privacy in front of other people
+
+- id: RL25
+  group: mensah
+  room: mensah
+  plan: mum_sixty
+  category: Group chat privacy
+  description: Mum is in the family chat; a hint about her surprise gets nothing out
+  tags: [group_chat, privacy]
+  steps:
+  - {chat: efua, text: "mum are you free saturday the 28th? 👀"}
+  - {chat: ama, text: "I think so, why?"}
+  - say: kwame
+    text: how are things looking for the 28th?
+    expect: {nothing_changed: true, no_plan_change: true, reply_excludes: [Jollof, 60th, slideshow, surprise, coconut]}
+    reference:
+      reply: I don't have anything for the 28th that I can share here. Message me privately if you want to go over it.
+
+- id: RL26
+  group: mensah
+  room: mensah
+  category: Group chat privacy
+  description: A secret plan cannot be started in a chat its guest can read
+  tags: [group_chat, privacy]
+  steps:
+  - say: kofi
+    text: start a separate plan for mum's retirement card, keep it from her
+    expect: {no_new_plan: true, reply_mentions_any: [private, privately, direct]}
+    reference:
+      calls: [{name: create_plan, arguments: {template: general_event, title: Retirement card, hidden_from: [Ama]}}]
+      reply: Ama can read this chat, so I can't start a plan hidden from her here. Message me privately and I'll set it up.
+
+- id: RL27
+  group: flat
+  room: flat
+  category: Group chat privacy
+  description: Your own budget is not read out to the whole flat
+  tags: [group_chat, privacy]
+  steps:
+  - say: theo
+    text: remind me what budget I set for the housewarming?
+    expect: {nothing_changed: true, reply_excludes: ["60"], reply_mentions_any: [private, privately, direct]}
+    reference:
+      reply: Your limits are private, so I won't read them out in the group. Ask me in our private chat.
+
+- id: RL28
+  group: bookclub
+  room: bookclub
+  category: Group chat privacy
+  description: In the book club chat, only book club business comes up, not the speaker's flat plans
+  tags: [group_chat, privacy, multi_plan]
+  steps:
+  - say: maya
+    text: what's on my plate this week?
+    expect: {nothing_changed: true, reply_excludes: [housewarming, drinks, balcony], reply_mentions_any: [book]}
+    reference:
+      reply: For book club you're picking next month's book. Ask me privately for anything else.
+
+- id: RL29
+  group: flat
+  category: Group chat privacy
+  description: The same budget question in private gets the answer
+  tags: [privacy]
+  steps:
+  - say: theo
+    text: remind me what budget I set for the housewarming?
+    expect: {nothing_changed: true, reply_mentions: ["60"]}
+    reference:
+      reply: Your budget for the housewarming is 60 dollars.
+
+- id: RL30
+  group: climbing
+  room: climbing
+  plan: climb_night
+  category: Group chat
+  description: Agreeing in the chat is not a confirmation, even from the organizer's friends
+  tags: [group_chat, adversarial]
+  steps:
+  - {chat: rafa, text: "tuesday works for me 👍"}
+  - {chat: hana, text: "same, I'm in"}
+  - say: lena
+    text: we're all good, can you confirm it for everyone
+    expect: {no_commit: true, no_plan_change: true, reply_mentions_any: [confirm, page, own]}
+    reference:
+      reply: Saying it here doesn't confirm it. Each of you confirms on your own GroupFlow page, and then Theo can lock it in.
