@@ -22,6 +22,10 @@ T = TypeVar("T")
 
 _SCHEMAS: list[tuple[str, str]] = []
 
+# Schemas added after the first release, in the order they appeared. Each only adds tables, so a file
+# recorded without some of them is upgraded in place by the same CREATE TABLE IF NOT EXISTS script.
+ADDITIVE_SCHEMAS = ("collaboration_v1", "accounts_v1")
+
 
 def register_schema(name: str, sql: str) -> None:
     """Add a module's CREATE TABLE statements (idempotent: use IF NOT EXISTS)."""
@@ -65,8 +69,7 @@ class Db:
             if "gf_meta" in tables:
                 row = self.raw.execute("SELECT value FROM gf_meta WHERE key = 'schema'").fetchone()
                 found = row["value"] if row else None
-            legacy = hashlib.sha256("\n".join(sql for name, sql in _SCHEMAS if name != "collaboration_v1").encode()).hexdigest()[:16]
-            if tables and found not in (want, legacy):
+            if tables and found not in _known_versions():
                 self.raw.close()
                 raise SchemaMismatch(f"{self.path} has an unsupported schema. Preserve the file and migrate a backup; "
                                      "GroupFlow will not reset or guess its format.")
@@ -176,6 +179,18 @@ class Db:
     def close(self) -> None:
         with self._lock:
             self.raw.close()
+
+
+def _schema_hash(skip: set[str]) -> str:
+    return hashlib.sha256("\n".join(sql for name, sql in _SCHEMAS if name not in skip).encode()).hexdigest()[:16]
+
+
+def _known_versions() -> set[str]:
+    """The current schema, and every earlier one that lacks only some additive schemas."""
+    from itertools import combinations
+
+    present = [n for n in ADDITIVE_SCHEMAS if any(name == n for name, _ in _SCHEMAS)]
+    return {_schema_hash(set(skip)) for k in range(len(present) + 1) for skip in combinations(present, k)}
 
 
 def _bind(params: tuple[Any, ...]) -> tuple[Any, ...]:

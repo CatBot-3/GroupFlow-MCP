@@ -46,6 +46,14 @@ def env_list(key: str, default: str) -> list[str]:
     return [p.strip() for p in (env(key, default) or "").split(",") if p.strip()]
 
 
+def chat_db_for(db_path: str) -> str:
+    """The group chat's own store sits next to the GroupFlow database it belongs to, so a fresh demo database gets a fresh chat."""
+    if db_path == ":memory:":
+        return ":memory:"
+    p = Path(db_path)
+    return str(p.with_name(p.stem + ".chat" + (p.suffix or ".db")))
+
+
 @dataclass(frozen=True)
 class ServerSettings:
     host: str = field(default_factory=lambda: env("GROUPFLOW_HOST", "127.0.0.1"))
@@ -58,6 +66,8 @@ class ServerSettings:
         "http://localhost:8788,http://127.0.0.1:8788,http://localhost:5173,http://127.0.0.1:5173",
     ))
     world_path: str = field(default_factory=lambda: env("GROUPFLOW_WORLD", str(REPO_ROOT / "demo" / "world.yaml")))
+    signup: str = field(default_factory=lambda: env("GROUPFLOW_SIGNUP", "open"))  # open | invite | off
+    join_url: str = field(default_factory=lambda: env("GROUPFLOW_JOIN_URL", "http://localhost:8788/chat"))
 
 
 @dataclass(frozen=True)
@@ -84,6 +94,7 @@ class SimSettings:
     admin_key: str = field(default_factory=lambda: env("GROUPFLOW_ADMIN_KEY", "gf_demo_admin"))
     web_dist: str = field(default_factory=lambda: str(REPO_ROOT / "web" / "dist"))
     timezone: str = field(default_factory=lambda: env("GROUPFLOW_TIMEZONE", "America/Toronto"))
+    chat_db: str = field(default_factory=lambda: env("GROUPFLOW_CHAT_DB") or chat_db_for(env("GROUPFLOW_DB", str(REPO_ROOT / "data" / "groupflow.db"))))
 
     @property
     def server_base(self) -> str:

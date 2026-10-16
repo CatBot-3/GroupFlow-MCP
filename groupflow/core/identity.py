@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .db import Db, register_schema
-from .util import hash_secret
+from .util import hash_secret, verify_passcode
 
 register_schema("core", """
 CREATE TABLE IF NOT EXISTS meta (
@@ -61,10 +61,16 @@ class Identity:
         return Member(id=row["id"], name=row["name"]) if row else None
 
     def by_token(self, token: str) -> Member | None:
-        return self._member(self.db.get("SELECT * FROM members WHERE token_hash = ?", hash_secret(token)))
+        """A demo member's own token, or a token the person issued to an assistant host on their page (account linking)."""
+        hashed = hash_secret(token)
+        row = self.db.get("SELECT * FROM members WHERE token_hash = ?", hashed)
+        if row is None:
+            row = self.db.get("SELECT m.* FROM linked_tokens l JOIN members m ON m.id = l.member_id WHERE l.token_hash = ? AND l.revoked_at IS NULL", hashed)
+        return self._member(row)
 
     def by_passcode(self, member_id: str, passcode: str) -> Member | None:
-        return self._member(self.db.get("SELECT * FROM members WHERE id = ? AND passcode_hash = ?", member_id, hash_secret(passcode)))
+        row = self.db.get("SELECT * FROM members WHERE id = ?", (member_id or "").strip().lower())
+        return self._member(row) if row and verify_passcode(passcode or "", row["passcode_hash"]) else None
 
     def get(self, member_id: str) -> Member | None:
         return self._member(self.db.get("SELECT * FROM members WHERE id = ?", member_id))

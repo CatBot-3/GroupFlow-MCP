@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 from groupflow.core.errors import DomainError
 from groupflow.core.identity import Member
+from groupflow.engine.core import LISTENERS
 
 log = logging.getLogger("groupflow.mcp")
 T = TypeVar("T", bound=BaseModel)
@@ -35,6 +36,14 @@ def caller(ctx: Context) -> Member:
     if not isinstance(member, Member):
         raise DomainError("UNAUTHENTICATED", "This connection has no authenticated member.")
     return member
+
+
+def listeners_of(ctx: Context) -> frozenset[str] | None:
+    """Who else the host said will hear this reply (resolved and validated by the HTTP layer), or None."""
+    req = ctx.request_context.request if ctx is not None else None
+    state = req.scope.get("state", {}) if req is not None else {}
+    value = state.get("listeners")
+    return value if isinstance(value, frozenset) else None
 
 
 def error_result(err: DomainError) -> CallToolResult:
@@ -60,9 +69,12 @@ class ToolRunner:
     def run(self, ctx: Context, tool: str, fn: Callable[[Member], T]) -> T | CallToolResult:
         started = time.perf_counter()
         member_id = "?"
+        token = None
         try:
             member = caller(ctx)
             member_id = member.id
+            listeners = listeners_of(ctx)
+            token = LISTENERS.set((member.id, listeners) if listeners else None)
             result = fn(member)
             self._log(member_id, tool, True, summarize(result), started)
             return result
@@ -73,6 +85,9 @@ class ToolRunner:
             log.exception("tool %s failed", tool)
             self._log(member_id, tool, False, "INTERNAL", started)
             return error_result(DomainError("INTERNAL", "Unexpected server error."))
+        finally:
+            if token is not None:
+                LISTENERS.reset(token)
 
     def _log(self, member: str, tool: str, ok: bool, summary: str, started: float) -> None:
         if self.on_call:

@@ -88,39 +88,48 @@ def hour24(p: DateTimeParts) -> int | None:
     return h
 
 
-def bare_weekday_date(quote: str, current: str, plan_start: str):
-    """A bare weekday follows the existing item's week, never the model's today.
+def bare_weekday_dates(quote: str, current: str, plan_start: str) -> list:
+    """Every date a bare weekday in the quote can mean, each anchored to the existing item's week.
 
-    Explicit dates and this/next/last are left to their explicit interpretation.
-    Return None when the current value does not supply a trustworthy anchor.
+    A self-correction names several weekdays ("Friday night, wait no, make it Sunday, Friday is my
+    sister's recital"), and which one the speaker settled on is for the model to read; the server
+    only checks that the date is one the speaker could have meant, never a date from another week.
+    Empty (no check) unless a weekday is the target of a move ("to Sunday", "on Friday"): a weekday
+    mentioned only as context ("Rosa's double-booked Saturday") constrains nothing. Also empty when the
+    quote gives an explicit date or this/next/last, or the item has no date to anchor to.
     """
     from datetime import date, timedelta
 
-    quoted, existing = parse_datetime(quote), parse_datetime(current)
     weekdays = r"(sunday|monday|tuesday|wednesday|thursday|friday|saturday|sun|mon|tue|wed|thu|fri|sat)"
-    targets = list(re.finditer(r"(?:^|\b(?:to|on|for|now)\s+)" + weekdays + r"\b", quote, re.I))
-    if not targets or quoted.month is not None or quoted.day is not None:
-        return None
-    spoken = parse_datetime(targets[-1].group(1))
-    if re.search(r"\b(this|next|last|today|tomorrow)\b|\d{4}-\d{2}-\d{2}", quote, re.I):
-        return None
+    quoted, existing = parse_datetime(quote), parse_datetime(current)
+    if not re.search(r"(?:^|\b(?:to|on|for|now)\s+)" + weekdays + r"\b", quote, re.I):
+        return []
+    if quoted.month is not None or quoted.day is not None or re.search(r"\b(this|next|last|today|tomorrow)\b|\d{4}-\d{2}-\d{2}", quote, re.I):
+        return []
     if existing.month is None or existing.day is None:
-        return None
+        return []
     anchor = date.fromisoformat(plan_start)
     candidates = []
-    for year in (anchor.year-1, anchor.year, anchor.year+1):
+    for year in (anchor.year - 1, anchor.year, anchor.year + 1):
         try:
             candidates.append(date(year, existing.month, existing.day))
         except ValueError:
             continue
     if not candidates:
-        return None
-    reference = min(candidates, key=lambda d: abs((d-anchor).days))
-    weekday = (spoken.weekday + 6) % 7  # parser Sunday=0, datetime Monday=0
-    delta = (weekday-reference.weekday()) % 7
-    if delta > 3:
-        delta -= 7
-    return reference + timedelta(days=delta)
+        return []
+    reference = min(candidates, key=lambda d: abs((d - anchor).days))
+    out = []
+    for word in re.findall(r"\b" + weekdays + r"\b", quote, re.I):
+        spoken = parse_datetime(word)
+        if spoken.weekday is None:
+            continue
+        delta = ((spoken.weekday + 6) % 7 - reference.weekday()) % 7  # parser Sunday=0, datetime Monday=0
+        if delta > 3:
+            delta -= 7
+        d = reference + timedelta(days=delta)
+        if d not in out:
+            out.append(d)
+    return out
 
 
 def parse_count(value: str) -> int | None:

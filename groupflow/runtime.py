@@ -44,6 +44,8 @@ def build_runtime(settings: ServerSettings | None = None, db_path: str | None = 
     world = load_world(world_path or settings.world_path)
     identity = Identity(db)
     engine = GroupFlow(db, identity, solver_budget_s=solver_budget_s)
+    engine.signup_mode = settings.signup if settings.signup in ("open", "invite", "off") else "off"
+    engine.join_base = settings.join_url or None
     if engine.is_empty():
         seed_world(engine, world, stages or {})
         log.info("seeded the demo world (%d groups)", len(world.groups))

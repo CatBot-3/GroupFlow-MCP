@@ -536,8 +536,10 @@ class Agreement(Core):
         for plan in plans:
             for r in self._condition_rows(plan, me, ("unverified",)):
                 if r["plan_id"] == plan["id"] or r["plan_id"] is None:
-                    todos.append(TodoView(kind="verify_condition", plan=plan["title"], where="your GroupFlow page",
-                                          text=f"Check and confirm your new condition: {self._condition_text(r, plan)}."))
+                    # Other listeners hear that something waits on the speaker's page, never what the condition says.
+                    text = ("Check and confirm a new private condition." if scope.listeners
+                            else f"Check and confirm your new condition: {self._condition_text(r, plan)}.")
+                    todos.append(TodoView(kind="verify_condition", plan=plan["title"], where="your GroupFlow page", text=text))
             cand = self._revision(plan["candidate_revision_id"])
             if cand and self._round_open(cand) and plan["status"] in ("AWAITING_CONFIRMATIONS", "READY_TO_COMMIT"):
                 for scope_row, status, _ in self._requirements(cand):
@@ -632,11 +634,21 @@ class Agreement(Core):
         if isinstance(n_days, bool) or not isinstance(n_days, int) or not 1 <= n_days <= 366:
             raise DomainError("INVALID_ARGUMENT", "Planning window days must be an integer from 1 to 366; it is not an approval expiry.")
 
+        listeners = self._listeners(actor_id)
+        if listeners and private:
+            raise DomainError("SHARED_CONVERSATION", "Other people are reading this conversation, so a plan only you can see cannot be made here. "
+                              "Message the assistant privately to keep it to yourself. No plan was created.")
+
         def run() -> CreatePlanResult:
             groups = self.db.all("SELECT g.* FROM groups g JOIN group_members gm ON gm.group_id = g.id WHERE gm.member_id = ? AND gm.status = 'active' "
                                  "ORDER BY g.rowid", actor_id)
+            if listeners:
+                # A plan started in a shared conversation belongs to a group everyone listening is in.
+                groups = [x for x in groups if listeners <= {r["member_id"] for r in self.db.all(
+                    "SELECT member_id FROM group_members WHERE group_id = ? AND status = 'active'", x["id"])}]
             if not groups:
-                raise DomainError("FORBIDDEN", "You are not in any group.")
+                raise DomainError("FORBIDDEN", "You are not in any group." if not listeners else
+                                  "Not everyone in this conversation is in one of your groups, so no plan can be started here. No plan was created.")
             g = None
             if group:
                 low = group.strip().lower()
@@ -665,6 +677,11 @@ class Agreement(Core):
                 if actor_id in hide:
                     raise DomainError("INVALID_ARGUMENT", "You cannot hide a plan from yourself.")
                 people = [m for m in people if m not in hide]
+            if listeners and not listeners <= set(people):
+                hidden = [self.name(m) for m in sorted(listeners - set(people))]
+                raise DomainError("SHARED_CONVERSATION", f"{_names(hidden)} {'is' if len(hidden) == 1 else 'are'} reading this conversation but would not be "
+                                  "allowed to see this plan. Message the assistant privately to start a plan that is hidden from someone here. "
+                                  "No plan was created.")
             if private:
                 space_id = f"{g['id']}.private.{actor_id}"
                 if not self._space(space_id):

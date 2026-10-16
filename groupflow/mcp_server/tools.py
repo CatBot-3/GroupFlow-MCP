@@ -25,12 +25,14 @@ INSTRUCTIONS = (
     "read one plan in full when needed. Discover templates in the short directory or list_templates, then get_template for one specification. "
     "Record statements with propose_change; hedged ideas are tentative. Owner items wait for their owner, open items allow any member, "
     "and activities need each person's own page confirmation followed by organizer commit. You can never confirm, decline or withdraw for "
-    "anyone; reported group agreement changes no approvals. Report tool outcomes exactly. The server filters visibility and private conditions."
+    "anyone; reported group agreement changes no approvals. Report tool outcomes exactly. The server filters visibility and private conditions. "
+    "create_group starts a group and invite_to_group makes a code; people join only on their own page. When get_context lists shared_with, "
+    "those people also read the reply and only plans all of them can see are included."
 )
 
 NAMES = ["get_context", "search_plan", "create_plan", "propose_change", "decide_change", "link_items", "set_my_conditions", "report_observation",
          "request_confirmations", "find_alternatives", "get_alternatives", "commit_plan", "explain", "get_history", "list_templates", "get_template",
-         "get_project", "configure_project", "upsert_work", "manage_recurrence", "repair_project"]
+         "get_project", "configure_project", "upsert_work", "manage_recurrence", "repair_project", "create_group", "invite_to_group"]
 
 PLAN_ARG = Field(description='Plan id/title; pass it when more than one plan could match.')
 
@@ -333,6 +335,18 @@ def register(mcp: MCPServer, engine: GroupFlow, runner: ToolRunner) -> None:
               annotations=annotations(read_only=False))
     async def repair_project(ctx: Context, plan: str, budget_s: Annotated[float, Field(ge=0.05, le=10)] = 3) -> dict[str, Any]:
         return await asyncio.to_thread(runner.run, ctx, "repair_project", lambda m: engine.repair_project(m.id, plan, budget_s))
+
+    @mcp.tool(title="Start a group", description="Start a new group of people who plan together, with the speaker as organizer. Nobody else is added: share an invite from invite_to_group and each person joins on their own page.",
+              annotations=annotations(read_only=False))
+    async def create_group(ctx: Context, name: Annotated[str, Field(description='Group name, e.g. "Cousins" or "Running club".')],
+                           timezone: Annotated[str | None, Field(description="IANA time zone; default: the speaker's other groups, else America/Toronto.")] = None,
+                           currency: Annotated[str | None, Field(description="Three-letter currency code for shared costs.")] = None) -> dict[str, Any]:
+        return runner.run(ctx, "create_group", lambda m: engine.create_group(m.id, name, timezone, currency))
+
+    @mcp.tool(title="Invite people to a group", description="Organizer: make a shareable invite code (and link) for one of the speaker's groups. It adds nobody by itself; each person accepts it on their own GroupFlow page. Read the code out exactly.",
+              annotations=annotations(read_only=False))
+    async def invite_to_group(ctx: Context, group: Annotated[str | None, Field(description="Group id or name; needed when the speaker is in several groups.")] = None) -> dict[str, Any]:
+        return runner.run(ctx, "invite_to_group", lambda m: engine.invite_to_group(m.id, group))
 
 
 __all__ = ["register", "INSTRUCTIONS", "NAMES"]

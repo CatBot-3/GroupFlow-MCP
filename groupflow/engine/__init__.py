@@ -9,10 +9,11 @@ from groupflow.core.identity import Identity
 
 from .agreement import Agreement
 from .collaboration import Collaboration
-from .core import UNSET, Scope, fixed_clock
+from .core import LISTENERS, UNSET, Scope, fixed_clock
+from .membership import Membership
 
 
-class GroupFlow(Collaboration, Agreement):
+class GroupFlow(Membership, Collaboration, Agreement):
     """Everything the MCP tools, the human-only API and the demo console call."""
 
     def __init__(self, db: Db, identity: Identity | None = None, solver_budget_s: float = 3.0, method: str = "auto"):
@@ -82,4 +83,4 @@ class GroupFlow(Collaboration, Agreement):
         return self.db.tx(run)
 
 
-__all__ = ["GroupFlow", "UNSET", "fixed_clock"]
+__all__ = ["GroupFlow", "LISTENERS", "UNSET", "fixed_clock"]

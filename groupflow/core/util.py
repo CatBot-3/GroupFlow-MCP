@@ -39,7 +39,28 @@ def digest(value: Any) -> str:
 
 
 def hash_secret(secret: str) -> str:
+    """For random server-made secrets (tokens, nonces): a plain digest is enough because they cannot be guessed."""
     return hashlib.sha256(secret.encode("utf-8")).hexdigest()
+
+
+def hash_passcode(passcode: str) -> str:
+    """For secrets a person chooses: salted scrypt, so a copied database does not hand out passcodes."""
+    salt = secrets.token_bytes(16)
+    key = hashlib.scrypt(passcode.encode("utf-8"), salt=salt, n=2 ** 14, r=8, p=1, dklen=32)
+    return f"scrypt${salt.hex()}${key.hex()}"
+
+
+def verify_passcode(passcode: str, stored: str | None) -> bool:
+    """Checks scrypt hashes, and the plain digests the demo world's fixed passcodes were stored with."""
+    import hmac
+
+    if not stored:
+        return False
+    if stored.startswith("scrypt$"):
+        _, salt, key = stored.split("$", 2)
+        got = hashlib.scrypt(passcode.encode("utf-8"), salt=bytes.fromhex(salt), n=2 ** 14, r=8, p=1, dklen=32)
+        return hmac.compare_digest(got.hex(), key)
+    return hmac.compare_digest(hash_secret(passcode), stored)
 
 
 def new_secret(nbytes: int = 24) -> str:

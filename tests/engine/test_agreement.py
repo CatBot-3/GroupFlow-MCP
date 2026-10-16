@@ -1,6 +1,7 @@
 """Activities under the participants policy (the evening_out template): confirmations on each person's own page,
 carry-forward, the commit gate, repairs and privacy of conditions."""
 import json
+import re
 
 from groupflow.world import approve_all
 from tests.conftest import code, plan_view, seeded
@@ -97,7 +98,10 @@ def test_a_decline_with_a_lower_limit_makes_the_next_search_explain_the_clash():
     alts = gf.find_alternatives("alice", plan="friday_dinner")
     assert alts.alternatives == [] and alts.proof.status == "infeasible_within_domain"
     assert any("budget" in c for c in alts.conflict)
-    assert "40" not in json.dumps(alts.model_dump()) and "Dana" not in " ".join(alts.conflict)
+    # Dana's new limit (40) must not surface. The proof's timing and the random ids are left out of the scan: a 40 ms search or an
+    # id containing "40" is not her budget, and matching them made this check flaky.
+    shown = json.dumps({k: v for k, v in alts.model_dump().items() if k not in ("proof", "job")})
+    assert not re.search(r"\b40\b", shown) and "Dana" not in " ".join(alts.conflict)
 
 
 def test_conditions_said_to_alexa_are_drafts_until_the_person_confirms_them():

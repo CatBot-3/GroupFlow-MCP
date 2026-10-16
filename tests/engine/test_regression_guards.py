@@ -95,3 +95,14 @@ def test_bare_weekday_rejects_a_model_invented_calendar_date(gf):
     assert gf.propose_change('alice',item='party.date',value='Sunday, Oct 25, 5:00 pm',quote="Let's move the party to Sunday at 5.").outcome == 'confirmed'
     assert gf.propose_change('alice',item='party.date',value='Sunday, Oct 18, 5:00 pm',quote='Actually move it to Sunday, Oct 18 at 5 pm.').outcome == 'confirmed'
 
+
+
+def test_a_self_corrected_weekday_is_accepted_and_other_weeks_still_are_not(gf):
+    """Found by the realistic suite: "Friday night, wait no, make it Sunday" names two weekdays; the corrected one must be accepted."""
+    import pytest
+    from groupflow.core.errors import DomainError
+    quote = "can we move the party to friday, same time. wait no, make it sunday, friday is my brother's thing"
+    assert gf.propose_change('alice', item='party.date', value='Sunday, Oct 25, 6:00 pm', quote=quote).outcome == 'confirmed'
+    with pytest.raises(DomainError) as err:
+        gf.propose_change('alice', item='party.date', value='Sunday, Nov 1, 6:00 pm', quote=quote)
+    assert err.value.code == 'DATE_REFERENCE_REQUIRED'

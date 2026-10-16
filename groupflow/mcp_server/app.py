@@ -8,6 +8,8 @@ Security model on /mcp:
   * Each MCP session is bound to the member who initialized it (403 for anyone else).
   * Only the handshake era is served, so clients negotiate 2025-11-25.
   * Every member gets the same tools; what they can see is decided per plan by the engine.
+  * A host may declare who else will hear the reply (X-GroupFlow-Listeners: member ids and/or
+    group:<id>). The speaker's scope then narrows to what every listener may see; it never widens.
 """
 from __future__ import annotations
 
@@ -37,7 +39,7 @@ log = logging.getLogger("groupflow.server")
 
 SERVER_NAME = "groupflow"
 SERVER_TITLE = "GroupFlow"
-SERVER_VERSION = "0.5.0"
+SERVER_VERSION = "0.6.0"
 PROTOCOL_VERSION = LATEST_HANDSHAKE_VERSION  # "2025-11-25"
 
 
@@ -73,11 +75,13 @@ def build_mcp(services: Services) -> MCPServer:
 class McpAuth:
     """ASGI wrapper for /mcp: origin check, bearer identity, and session-to-member binding."""
 
-    def __init__(self, app: ASGIApp, identity: Identity, allowed_origins: list[str]):
+    def __init__(self, app: ASGIApp, identity: Identity, allowed_origins: list[str],
+                 listeners: Callable[[str, str], frozenset[str]] | None = None):
         self.app = app
         self.identity = identity
         self.allowed_origins = set(allowed_origins)
         self.sessions: dict[str, str] = {}
+        self.resolve_listeners = listeners
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -99,8 +103,17 @@ class McpAuth:
         if sid and sid in self.sessions and self.sessions[sid] != member.id:
             await JSONResponse(_rpc_error(-32003, "This session belongs to a different member."), status_code=403)(scope, receive, send)
             return
+        declared = headers.get("x-groupflow-listeners")
+        listeners: frozenset[str] | None = None
+        if declared and self.resolve_listeners is not None:
+            try:
+                listeners = self.resolve_listeners(member.id, declared)
+            except ValueError as err:
+                await JSONResponse(_rpc_error(-32602, f"Invalid X-GroupFlow-Listeners: {err}"), status_code=400)(scope, receive, send)
+                return
         scope.setdefault("state", {})
         scope["state"]["member"] = member
+        scope["state"]["listeners"] = listeners
         if scope.get("method") == "DELETE" and sid:
             self.sessions.pop(sid, None)
 
@@ -124,7 +137,7 @@ def create_server_app(services: Services, *, host: str = "127.0.0.1", allowed_or
         allowed_origins=origins,
     )
     starlette_mcp = mcp.streamable_http_app(json_response=True, host=host, transport_security=security, streamable_http_path="/mcp")
-    auth = McpAuth(starlette_mcp, services.identity, origins)
+    auth = McpAuth(starlette_mcp, services.identity, origins, listeners=services.engine.resolve_listeners)
 
     @contextlib.asynccontextmanager
     async def lifespan(_app: FastAPI):

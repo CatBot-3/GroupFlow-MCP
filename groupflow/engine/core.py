@@ -10,9 +10,14 @@ that space can see the plan, its items, its history and anything caused by it.
 A change in a hidden plan can flag an item in a plan someone else sees (the
 surprise party's date and the family's cover story), but the flag and its
 cause stay invisible to anyone who cannot see both.
+
+Listeners: when the host says other people will hear or read the reply (a group
+chat, a shared kitchen device), the speaker's scope narrows to what every one of
+those listeners may see. The restriction can only remove access, never add it.
 """
 from __future__ import annotations
 
+import contextvars
 import json
 import re
 import secrets
@@ -30,7 +35,7 @@ from groupflow.templates import Template, get_template, load_templates
 
 from . import schema  # noqa: F401  (registers the tables)
 from .text import (
-    canonical, dates_text, humanize, normalize_slot_key, same_value, slugify, stem_word, topic_stems, bare_weekday_date, parse_datetime,
+    canonical, dates_text, humanize, normalize_slot_key, same_value, slugify, stem_word, topic_stems, bare_weekday_dates, parse_datetime,
 )
 from .views import (
     BlockerPath, ChangeResult, ConditionView, ContextView, DecisionResult, DetailView, ExplainView, FlagView, HistoryEntry, HistoryView,
@@ -40,6 +45,9 @@ from .views import (
 
 UNSET: Any = object()
 """Marks an optional argument that was not given (distinct from an explicit None)."""
+
+LISTENERS: contextvars.ContextVar[tuple[str, frozenset[str]] | None] = contextvars.ContextVar("groupflow_listeners", default=None)
+"""(speaker, everyone who will hear the reply) for the current MCP call, set by the server from the host's declaration."""
 
 STATUS_WORDS = {"todo": "not started", "in_progress": "in progress", "done": "done"}
 POLICY_WORDS = {"owner": "owner", "open": "anyone", "participants": "everyone taking part"}
@@ -53,6 +61,7 @@ class Scope:
     name: str
     spaces: set[str] = field(default_factory=set)
     plans: dict[str, Row] = field(default_factory=dict)
+    listeners: frozenset[str] | None = None  # set in a shared conversation: everyone who will hear the reply, the speaker included
 
     def sees_plan(self, plan_id: str | None) -> bool:
         return bool(plan_id) and plan_id in self.plans
@@ -161,8 +170,42 @@ class Core:
         if not m:
             raise DomainError("UNAUTHENTICATED", "Unknown member.")
         spaces = {r["space_id"] for r in self.db.all("SELECT space_id FROM space_members WHERE member_id = ?", member_id)}
+        listeners = self._listeners(member_id)
+        if listeners:
+            # Only spaces every listener belongs to: a plan some listener may not see is not in this conversation at all,
+            # exactly as if it did not exist, and a private space never qualifies.
+            spaces = {s for s in spaces if listeners <= set(self._space_members(s))}
         plans = {p["id"]: p for p in self.db.all("SELECT * FROM plans WHERE status <> 'CANCELLED' ORDER BY created_at, rowid") if p["space_id"] in spaces}
-        return Scope(member_id=member_id, name=m["name"], spaces=spaces, plans=plans)
+        return Scope(member_id=member_id, name=m["name"], spaces=spaces, plans=plans, listeners=listeners)
+
+    def _listeners(self, member_id: str | None = None) -> frozenset[str] | None:
+        """Everyone who will hear the current reply, when the host declared more people than the speaker. Applies only to the speaker's own scope."""
+        value = LISTENERS.get()
+        if not value:
+            return None
+        speaker, listeners = value
+        if member_id is not None and member_id != speaker:
+            return None
+        return listeners if len(listeners) > 1 else None
+
+    def resolve_listeners(self, member_id: str, declared: str) -> frozenset[str]:
+        """Parse a host's listener declaration: comma-separated member ids and/or group:<id> (every active member of a group the speaker is in).
+        Raises ValueError for anything malformed or unknown, so a host bug is visible instead of silently widening or narrowing."""
+        out = {member_id}
+        parts = [p.strip() for p in (declared or "").split(",") if p.strip()]
+        if len(parts) > 50:
+            raise ValueError("Too many listeners.")
+        for part in parts:
+            if part.startswith("group:"):
+                gid = part[6:].strip()
+                if not self._group_role(gid, member_id):
+                    raise ValueError(f"The speaker is not an active member of group {gid!r}.")
+                out |= {r["member_id"] for r in self.db.all("SELECT member_id FROM group_members WHERE group_id = ? AND status = 'active'", gid)}
+            elif self._member(part):
+                out.add(part)
+            else:
+                raise ValueError(f"Unknown listener {part!r}.")
+        return frozenset(out)
 
     def inspector_scope(self, group_id: str | None = None) -> Scope:
         """Demo inspector only: sees every plan (of one group). Never reachable through MCP."""
@@ -880,12 +923,13 @@ class Core:
                     raise DomainError("NEW_WORK_NOT_RENAME", "Do not replace an existing task with different work. Add a new task with item omitted and new_type from the plan; renaming needs an explicit rename instruction.")
             if target and target["shape"] == "detail" and value and quote:
                 if target["value_kind"] == "datetime":
-                    expected = bare_weekday_date(quote, self._current_value(target) or "", plan_row["start_date"])
+                    expected = bare_weekday_dates(quote, self._current_value(target) or "", plan_row["start_date"])
                     supplied = parse_datetime(value)
                     iso = re.search(r"\b\d{4}-(\d{2})-(\d{2})\b", value)
                     month_day = (int(iso[1]), int(iso[2])) if iso else (supplied.month, supplied.day)
-                    if expected and all(v is not None for v in month_day) and month_day != (expected.month, expected.day):
-                        raise DomainError("DATE_REFERENCE_REQUIRED", f"A bare weekday refers to the date nearest the existing item ({self._current_value(target)}): use {expected.isoformat()} with the requested time. The speaker did not give the different calendar date you supplied.")
+                    if expected and all(v is not None for v in month_day) and month_day not in {(d.month, d.day) for d in expected}:
+                        raise DomainError("DATE_REFERENCE_REQUIRED", f"A bare weekday refers to the date nearest the existing item ({self._current_value(target)}): use "
+                                          f"{' or '.join(d.isoformat() for d in expected)} with the requested time. The speaker did not give the different calendar date you supplied.")
                 denial = re.search(r"\b(not (?:getting|having|moving|changing)|(?:isn't|is not|aren't|are not) (?:moving|changing)|don't (?:change|move))\b|不要改|不换|不是改成", words)
                 replacement = re.search(r"\b(instead|replace .+ with|change .+ to|make it)\b|改成|换成", words)
                 if denial and not replacement and not same_value(target["value_kind"], value, self._current_value(target) or ""):
@@ -1187,8 +1231,9 @@ class Core:
                 if detail != "summary" and focus and t["plan_id"] != focus["id"]:
                     continue
                 flags.append(FlagView(item=t["id"], label=t["label"], plan=scope.plans[t["plan_id"]]["title"], message=f["message"]))
+            # In a shared conversation a note without a space (or from a space someone listening is not in) stays unread for later.
             notes = [n for n in self.db.all("SELECT * FROM notifications WHERE member_id = ? AND read_at IS NULL ORDER BY created_at, id", actor_id)
-                     if (n["space_id"] is None or n["space_id"] in scope.spaces) and n["plan_id"] in (None, *visible_ids)
+                     if ((n["space_id"] is None and not scope.listeners) or n["space_id"] in scope.spaces) and n["plan_id"] in (None, *visible_ids)
                      and (detail == "summary" or not focus or n["plan_id"] in (None, focus["id"]))]
             truncated = {}
             if detail == "summary":
@@ -1204,7 +1249,8 @@ class Core:
                      if t["plan_id"] in visible_ids]
             if detail == "summary" and len(tasks) > limit:
                 truncated["your_tasks"] = len(tasks) - limit
-            conditions = self._my_conditions(scope, plans) if detail == "full" or focus else []
+            # A person's private conditions are never read out to other listeners, even their own.
+            conditions = self._my_conditions(scope, plans) if (detail == "full" or focus) and not scope.listeners else []
             if detail == "summary" and len(todos) > limit:
                 truncated["todos"] = len(todos) - limit
                 todos = todos[:limit]
@@ -1245,6 +1291,11 @@ class Core:
             groups = self.db.all("SELECT g.id,g.name FROM groups g JOIN group_members gm ON gm.group_id=g.id WHERE gm.member_id=? AND gm.status='active' ORDER BY g.rowid", actor_id)
             if group:
                 groups = [g for g in groups if group.lower() in (g['id'].lower(), g['name'].lower())]
+            shared_with: list[str] = []
+            if scope.listeners:
+                groups = [g for g in groups if scope.listeners <= {r["member_id"] for r in self.db.all(
+                    "SELECT member_id FROM group_members WHERE group_id = ? AND status = 'active'", g["id"])}]
+                shared_with = [self.name(m) for m in sorted(scope.listeners) if m != actor_id]
             return ContextView(
                 you=scope.name, today=today.strftime("%a, %b ") + str(today.day) + today.strftime(", %Y"),
                 headline=(", ".join(parts) + ".") if parts else "Nothing new.",
@@ -1254,6 +1305,10 @@ class Core:
                 plan_index=index, active_plan_id=focus["id"] if focus else None, next_offset=next_offset, truncated=truncated,
                 templates=directory.templates if directory else [], template_next_offset=directory.next_offset if directory else None,
                 groups=groups[offset:offset+limit], group_next_offset=offset+limit if len(groups)>offset+limit else None,
+                shared_with=shared_with,
+                shared_note=(f"Shared conversation: {_names(shared_with)} will also read this reply. Only plans all of them can see are included; "
+                             "the speaker's private conditions, private plans and plans hidden from any of them are left out, not missing. "
+                             "For those, the speaker can message the assistant privately.") if shared_with else None,
                 your_tasks=[PersonalTaskView(id=t["id"], title=t["label"], plan=scope.plans[t["plan_id"]]["title"], plan_id=t["plan_id"], status=t["status"], due=t["due"],
                                             blockers=[] if t['status']=='done' else [{'item':u['id'],'label':u['label'],'decided_by':self.name(u['owner_id']),'reason':reason} for u,reason in self._blockers_of(scope,t)],
                                             flags=self._flags_for(scope,t['id']))

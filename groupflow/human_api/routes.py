@@ -19,7 +19,8 @@ from groupflow.core.errors import DomainError
 from groupflow.core.identity import Member
 
 STATUS = {"UNAUTHENTICATED": 401, "CSRF": 403, "FORBIDDEN": 403, "NOT_FOUND": 404, "STALE_CANDIDATE": 409, "STALE": 409,
-          "CHALLENGE_USED": 409, "CHALLENGE_EXPIRED": 410, "INVALID_ARGUMENT": 400, "AMBIGUOUS_PLAN": 400}
+          "CHALLENGE_USED": 409, "CHALLENGE_EXPIRED": 410, "INVALID_ARGUMENT": 400, "AMBIGUOUS_PLAN": 400, "DUPLICATE": 409,
+          "RATE_LIMITED": 429}
 
 
 class LoginBody(BaseModel):
@@ -64,6 +65,34 @@ class ProjectDecisionBody(BaseModel):
 class ProjectCalendarBody(BaseModel):
     plan: str
     calendar: dict[str, Any]
+
+
+class SignupBody(BaseModel):
+    name: str
+    passcode: str
+    invite: str | None = None
+
+
+class GroupBody(BaseModel):
+    name: str
+    timezone: str | None = None
+    currency: str | None = None
+
+
+class GroupRefBody(BaseModel):
+    group: str
+
+
+class InviteBody(BaseModel):
+    code: str
+
+
+class LinkBody(BaseModel):
+    host: str
+
+
+class LinkRefBody(BaseModel):
+    id: str
 
 
 class RoleBody(BaseModel):
@@ -143,6 +172,54 @@ def register_human_routes(app: FastAPI, services: Any) -> None:
     @app.post("/human/projects/calendar")
     async def project_calendar(request: Request, body: ProjectCalendarBody) -> JSONResponse:
         return await run(request, True, lambda m: engine.human_project_calendar(m, body.plan, body.calendar))
+
+    # ------------------------------------------------------------ accounts, groups and assistant links (v0.6)
+
+    @app.post("/human/signup")
+    async def signup(body: SignupBody) -> JSONResponse:
+        try:
+            return JSONResponse(engine.sign_up(body.name, body.passcode, body.invite))
+        except DomainError as err:
+            return _error(err)
+
+    @app.get("/human/me")
+    async def me(request: Request) -> JSONResponse:
+        return await run(request, False, lambda m: engine.human_me(m))
+
+    @app.post("/human/groups")
+    async def create_group(request: Request, body: GroupBody) -> JSONResponse:
+        return await run(request, True, lambda m: engine.create_group(m.id, body.name, body.timezone, body.currency))
+
+    @app.post("/human/groups/invites")
+    async def create_invite(request: Request, body: GroupRefBody) -> JSONResponse:
+        return await run(request, True, lambda m: engine.invite_to_group(m.id, body.group))
+
+    @app.post("/human/groups/leave")
+    async def leave_group(request: Request, body: GroupRefBody) -> JSONResponse:
+        return await run(request, True, lambda m: engine.leave_group(m, body.group))
+
+    @app.get("/human/invites/{code}")
+    async def invite_preview(code: str) -> JSONResponse:
+        try:
+            return JSONResponse(engine.invite_preview(code))
+        except DomainError as err:
+            return _error(err)
+
+    @app.post("/human/invites/accept")
+    async def accept_invite(request: Request, body: InviteBody) -> JSONResponse:
+        return await run(request, True, lambda m: engine.accept_invite(m, body.code))
+
+    @app.get("/human/links")
+    async def links(request: Request) -> JSONResponse:
+        return await run(request, False, lambda m: {"links": engine.linked_hosts(m)})
+
+    @app.post("/human/links")
+    async def link(request: Request, body: LinkBody) -> JSONResponse:
+        return await run(request, True, lambda m: engine.link_host(m, body.host))
+
+    @app.post("/human/links/revoke")
+    async def unlink(request: Request, body: LinkRefBody) -> JSONResponse:
+        return await run(request, True, lambda m: engine.revoke_link(m, body.id))
 
     @app.post("/human/workspace/roles")
     async def workspace_role(request: Request, body: RoleBody) -> JSONResponse:

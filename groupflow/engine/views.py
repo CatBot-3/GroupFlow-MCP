@@ -222,6 +222,8 @@ class ContextView(BaseModel):
     your_tasks: list[PersonalTaskView] = Field(default_factory=list)
     groups: list[dict[str, str]] = Field(default_factory=list, description="Your active groups: canonical id and display name, for creation and disambiguation. No hidden plan metadata.")
     group_next_offset: int | None = None
+    shared_with: list[str] = Field(default_factory=list, description="Other people who will read or hear this reply (a group chat, a shared device). Empty: only the speaker.")
+    shared_note: str | None = None
 
 
 # ---------------------------------------------------------------- search
