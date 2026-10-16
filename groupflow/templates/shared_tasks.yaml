@@ -1,0 +1,13 @@
+id: shared_tasks
+name: Shared tasks and lists
+version: '2'
+description: >
+  Ongoing household, volunteer or team tasks. Assigned tasks are decided by their
+  owner; open list items can be checked by any reader. Use project for structured
+  dates, effort, recurrence, dependencies and resource scheduling.
+days: 14
+lifecycle: ongoing
+item_types:
+  - {name: task, label: Assigned task, shape: task, policy: owner}
+  - {name: list_item, label: Shared list entry, shape: task, policy: open, intent_terms: [shared list, shopping list, 购物清单]}
+  - {name: detail, label: Detail, shape: detail, policy: owner}

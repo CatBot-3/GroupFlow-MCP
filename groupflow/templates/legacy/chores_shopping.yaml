@@ -1,0 +1,26 @@
+id: chores_shopping
+name: Home, chores and shopping
+description: >
+  The running plan of a household: who does which chore, what to buy, and the everyday facts
+  people check ("what are we doing this weekend?"). Chores belong to whoever does them; the
+  shopping list is open, so anyone can add to it or tick things off.
+days: 7
+item_types:
+  - name: chore
+    label: Chore
+    shape: task
+    policy: owner
+    description: A job one person does (fix the porch light, take out the bins).
+  - name: shopping
+    label: Shopping list item
+    shape: task
+    policy: open
+    description: Something to buy; anyone can add it or mark it bought (done).
+  - name: detail
+    label: Household detail
+    shape: detail
+    policy: owner
+    description: An everyday fact with an owner (this weekend's plan, the book club date).
+starter:
+  tasks:
+    - {title: Take out the recycling, type: chore}

@@ -1,0 +1,155 @@
+# Memory in the dinner scenario: follow-ups inside one conversation, news that arrives
+# through the server from other people, answers that went stale while someone was away,
+# and chat memory that was wiped. The plan, approvals and conditions live on the server;
+# Alexa's chat history only helps with references like "it" and "send it".
+group: friends
+plan: friday_dinner
+scenarios:
+- id: DM01
+  category: Dinner memory
+  description: Dana's cost answer goes stale after the repair is committed
+  stage: committed
+  steps:
+  - say: dana
+    text: What do I owe for Friday?
+    expect:
+      no_plan_change: true
+      reply_mentions: ['41']
+  - {setup: observe, place: restaurant_a, start: '18:00', end: '21:00'}
+  - {setup: alternatives}
+  - {setup: send}
+  - human: approve
+    members: [alice, bob, chen, dana]
+  - {setup: commit}
+  - say: dana
+    text: Is it still the same amount?
+    expect:
+      no_plan_change: true
+      reply_mentions: ['43']
+- id: DM02
+  category: Dinner memory
+  description: After a memory wipe, "send it" is grounded in the candidate the server holds
+  stage: degraded
+  steps:
+  - say: alice
+    text: What's going on with Friday?
+    expect:
+      no_plan_change: true
+      reply_mentions: [Restaurant A]
+  - say: alice
+    text: Can you fix it?
+    expect: {repaired: true, no_commit: true}
+  - {forget: alice}
+  - say: alice
+    text: OK, send it.
+    expect:
+      no_commit: true
+      status_in: [AWAITING_CONFIRMATIONS, PROPOSED]
+- id: DM03
+  category: Dinner memory
+  description: After a memory wipe, "yes, commit" cannot skip the confirmations
+  stage: degraded
+  steps:
+  - {setup: alternatives}
+  - {setup: send}
+  - say: alice
+    text: Who still needs to confirm?
+    expect: {no_commit: true}
+  - {forget: alice}
+  - say: alice
+    text: Yes, commit it.
+    expect: {no_commit: true, status: AWAITING_CONFIRMATIONS}
+- id: DM04
+  category: Dinner memory
+  description: Dana's decline reaches Alice through the server
+  stage: degraded
+  steps:
+  - {setup: alternatives}
+  - {setup: send}
+  - human: approve
+    members: [bob, chen]
+  - {human: reject, member: dana}
+  - say: alice
+    text: Any news on Friday?
+    expect:
+      no_commit: true
+      reply_mentions: [Dana]
+- id: DM05
+  category: Dinner memory
+  description: Follow-up questions about the repair Alexa just described
+  stage: degraded
+  steps:
+  - say: alice
+    text: Fix the Friday plan please.
+    expect: {repaired: true, no_commit: true}
+  - say: alice
+    text: Does dessert stay the same?
+    expect:
+      no_plan_change: true
+      reply_mentions_any: ['yes', stays, same, unchanged, keep]
+  - say: alice
+    text: And how much more does it cost each?
+    expect:
+      no_plan_change: true
+      reply_mentions_any: ['2', '43']
+- id: DM06
+  category: Dinner memory
+  description: A corrected condition in the next turn is drafted again, and neither counts until confirmed
+  stage: committed
+  steps:
+  - say: chen
+    text: I need to be home by 9:30 on Friday.
+    expect:
+      condition_drafted:
+      - {member: chen, kind: home_by}
+      status: COMMITTED
+  - say: chen
+    text: Actually, make that 10.
+    expect:
+      condition_drafted:
+      - {member: chen, kind: home_by}
+      status: COMMITTED
+- id: DM07
+  category: Dinner memory
+  description: A long evening across four people with checks after every turn
+  stage: committed
+  steps:
+  - say: chen
+    text: What time does Friday end?
+    expect:
+      no_plan_change: true
+      reply_mentions_any: ['20:45', '8:45']
+  - {setup: observe, place: restaurant_a, start: '18:00', end: '21:00'}
+  - say: dana
+    text: I heard something changed for Friday?
+    expect:
+      no_plan_change: true
+      reply_mentions: [Restaurant A]
+  - say: bob
+    text: Can you fix it?
+    expect:
+      no_repair: true
+      reply_mentions: [Alice]
+  - say: alice
+    text: Please repair Friday.
+    expect: {repaired: true, candidate_place: restaurant_b}
+  - say: alice
+    text: Send it to everyone.
+    expect: {status: AWAITING_CONFIRMATIONS}
+  - human: approve
+    members: [alice, chen]
+  - say: alice
+    text: Who's left?
+    expect:
+      no_commit: true
+      reply_mentions: [Bob, Dana]
+  - human: approve
+    members: [bob, dana]
+  - say: alice
+    text: Now lock it in.
+    expect: {committed: true}
+  - say: chen
+    text: What time does it end now?
+    expect:
+      no_plan_change: true
+      reply_mentions_any: ['20:45', '8:45']

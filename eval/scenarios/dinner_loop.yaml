@@ -1,0 +1,159 @@
+# The Friday dinner (evening_out template, friends group): Alice organizes an evening for
+# Alice, Bob, Chen and Dana. Everyone keeps private conditions (home by 21:00, a budget,
+# Chen eats nut-free, Dana vegetarian, Bob prefers to keep dessert). Alexa can draft,
+# propose, ask for confirmations, report changes, repair and commit; only each person,
+# on their own page (human steps here), can confirm. Stages: draft, proposed, awaiting,
+# committed (P1 agreed and booked), degraded (Restaurant A became unavailable).
+group: friends
+plan: friday_dinner
+scenarios:
+- id: DL01
+  category: Dinner loop
+  description: Full lifecycle, draft to P1, a closure, repair to P2, reconfirmation and commit
+  stage: draft
+  steps:
+  - say: alice
+    text: Propose the Friday plan and ask everyone to confirm it.
+    expect:
+      status: AWAITING_CONFIRMATIONS
+      tools_called: [request_confirmations]
+      no_commit: true
+  - say: bob
+    text: What do I need to do for Friday?
+    expect:
+      no_plan_change: true
+      reply_mentions_any: [confirm, page]
+  - human: approve
+    members: [alice, bob, chen, dana]
+  - say: alice
+    text: Is everyone in? If so, lock it in.
+    expect: {committed: true, executions_added: 3}
+  - {setup: observe, place: restaurant_a, start: '18:00', end: '21:00'}
+  - say: bob
+    text: Is Friday still on?
+    expect:
+      no_plan_change: true
+      status: DEGRADED
+      reply_mentions: [Restaurant A]
+  - say: alice
+    text: Restaurant A is closed that night. Fix the plan.
+    expect:
+      repaired: true
+      candidate_place: restaurant_b
+      status_in: [PROPOSED, AWAITING_CONFIRMATIONS]
+      no_commit: true
+      reply_mentions: [Restaurant B]
+  - say: bob
+    text: Why not Restaurant C instead?
+    expect:
+      no_plan_change: true
+      tools_called: [explain]
+      reply_mentions_any: [home, '21', '9', late]
+  - say: alice
+    text: OK, send the new version out for confirmation.
+    expect: {status: AWAITING_CONFIRMATIONS, no_commit: true}
+  - human: approve
+    members: [alice, bob, chen, dana]
+  - say: alice
+    text: Everyone's confirmed. Commit it.
+    expect: {committed: true, executions_added: 1}
+  - say: dana
+    text: What's the final plan for Friday, and what do I owe?
+    expect:
+      no_plan_change: true
+      reply_mentions: [Restaurant B, '43']
+- id: DL02
+  category: Dinner loop
+  description: The organizer repairs a degraded plan and explains what stays the same
+  stage: degraded
+  steps:
+  - say: alice
+    text: What's happening with Friday dinner?
+    expect:
+      no_plan_change: true
+      reply_mentions: [Restaurant A]
+  - say: alice
+    text: Can you fix it?
+    expect:
+      repaired: true
+      candidate_place: restaurant_b
+      no_commit: true
+      reply_mentions_any: [dessert, meet, ride, everything else, rest of]
+  - say: alice
+    text: Who has to confirm again?
+    expect:
+      no_commit: true
+      reply_mentions_any: [everyone, all four, Bob, Chen, Dana]
+- id: DL03
+  category: Dinner loop
+  description: Carried-forward approvals; only the changed dinner is asked again
+  stage: degraded
+  steps:
+  - {setup: alternatives}
+  - say: alice
+    text: Send it out for confirmation.
+    expect:
+      status: AWAITING_CONFIRMATIONS
+      tools_called: [request_confirmations]
+  - say: chen
+    text: What exactly do I need to confirm?
+    expect:
+      no_plan_change: true
+      reply_mentions: [dinner]
+      reply_mentions_any: [Restaurant B, '18:30', '6:30']
+  - human: approve
+    members: [alice, bob, chen, dana]
+  - say: alice
+    text: Commit P2.
+    expect: {committed: true}
+- id: DL04
+  category: Dinner loop
+  description: A decline with a lower limit feeds the next repair, and the clash is reported without the private number
+  stage: degraded
+  steps:
+  - {setup: alternatives}
+  - {setup: send}
+  - human: approve
+    members: [alice, bob, chen]
+  - human: reject
+    member: dana
+    new_limit:
+      kind: budget
+      value: {amount: 40}
+  - say: alice
+    text: Did everyone confirm the new plan?
+    expect:
+      no_commit: true
+      reply_mentions: [Dana]
+  - say: alice
+    text: Dana said no. Find something that works for everyone.
+    expect: {repaired: true, no_commit: true}
+  - say: alice
+    text: What did you find?
+    expect: {no_commit: true}
+- id: DL05
+  category: Dinner loop
+  description: Bob asks about the plan before and after it changes
+  stage: committed
+  steps:
+  - say: bob
+    text: Where are we having dinner on Friday?
+    expect:
+      no_plan_change: true
+      reply_mentions: [Restaurant A]
+  - {setup: observe, place: restaurant_a, start: '18:00', end: '21:00'}
+  - {setup: alternatives}
+  - {setup: send}
+  - say: bob
+    text: Is it still Restaurant A?
+    expect:
+      no_plan_change: true
+      reply_mentions: [Restaurant B]
+  - human: approve
+    members: [alice, bob, chen, dana]
+  - {setup: commit}
+  - say: bob
+    text: So what's the final place?
+    expect:
+      no_plan_change: true
+      reply_mentions: [Restaurant B]

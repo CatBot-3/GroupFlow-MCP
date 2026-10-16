@@ -1,0 +1,4348 @@
+{
+  "provider": "DeepSeek",
+  "model": "deepseek-flash",
+  "data": "synthetic in-memory fixtures only",
+  "passed": 8,
+  "total": 8,
+  "results": [
+    {
+      "id": "PR01",
+      "passed": true,
+      "failures": [],
+      "turn": {
+        "member": "priya",
+        "text": "Summarize the release project and its workstreams, deadlines and resources.",
+        "reply": "The Release project runs Mon, Oct 19 to Sun, Nov 29 in the Delivery stage, with two workstreams: Engineering and QA. Marcus owns Build API (two hours, due Nov 29, using the Test lab), and Jun owns Release verification (one hour, due Nov 29), which waits on Build API. The schedule is feasible and proven optimal, but nothing is confirmed yet — a candidate version is ready for you to send out for commitments and stage authorization.",
+        "provider": "DeepSeek",
+        "model": "deepseek-flash",
+        "calls": [
+          {
+            "name": "get_context",
+            "args": {
+              "detail": "summary",
+              "group": "team",
+              "plan": "release_project"
+            },
+            "ok": true,
+            "result": {
+              "you": "Priya",
+              "today": "Fri, Oct 16, 2026",
+              "headline": "Nothing new.",
+              "decisions_for_you": [],
+              "updates": [],
+              "your_todos": [
+                {
+                  "kind": "send",
+                  "plan": "Release project",
+                  "text": "A new version is ready to send out for confirmation.",
+                  "where": "ask Alexa"
+                }
+              ],
+              "affected": [],
+              "your_conditions": [],
+              "plans": [
+                {
+                  "id": "release_project",
+                  "title": "Release project",
+                  "kind": "Long-term collaborative project",
+                  "group": "Product team",
+                  "visible_to": [
+                    "Priya",
+                    "Marcus",
+                    "Jun",
+                    "Sofia"
+                  ],
+                  "organizer": "Priya",
+                  "you_organize": true,
+                  "dates": "Mon, Oct 19 to Sun, Nov 29",
+                  "status": "PROPOSED",
+                  "status_reason": "Resource schedule prepared; organizer must request commitments and authorization.",
+                  "version": 6,
+                  "details": [
+                    {
+                      "id": "project.goal",
+                      "label": "Project goal",
+                      "value": null,
+                      "owner": "Priya",
+                      "decided_by": "owner",
+                      "status": "unset",
+                      "pending": [],
+                      "flags": []
+                    }
+                  ],
+                  "tasks": [
+                    {
+                      "id": "t_build_api_4c98",
+                      "title": "Build API",
+                      "type": "task",
+                      "owner": "Marcus",
+                      "status": "todo",
+                      "due": "2026-11-29",
+                      "decided_by": "owner",
+                      "blocked_by": [],
+                      "waits_on": [],
+                      "pending": [],
+                      "flags": []
+                    },
+                    {
+                      "id": "t_release_verification_a023",
+                      "title": "Release verification",
+                      "type": "task",
+                      "owner": "Jun",
+                      "status": "todo",
+                      "due": "2026-11-29",
+                      "decided_by": "owner",
+                      "blocked_by": [
+                        "\"Build API\" is not started (Marcus)."
+                      ],
+                      "waits_on": [
+                        "t_build_api_4c98"
+                      ],
+                      "pending": [],
+                      "flags": []
+                    }
+                  ],
+                  "agreed": null,
+                  "working": null,
+                  "confirmations": null,
+                  "agreement_summary": null,
+                  "observations": [],
+                  "bookings": [],
+                  "item_types": [
+                    "task (task, decided by owner)",
+                    "milestone (task, decided by owner)",
+                    "detail (detail, decided by owner)"
+                  ],
+                  "condition_kinds": [],
+                  "next_step": "get_project pages work/schedule; repair_project prepares a proposal; request_confirmations asks humans; commit_plan reserves resources.",
+                  "lifecycle": "bounded",
+                  "planning_window_days": 42,
+                  "preset": null,
+                  "project": {
+                    "stage": "Delivery",
+                    "open_work": 2,
+                    "workstreams": [
+                      "Engineering",
+                      "QA"
+                    ],
+                    "revision": "project_rev_ddfceabde2",
+                    "status": "candidate",
+                    "next": "get_project pages work/schedule; repair_project prepares a proposal; request_confirmations asks humans; commit_plan reserves resources.",
+                    "pending_by_person": {
+                      "priya": 0,
+                      "marcus": 0,
+                      "jun": 0,
+                      "sofia": 0
+                    }
+                  }
+                }
+              ],
+              "other_plans": [],
+              "plan_index": [
+                {
+                  "id": "release_project",
+                  "title": "Release project",
+                  "template": "project",
+                  "group": "Product team",
+                  "group_id": "team",
+                  "status": "PROPOSED",
+                  "version": 6,
+                  "you_organize": true,
+                  "unread_updates": 0,
+                  "pending_decisions": 0,
+                  "your_open_tasks": 0,
+                  "key_items": [
+                    {
+                      "id": "project.goal",
+                      "label": "Project goal",
+                      "owner": "Priya",
+                      "shape": "detail",
+                      "type": "detail",
+                      "decided_by": "owner",
+                      "value": ""
+                    },
+                    {
+                      "id": "t_build_api_4c98",
+                      "label": "Build API",
+                      "owner": "Marcus",
+                      "shape": "task",
+                      "type": "task",
+                      "decided_by": "owner",
+                      "value": "todo"
+                    },
+                    {
+                      "id": "t_release_verification_a023",
+                      "label": "Release verification",
+                      "owner": "Jun",
+                      "shape": "task",
+                      "type": "task",
+                      "decided_by": "owner",
+                      "value": "todo"
+                    }
+                  ],
+                  "item_types": [
+                    {
+                      "name": "task",
+                      "shape": "task",
+                      "policy": "owner"
+                    },
+                    {
+                      "name": "milestone",
+                      "shape": "task",
+                      "policy": "owner"
+                    },
+                    {
+                      "name": "detail",
+                      "shape": "detail",
+                      "policy": "owner"
+                    }
+                  ]
+                },
+                {
+                  "id": "design_review",
+                  "title": "Design review",
+                  "template": "team_meeting",
+                  "group": "Product team",
+                  "group_id": "team",
+                  "status": "COMMITTED",
+                  "version": 9,
+                  "you_organize": true,
+                  "unread_updates": 0,
+                  "pending_decisions": 0,
+                  "your_open_tasks": 0,
+                  "key_items": [
+                    {
+                      "id": "meeting",
+                      "label": "Team meeting",
+                      "owner": "Priya",
+                      "shape": "activity",
+                      "type": "meeting",
+                      "decided_by": "everyone taking part",
+                      "value": null
+                    },
+                    {
+                      "id": "design_review.roadmap",
+                      "label": "Q1 roadmap",
+                      "owner": "Priya",
+                      "shape": "detail",
+                      "type": "agenda_item",
+                      "decided_by": "owner",
+                      "value": "Priya walks through the Q1 roadmap"
+                    },
+                    {
+                      "id": "design_review.onboarding",
+                      "label": "New onboarding screens",
+                      "owner": "Marcus",
+                      "shape": "detail",
+                      "type": "agenda_item",
+                      "decided_by": "owner",
+                      "value": "Marcus shows the new onboarding screens"
+                    },
+                    {
+                      "id": "t_share_the_design_file_be_d027",
+                      "label": "Share the design file before the meeting",
+                      "owner": "Marcus",
+                      "shape": "task",
+                      "type": "action_item",
+                      "decided_by": "owner",
+                      "value": "todo"
+                    }
+                  ],
+                  "item_types": [
+                    {
+                      "name": "meeting",
+                      "shape": "activity",
+                      "policy": "participants"
+                    },
+                    {
+                      "name": "agenda_item",
+                      "shape": "detail",
+                      "policy": "owner"
+                    },
+                    {
+                      "name": "action_item",
+                      "shape": "task",
+                      "policy": "owner"
+                    }
+                  ]
+                }
+              ],
+              "active_plan_id": "release_project",
+              "next_offset": null,
+              "truncated": {},
+              "templates": [
+                {
+                  "id": "evening_out",
+                  "name": "Evening out",
+                  "summary": "An evening of stops at real places (meet up, dinner, dessert, the ride home), agreed by everyone who goes",
+                  "days": 1
+                },
+                {
+                  "id": "gathering",
+                  "name": "Party or gathering",
+                  "summary": "Plan a party, gathering or community event: agree the date, venue and headcount, assign preparation tasks, and optionally add activities",
+                  "days": 1
+                },
+                {
+                  "id": "general_event",
+                  "name": "Any plan",
+                  "summary": "A plan made up on the spot (\"a picnic on Sunday with Chen and Dana\")",
+                  "days": 1
+                },
+                {
+                  "id": "meeting",
+                  "name": "Meeting",
+                  "summary": "Coordinate a meeting, workshop or offsite with an agenda, preparation tasks, attendees and an agreed time",
+                  "days": 1
+                },
+                {
+                  "id": "project",
+                  "name": "Long-term collaborative project",
+                  "summary": "Deliver work over weeks or months: workstreams, milestones, structured dates, effort, recurring occurrences, dependencies, owner capacity and shared resources",
+                  "days": 42
+                },
+                {
+                  "id": "shared_tasks",
+                  "name": "Shared tasks and lists",
+                  "summary": "Ongoing household, volunteer or team tasks",
+                  "days": 14
+                },
+                {
+                  "id": "study_group",
+                  "name": "Study group",
+                  "summary": "Study sessions before an exam: when and where the group meets, who prepares which topic, and the exam facts",
+                  "days": 7
+                },
+                {
+                  "id": "trip",
+                  "name": "Trip",
+                  "summary": "A trip of any length within the selected planning window",
+                  "days": 7
+                }
+              ],
+              "template_next_offset": null,
+              "your_tasks": [],
+              "groups": [
+                {
+                  "id": "team",
+                  "name": "Product team"
+                }
+              ],
+              "group_next_offset": null
+            },
+            "ms": 134.44829999934882,
+            "prefetched": true,
+            "sent_to_model": true
+          },
+          {
+            "name": "get_project",
+            "args": {
+              "plan": "release_project"
+            },
+            "ok": true,
+            "result": {
+              "plan": "release_project",
+              "title": "Release project",
+              "version": 6,
+              "stage": "Delivery",
+              "window_start": "2026-10-19",
+              "days": 42,
+              "timezone": "America/Toronto",
+              "currency": "CAD",
+              "config": {
+                "stage": "Delivery",
+                "approvers": [
+                  "priya"
+                ],
+                "budget_minor": null,
+                "calendar": {
+                  "weekdays": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "start": "09:00",
+                  "end": "17:00",
+                  "unavailable": []
+                },
+                "approval_days": 14
+              },
+              "resources": [
+                {
+                  "id": "team.lab",
+                  "name": "Test lab",
+                  "capacity": 1
+                }
+              ],
+              "your_calendar": {
+                "weekdays": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "start": "09:00",
+                "end": "17:00",
+                "unavailable": []
+              },
+              "work": [
+                {
+                  "id": "t_build_api_4c98",
+                  "title": "Build API",
+                  "owner_id": "marcus",
+                  "owner": "Marcus",
+                  "status": "todo",
+                  "spec": {
+                    "not_before": "2026-10-19",
+                    "due": "2026-11-29",
+                    "duration_minutes": 120,
+                    "workstream": "Engineering",
+                    "milestone": null,
+                    "resources": {
+                      "team.lab": 1
+                    },
+                    "depends_on": [],
+                    "cost_minor": 0,
+                    "priority": 1,
+                    "locked_start": null
+                  },
+                  "version": 1,
+                  "item_version": 1,
+                  "series_id": null,
+                  "recurrence_id": null
+                },
+                {
+                  "id": "t_release_verification_a023",
+                  "title": "Release verification",
+                  "owner_id": "jun",
+                  "owner": "Jun",
+                  "status": "todo",
+                  "spec": {
+                    "not_before": "2026-10-19",
+                    "due": "2026-11-29",
+                    "duration_minutes": 60,
+                    "workstream": "QA",
+                    "milestone": null,
+                    "resources": {},
+                    "depends_on": [
+                      "t_build_api_4c98"
+                    ],
+                    "cost_minor": 0,
+                    "priority": 1,
+                    "locked_start": null
+                  },
+                  "version": 1,
+                  "item_version": 1,
+                  "series_id": null,
+                  "recurrence_id": null
+                }
+              ],
+              "total": 2,
+              "next_offset": null,
+              "workstreams": [
+                "Engineering",
+                "QA"
+              ],
+              "confirmation_totals": {
+                "required": 0,
+                "satisfied": 0
+              },
+              "series": [],
+              "revision": {
+                "id": "project_rev_ddfceabde2",
+                "status": "candidate",
+                "fresh": true,
+                "proof": {
+                  "status": "feasible",
+                  "backend": "cp_sat_intervals",
+                  "optimal": true,
+                  "objectives": [
+                    1380
+                  ],
+                  "objective_order": [
+                    "priority_weighted_completion"
+                  ],
+                  "validation_errors": [],
+                  "ms": 81.94
+                },
+                "cost_minor": 0,
+                "schedule": [
+                  {
+                    "item_id": "t_build_api_4c98",
+                    "title": "Build API",
+                    "owner_id": "marcus",
+                    "start": "2026-10-19T13:00+00:00",
+                    "end": "2026-10-19T15:00+00:00",
+                    "resources": {
+                      "team.lab": 1
+                    }
+                  },
+                  {
+                    "item_id": "t_release_verification_a023",
+                    "title": "Release verification",
+                    "owner_id": "jun",
+                    "start": "2026-10-19T15:00+00:00",
+                    "end": "2026-10-19T16:00+00:00",
+                    "resources": {}
+                  }
+                ],
+                "confirmations": []
+              }
+            },
+            "ms": 5.162599962204695,
+            "sent_to_model": true
+          }
+        ],
+        "llm": {
+          "calls": [
+            {
+              "ms": 1529.7250000294298,
+              "inputTokens": 8689,
+              "outputTokens": 38,
+              "cachedInputTokens": 0,
+              "stop": "tool_calls",
+              "toolCalls": [
+                "get_project"
+              ]
+            },
+            {
+              "ms": 2102.490800083615,
+              "inputTokens": 9459,
+              "outputTokens": 98,
+              "cachedInputTokens": 8704,
+              "stop": "end",
+              "toolCalls": []
+            }
+          ],
+          "inputTokens": 18148,
+          "outputTokens": 136,
+          "cachedInputTokens": 8704,
+          "ms": 3632.2158001130447
+        },
+        "ms": 3872.635000036098,
+        "at": "2026-10-16T06:22:06.067Z",
+        "scenario": ""
+      }
+    },
+    {
+      "id": "PR02",
+      "passed": true,
+      "failures": [],
+      "turn": {
+        "member": "marcus",
+        "text": "Change my Build API work estimate to 180 minutes, keeping its dates and dependencies.",
+        "reply": "Done — Build API is now 180 minutes, with its Oct 19 start, Nov 29 due date, test lab resource and its dependency link to Release verification unchanged. That's a draft edit, so the schedule still needs a fresh repair and confirmations before it's committed.",
+        "provider": "DeepSeek",
+        "model": "deepseek-flash",
+        "calls": [
+          {
+            "name": "get_context",
+            "args": {
+              "detail": "summary",
+              "group": "team",
+              "plan": "release_project"
+            },
+            "ok": true,
+            "result": {
+              "you": "Marcus",
+              "today": "Fri, Oct 16, 2026",
+              "headline": "4 updates.",
+              "decisions_for_you": [],
+              "updates": [
+                "Priya started Release project.",
+                "Priya updated project stage or scheduling policy.",
+                "Priya updated Build API; its schedule still needs confirmation.",
+                "Priya updated Release verification; its schedule still needs confirmation."
+              ],
+              "your_todos": [],
+              "affected": [],
+              "your_conditions": [],
+              "plans": [
+                {
+                  "id": "release_project",
+                  "title": "Release project",
+                  "kind": "Long-term collaborative project",
+                  "group": "Product team",
+                  "visible_to": [
+                    "Priya",
+                    "Marcus",
+                    "Jun",
+                    "Sofia"
+                  ],
+                  "organizer": "Priya",
+                  "you_organize": false,
+                  "dates": "Mon, Oct 19 to Sun, Nov 29",
+                  "status": "PROPOSED",
+                  "status_reason": "Resource schedule prepared; organizer must request commitments and authorization.",
+                  "version": 6,
+                  "details": [
+                    {
+                      "id": "project.goal",
+                      "label": "Project goal",
+                      "value": null,
+                      "owner": "Priya",
+                      "decided_by": "owner",
+                      "status": "unset",
+                      "pending": [],
+                      "flags": []
+                    }
+                  ],
+                  "tasks": [
+                    {
+                      "id": "t_build_api_81ee",
+                      "title": "Build API",
+                      "type": "task",
+                      "owner": "Marcus",
+                      "status": "todo",
+                      "due": "2026-11-29",
+                      "decided_by": "owner",
+                      "blocked_by": [],
+                      "waits_on": [],
+                      "pending": [],
+                      "flags": []
+                    },
+                    {
+                      "id": "t_release_verification_7355",
+                      "title": "Release verification",
+                      "type": "task",
+                      "owner": "Jun",
+                      "status": "todo",
+                      "due": "2026-11-29",
+                      "decided_by": "owner",
+                      "blocked_by": [
+                        "\"Build API\" is not started (Marcus)."
+                      ],
+                      "waits_on": [
+                        "t_build_api_81ee"
+                      ],
+                      "pending": [],
+                      "flags": []
+                    }
+                  ],
+                  "agreed": null,
+                  "working": null,
+                  "confirmations": null,
+                  "agreement_summary": null,
+                  "observations": [],
+                  "bookings": [],
+                  "item_types": [
+                    "task (task, decided by owner)",
+                    "milestone (task, decided by owner)",
+                    "detail (detail, decided by owner)"
+                  ],
+                  "condition_kinds": [],
+                  "next_step": "get_project pages work/schedule; repair_project prepares a proposal; request_confirmations asks humans; commit_plan reserves resources.",
+                  "lifecycle": "bounded",
+                  "planning_window_days": 42,
+                  "preset": null,
+                  "project": {
+                    "stage": "Delivery",
+                    "open_work": 2,
+                    "workstreams": [
+                      "Engineering",
+                      "QA"
+                    ],
+                    "revision": "project_rev_d8bfd96bb0",
+                    "status": "candidate",
+                    "next": "get_project pages work/schedule; repair_project prepares a proposal; request_confirmations asks humans; commit_plan reserves resources.",
+                    "pending_by_person": {
+                      "priya": 0,
+                      "marcus": 0,
+                      "jun": 0,
+                      "sofia": 0
+                    }
+                  }
+                }
+              ],
+              "other_plans": [],
+              "plan_index": [
+                {
+                  "id": "release_project",
+                  "title": "Release project",
+                  "template": "project",
+                  "group": "Product team",
+                  "group_id": "team",
+                  "status": "PROPOSED",
+                  "version": 6,
+                  "you_organize": false,
+                  "unread_updates": 0,
+                  "pending_decisions": 0,
+                  "your_open_tasks": 1,
+                  "key_items": [
+                    {
+                      "id": "project.goal",
+                      "label": "Project goal",
+                      "owner": "Priya",
+                      "shape": "detail",
+                      "type": "detail",
+                      "decided_by": "owner",
+                      "value": ""
+                    },
+                    {
+                      "id": "t_build_api_81ee",
+                      "label": "Build API",
+                      "owner": "Marcus",
+                      "shape": "task",
+                      "type": "task",
+                      "decided_by": "owner",
+                      "value": "todo"
+                    },
+                    {
+                      "id": "t_release_verification_7355",
+                      "label": "Release verification",
+                      "owner": "Jun",
+                      "shape": "task",
+                      "type": "task",
+                      "decided_by": "owner",
+                      "value": "todo"
+                    }
+                  ],
+                  "item_types": [
+                    {
+                      "name": "task",
+                      "shape": "task",
+                      "policy": "owner"
+                    },
+                    {
+                      "name": "milestone",
+                      "shape": "task",
+                      "policy": "owner"
+                    },
+                    {
+                      "name": "detail",
+                      "shape": "detail",
+                      "policy": "owner"
+                    }
+                  ]
+                },
+                {
+                  "id": "design_review",
+                  "title": "Design review",
+                  "template": "team_meeting",
+                  "group": "Product team",
+                  "group_id": "team",
+                  "status": "COMMITTED",
+                  "version": 9,
+                  "you_organize": false,
+                  "unread_updates": 0,
+                  "pending_decisions": 0,
+                  "your_open_tasks": 1,
+                  "key_items": [
+                    {
+                      "id": "meeting",
+                      "label": "Team meeting",
+                      "owner": "Priya",
+                      "shape": "activity",
+                      "type": "meeting",
+                      "decided_by": "everyone taking part",
+                      "value": null
+                    },
+                    {
+                      "id": "design_review.roadmap",
+                      "label": "Q1 roadmap",
+                      "owner": "Priya",
+                      "shape": "detail",
+                      "type": "agenda_item",
+                      "decided_by": "owner",
+                      "value": "Priya walks through the Q1 roadmap"
+                    },
+                    {
+                      "id": "design_review.onboarding",
+                      "label": "New onboarding screens",
+                      "owner": "Marcus",
+                      "shape": "detail",
+                      "type": "agenda_item",
+                      "decided_by": "owner",
+                      "value": "Marcus shows the new onboarding screens"
+                    },
+                    {
+                      "id": "t_share_the_design_file_be_1abb",
+                      "label": "Share the design file before the meeting",
+                      "owner": "Marcus",
+                      "shape": "task",
+                      "type": "action_item",
+                      "decided_by": "owner",
+                      "value": "todo"
+                    }
+                  ],
+                  "item_types": [
+                    {
+                      "name": "meeting",
+                      "shape": "activity",
+                      "policy": "participants"
+                    },
+                    {
+                      "name": "agenda_item",
+                      "shape": "detail",
+                      "policy": "owner"
+                    },
+                    {
+                      "name": "action_item",
+                      "shape": "task",
+                      "policy": "owner"
+                    }
+                  ]
+                }
+              ],
+              "active_plan_id": "release_project",
+              "next_offset": null,
+              "truncated": {},
+              "templates": [
+                {
+                  "id": "evening_out",
+                  "name": "Evening out",
+                  "summary": "An evening of stops at real places (meet up, dinner, dessert, the ride home), agreed by everyone who goes",
+                  "days": 1
+                },
+                {
+                  "id": "gathering",
+                  "name": "Party or gathering",
+                  "summary": "Plan a party, gathering or community event: agree the date, venue and headcount, assign preparation tasks, and optionally add activities",
+                  "days": 1
+                },
+                {
+                  "id": "general_event",
+                  "name": "Any plan",
+                  "summary": "A plan made up on the spot (\"a picnic on Sunday with Chen and Dana\")",
+                  "days": 1
+                },
+                {
+                  "id": "meeting",
+                  "name": "Meeting",
+                  "summary": "Coordinate a meeting, workshop or offsite with an agenda, preparation tasks, attendees and an agreed time",
+                  "days": 1
+                },
+                {
+                  "id": "project",
+                  "name": "Long-term collaborative project",
+                  "summary": "Deliver work over weeks or months: workstreams, milestones, structured dates, effort, recurring occurrences, dependencies, owner capacity and shared resources",
+                  "days": 42
+                },
+                {
+                  "id": "shared_tasks",
+                  "name": "Shared tasks and lists",
+                  "summary": "Ongoing household, volunteer or team tasks",
+                  "days": 14
+                },
+                {
+                  "id": "study_group",
+                  "name": "Study group",
+                  "summary": "Study sessions before an exam: when and where the group meets, who prepares which topic, and the exam facts",
+                  "days": 7
+                },
+                {
+                  "id": "trip",
+                  "name": "Trip",
+                  "summary": "A trip of any length within the selected planning window",
+                  "days": 7
+                }
+              ],
+              "template_next_offset": null,
+              "your_tasks": [
+                {
+                  "id": "t_build_api_81ee",
+                  "title": "Build API",
+                  "plan": "Release project",
+                  "plan_id": "release_project",
+                  "status": "todo",
+                  "due": "2026-11-29",
+                  "blockers": [],
+                  "flags": []
+                },
+                {
+                  "id": "t_share_the_design_file_be_1abb",
+                  "title": "Share the design file before the meeting",
+                  "plan": "Design review",
+                  "plan_id": "design_review",
+                  "status": "todo",
+                  "due": null,
+                  "blockers": [],
+                  "flags": []
+                }
+              ],
+              "groups": [
+                {
+                  "id": "team",
+                  "name": "Product team"
+                }
+              ],
+              "group_next_offset": null
+            },
+            "ms": 85.81930003128946,
+            "prefetched": true,
+            "sent_to_model": true
+          },
+          {
+            "name": "get_project",
+            "args": {
+              "plan": "release_project"
+            },
+            "ok": true,
+            "result": {
+              "plan": "release_project",
+              "title": "Release project",
+              "version": 6,
+              "stage": "Delivery",
+              "window_start": "2026-10-19",
+              "days": 42,
+              "timezone": "America/Toronto",
+              "currency": "CAD",
+              "config": {
+                "stage": "Delivery",
+                "approvers": [
+                  "priya"
+                ],
+                "budget_minor": null,
+                "calendar": {
+                  "weekdays": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "start": "09:00",
+                  "end": "17:00",
+                  "unavailable": []
+                },
+                "approval_days": 14
+              },
+              "resources": [
+                {
+                  "id": "team.lab",
+                  "name": "Test lab",
+                  "capacity": 1
+                }
+              ],
+              "your_calendar": {
+                "weekdays": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "start": "09:00",
+                "end": "17:00",
+                "unavailable": []
+              },
+              "work": [
+                {
+                  "id": "t_build_api_81ee",
+                  "title": "Build API",
+                  "owner_id": "marcus",
+                  "owner": "Marcus",
+                  "status": "todo",
+                  "spec": {
+                    "not_before": "2026-10-19",
+                    "due": "2026-11-29",
+                    "duration_minutes": 120,
+                    "workstream": "Engineering",
+                    "milestone": null,
+                    "resources": {
+                      "team.lab": 1
+                    },
+                    "depends_on": [],
+                    "cost_minor": 0,
+                    "priority": 1,
+                    "locked_start": null
+                  },
+                  "version": 1,
+                  "item_version": 1,
+                  "series_id": null,
+                  "recurrence_id": null
+                },
+                {
+                  "id": "t_release_verification_7355",
+                  "title": "Release verification",
+                  "owner_id": "jun",
+                  "owner": "Jun",
+                  "status": "todo",
+                  "spec": {
+                    "not_before": "2026-10-19",
+                    "due": "2026-11-29",
+                    "duration_minutes": 60,
+                    "workstream": "QA",
+                    "milestone": null,
+                    "resources": {},
+                    "depends_on": [
+                      "t_build_api_81ee"
+                    ],
+                    "cost_minor": 0,
+                    "priority": 1,
+                    "locked_start": null
+                  },
+                  "version": 1,
+                  "item_version": 1,
+                  "series_id": null,
+                  "recurrence_id": null
+                }
+              ],
+              "total": 2,
+              "next_offset": null,
+              "workstreams": [
+                "Engineering",
+                "QA"
+              ],
+              "confirmation_totals": {
+                "required": 0,
+                "satisfied": 0
+              },
+              "series": [],
+              "revision": {
+                "id": "project_rev_d8bfd96bb0",
+                "status": "candidate",
+                "fresh": true,
+                "proof": {
+                  "status": "feasible",
+                  "backend": "cp_sat_intervals",
+                  "optimal": true,
+                  "objectives": [
+                    1380
+                  ],
+                  "objective_order": [
+                    "priority_weighted_completion"
+                  ],
+                  "validation_errors": [],
+                  "ms": 35.26
+                },
+                "cost_minor": 0,
+                "schedule": [
+                  {
+                    "item_id": "t_build_api_81ee",
+                    "title": "Build API",
+                    "owner_id": "marcus",
+                    "start": "2026-10-19T13:00+00:00",
+                    "end": "2026-10-19T15:00+00:00",
+                    "resources": {
+                      "team.lab": 1
+                    }
+                  },
+                  {
+                    "item_id": "t_release_verification_7355",
+                    "title": "Release verification",
+                    "owner_id": "jun",
+                    "start": "2026-10-19T15:00+00:00",
+                    "end": "2026-10-19T16:00+00:00",
+                    "resources": {}
+                  }
+                ],
+                "confirmations": []
+              }
+            },
+            "ms": 5.105799995362759,
+            "sent_to_model": true
+          },
+          {
+            "name": "upsert_work",
+            "args": {
+              "plan": "release_project",
+              "item": "t_build_api_81ee",
+              "spec": {
+                "duration_minutes": 180
+              },
+              "expected_version": 6
+            },
+            "ok": true,
+            "result": {
+              "outcome": "updated",
+              "item": "t_build_api_81ee",
+              "version": 7,
+              "spec": {
+                "not_before": "2026-10-19",
+                "due": "2026-11-29",
+                "duration_minutes": 180,
+                "workstream": "Engineering",
+                "milestone": null,
+                "resources": {
+                  "team.lab": 1
+                },
+                "depends_on": [],
+                "cost_minor": 0,
+                "priority": 1,
+                "locked_start": null
+              }
+            },
+            "ms": 5.114900064654648,
+            "sent_to_model": true
+          }
+        ],
+        "llm": {
+          "calls": [
+            {
+              "ms": 1480.9023999841884,
+              "inputTokens": 8804,
+              "outputTokens": 38,
+              "cachedInputTokens": 0,
+              "stop": "tool_calls",
+              "toolCalls": [
+                "get_project"
+              ]
+            },
+            {
+              "ms": 1783.7924000341445,
+              "inputTokens": 9574,
+              "outputTokens": 101,
+              "cachedInputTokens": 8832,
+              "stop": "tool_calls",
+              "toolCalls": [
+                "upsert_work"
+              ]
+            },
+            {
+              "ms": 1581.7480999976397,
+              "inputTokens": 9778,
+              "outputTokens": 57,
+              "cachedInputTokens": 9600,
+              "stop": "end",
+              "toolCalls": []
+            }
+          ],
+          "inputTokens": 28156,
+          "outputTokens": 196,
+          "cachedInputTokens": 18432,
+          "ms": 4846.442900015973
+        },
+        "ms": 4971.642599906772,
+        "at": "2026-10-16T06:22:11.291Z",
+        "scenario": ""
+      }
+    },
+    {
+      "id": "PR03",
+      "passed": true,
+      "failures": [],
+      "turn": {
+        "member": "jun",
+        "text": "Mark Marcus's Build API task done for him.",
+        "reply": "I can't complete Marcus's task directly — it's owner-decided, so I've sent Marcus a request to mark Build API done. He'll need to confirm it on his page.",
+        "provider": "DeepSeek",
+        "model": "deepseek-flash",
+        "calls": [
+          {
+            "name": "get_context",
+            "args": {
+              "detail": "summary",
+              "group": "team",
+              "plan": "release_project"
+            },
+            "ok": true,
+            "result": {
+              "you": "Jun",
+              "today": "Fri, Oct 16, 2026",
+              "headline": "4 updates.",
+              "decisions_for_you": [],
+              "updates": [
+                "Priya started Release project.",
+                "Priya updated project stage or scheduling policy.",
+                "Priya updated Build API; its schedule still needs confirmation.",
+                "Priya updated Release verification; its schedule still needs confirmation."
+              ],
+              "your_todos": [],
+              "affected": [],
+              "your_conditions": [],
+              "plans": [
+                {
+                  "id": "release_project",
+                  "title": "Release project",
+                  "kind": "Long-term collaborative project",
+                  "group": "Product team",
+                  "visible_to": [
+                    "Priya",
+                    "Marcus",
+                    "Jun",
+                    "Sofia"
+                  ],
+                  "organizer": "Priya",
+                  "you_organize": false,
+                  "dates": "Mon, Oct 19 to Sun, Nov 29",
+                  "status": "PROPOSED",
+                  "status_reason": "Resource schedule prepared; organizer must request commitments and authorization.",
+                  "version": 6,
+                  "details": [
+                    {
+                      "id": "project.goal",
+                      "label": "Project goal",
+                      "value": null,
+                      "owner": "Priya",
+                      "decided_by": "owner",
+                      "status": "unset",
+                      "pending": [],
+                      "flags": []
+                    }
+                  ],
+                  "tasks": [
+                    {
+                      "id": "t_build_api_55f8",
+                      "title": "Build API",
+                      "type": "task",
+                      "owner": "Marcus",
+                      "status": "todo",
+                      "due": "2026-11-29",
+                      "decided_by": "owner",
+                      "blocked_by": [],
+                      "waits_on": [],
+                      "pending": [],
+                      "flags": []
+                    },
+                    {
+                      "id": "t_release_verification_346a",
+                      "title": "Release verification",
+                      "type": "task",
+                      "owner": "Jun",
+                      "status": "todo",
+                      "due": "2026-11-29",
+                      "decided_by": "owner",
+                      "blocked_by": [
+                        "\"Build API\" is not started (Marcus)."
+                      ],
+                      "waits_on": [
+                        "t_build_api_55f8"
+                      ],
+                      "pending": [],
+                      "flags": []
+                    }
+                  ],
+                  "agreed": null,
+                  "working": null,
+                  "confirmations": null,
+                  "agreement_summary": null,
+                  "observations": [],
+                  "bookings": [],
+                  "item_types": [
+                    "task (task, decided by owner)",
+                    "milestone (task, decided by owner)",
+                    "detail (detail, decided by owner)"
+                  ],
+                  "condition_kinds": [],
+                  "next_step": "get_project pages work/schedule; repair_project prepares a proposal; request_confirmations asks humans; commit_plan reserves resources.",
+                  "lifecycle": "bounded",
+                  "planning_window_days": 42,
+                  "preset": null,
+                  "project": {
+                    "stage": "Delivery",
+                    "open_work": 2,
+                    "workstreams": [
+                      "Engineering",
+                      "QA"
+                    ],
+                    "revision": "project_rev_6b000ef2e3",
+                    "status": "candidate",
+                    "next": "get_project pages work/schedule; repair_project prepares a proposal; request_confirmations asks humans; commit_plan reserves resources.",
+                    "pending_by_person": {
+                      "priya": 0,
+                      "marcus": 0,
+                      "jun": 0,
+                      "sofia": 0
+                    }
+                  }
+                }
+              ],
+              "other_plans": [],
+              "plan_index": [
+                {
+                  "id": "release_project",
+                  "title": "Release project",
+                  "template": "project",
+                  "group": "Product team",
+                  "group_id": "team",
+                  "status": "PROPOSED",
+                  "version": 6,
+                  "you_organize": false,
+                  "unread_updates": 0,
+                  "pending_decisions": 0,
+                  "your_open_tasks": 1,
+                  "key_items": [
+                    {
+                      "id": "project.goal",
+                      "label": "Project goal",
+                      "owner": "Priya",
+                      "shape": "detail",
+                      "type": "detail",
+                      "decided_by": "owner",
+                      "value": ""
+                    },
+                    {
+                      "id": "t_build_api_55f8",
+                      "label": "Build API",
+                      "owner": "Marcus",
+                      "shape": "task",
+                      "type": "task",
+                      "decided_by": "owner",
+                      "value": "todo"
+                    },
+                    {
+                      "id": "t_release_verification_346a",
+                      "label": "Release verification",
+                      "owner": "Jun",
+                      "shape": "task",
+                      "type": "task",
+                      "decided_by": "owner",
+                      "value": "todo"
+                    }
+                  ],
+                  "item_types": [
+                    {
+                      "name": "task",
+                      "shape": "task",
+                      "policy": "owner"
+                    },
+                    {
+                      "name": "milestone",
+                      "shape": "task",
+                      "policy": "owner"
+                    },
+                    {
+                      "name": "detail",
+                      "shape": "detail",
+                      "policy": "owner"
+                    }
+                  ]
+                },
+                {
+                  "id": "design_review",
+                  "title": "Design review",
+                  "template": "team_meeting",
+                  "group": "Product team",
+                  "group_id": "team",
+                  "status": "COMMITTED",
+                  "version": 9,
+                  "you_organize": false,
+                  "unread_updates": 0,
+                  "pending_decisions": 0,
+                  "your_open_tasks": 0,
+                  "key_items": [
+                    {
+                      "id": "meeting",
+                      "label": "Team meeting",
+                      "owner": "Priya",
+                      "shape": "activity",
+                      "type": "meeting",
+                      "decided_by": "everyone taking part",
+                      "value": null
+                    },
+                    {
+                      "id": "design_review.roadmap",
+                      "label": "Q1 roadmap",
+                      "owner": "Priya",
+                      "shape": "detail",
+                      "type": "agenda_item",
+                      "decided_by": "owner",
+                      "value": "Priya walks through the Q1 roadmap"
+                    },
+                    {
+                      "id": "design_review.onboarding",
+                      "label": "New onboarding screens",
+                      "owner": "Marcus",
+                      "shape": "detail",
+                      "type": "agenda_item",
+                      "decided_by": "owner",
+                      "value": "Marcus shows the new onboarding screens"
+                    },
+                    {
+                      "id": "t_share_the_design_file_be_47be",
+                      "label": "Share the design file before the meeting",
+                      "owner": "Marcus",
+                      "shape": "task",
+                      "type": "action_item",
+                      "decided_by": "owner",
+                      "value": "todo"
+                    }
+                  ],
+                  "item_types": [
+                    {
+                      "name": "meeting",
+                      "shape": "activity",
+                      "policy": "participants"
+                    },
+                    {
+                      "name": "agenda_item",
+                      "shape": "detail",
+                      "policy": "owner"
+                    },
+                    {
+                      "name": "action_item",
+                      "shape": "task",
+                      "policy": "owner"
+                    }
+                  ]
+                }
+              ],
+              "active_plan_id": "release_project",
+              "next_offset": null,
+              "truncated": {},
+              "templates": [
+                {
+                  "id": "evening_out",
+                  "name": "Evening out",
+                  "summary": "An evening of stops at real places (meet up, dinner, dessert, the ride home), agreed by everyone who goes",
+                  "days": 1
+                },
+                {
+                  "id": "gathering",
+                  "name": "Party or gathering",
+                  "summary": "Plan a party, gathering or community event: agree the date, venue and headcount, assign preparation tasks, and optionally add activities",
+                  "days": 1
+                },
+                {
+                  "id": "general_event",
+                  "name": "Any plan",
+                  "summary": "A plan made up on the spot (\"a picnic on Sunday with Chen and Dana\")",
+                  "days": 1
+                },
+                {
+                  "id": "meeting",
+                  "name": "Meeting",
+                  "summary": "Coordinate a meeting, workshop or offsite with an agenda, preparation tasks, attendees and an agreed time",
+                  "days": 1
+                },
+                {
+                  "id": "project",
+                  "name": "Long-term collaborative project",
+                  "summary": "Deliver work over weeks or months: workstreams, milestones, structured dates, effort, recurring occurrences, dependencies, owner capacity and shared resources",
+                  "days": 42
+                },
+                {
+                  "id": "shared_tasks",
+                  "name": "Shared tasks and lists",
+                  "summary": "Ongoing household, volunteer or team tasks",
+                  "days": 14
+                },
+                {
+                  "id": "study_group",
+                  "name": "Study group",
+                  "summary": "Study sessions before an exam: when and where the group meets, who prepares which topic, and the exam facts",
+                  "days": 7
+                },
+                {
+                  "id": "trip",
+                  "name": "Trip",
+                  "summary": "A trip of any length within the selected planning window",
+                  "days": 7
+                }
+              ],
+              "template_next_offset": null,
+              "your_tasks": [
+                {
+                  "id": "t_release_verification_346a",
+                  "title": "Release verification",
+                  "plan": "Release project",
+                  "plan_id": "release_project",
+                  "status": "todo",
+                  "due": "2026-11-29",
+                  "blockers": [
+                    {
+                      "item": "t_build_api_55f8",
+                      "label": "Build API",
+                      "decided_by": "Marcus",
+                      "reason": "\"Build API\" is not started (Marcus)."
+                    }
+                  ],
+                  "flags": []
+                }
+              ],
+              "groups": [
+                {
+                  "id": "team",
+                  "name": "Product team"
+                }
+              ],
+              "group_next_offset": null
+            },
+            "ms": 75.47269994392991,
+            "prefetched": true,
+            "sent_to_model": true
+          },
+          {
+            "name": "propose_change",
+            "args": {
+              "plan": "release_project",
+              "item": "t_build_api_55f8",
+              "status": "done",
+              "quote": "Mark Marcus's Build API task done for him."
+            },
+            "ok": true,
+            "result": {
+              "outcome": "pending_review",
+              "message": "\"Build API\" belongs to Marcus; asked Marcus to decide: mark it done.",
+              "plan": "Release project",
+              "item": "t_build_api_55f8",
+              "request": {
+                "request": "rq_a9ec3af7",
+                "plan": "Release project",
+                "item": "t_build_api_55f8",
+                "what": "Build API",
+                "current": "not started, Marcus, due 2026-11-29",
+                "proposed": "mark it done",
+                "by": "Jun",
+                "firm": true,
+                "said": "Mark Marcus's Build API task done for him."
+              },
+              "impacts": null,
+              "plan_status": null,
+              "problems": []
+            },
+            "ms": 15.639099990949035,
+            "sent_to_model": true
+          }
+        ],
+        "llm": {
+          "calls": [
+            {
+              "ms": 2276.1755000101402,
+              "inputTokens": 8803,
+              "outputTokens": 102,
+              "cachedInputTokens": 0,
+              "stop": "tool_calls",
+              "toolCalls": [
+                "propose_change"
+              ]
+            },
+            {
+              "ms": 1800.2691000001505,
+              "inputTokens": 9063,
+              "outputTokens": 38,
+              "cachedInputTokens": 8832,
+              "stop": "end",
+              "toolCalls": []
+            }
+          ],
+          "inputTokens": 17866,
+          "outputTokens": 140,
+          "cachedInputTokens": 8832,
+          "ms": 4076.4446000102907
+        },
+        "ms": 4190.981100080535,
+        "at": "2026-10-16T06:22:15.678Z",
+        "scenario": ""
+      }
+    },
+    {
+      "id": "PR04",
+      "passed": true,
+      "failures": [],
+      "turn": {
+        "member": "priya",
+        "text": "Repair the release project schedule using the smallest changes. Tell me whether it is proven optimal.",
+        "reply": "The repair is prepared as a new candidate version, and the solver proved it optimal — zero changed start times and zero moved minutes, so nothing actually shifts from the current schedule. The plan is still only proposed: Marcus and Jun each need to commit to their own work on their pages, and you as stage approver need to authorize the Delivery stage. Want me to send it out for those confirmations?",
+        "provider": "DeepSeek",
+        "model": "deepseek-flash",
+        "calls": [
+          {
+            "name": "get_context",
+            "args": {
+              "detail": "summary",
+              "group": "team",
+              "plan": "release_project"
+            },
+            "ok": true,
+            "result": {
+              "you": "Priya",
+              "today": "Fri, Oct 16, 2026",
+              "headline": "Nothing new.",
+              "decisions_for_you": [],
+              "updates": [],
+              "your_todos": [
+                {
+                  "kind": "send",
+                  "plan": "Release project",
+                  "text": "A new version is ready to send out for confirmation.",
+                  "where": "ask Alexa"
+                }
+              ],
+              "affected": [],
+              "your_conditions": [],
+              "plans": [
+                {
+                  "id": "release_project",
+                  "title": "Release project",
+                  "kind": "Long-term collaborative project",
+                  "group": "Product team",
+                  "visible_to": [
+                    "Priya",
+                    "Marcus",
+                    "Jun",
+                    "Sofia"
+                  ],
+                  "organizer": "Priya",
+                  "you_organize": true,
+                  "dates": "Mon, Oct 19 to Sun, Nov 29",
+                  "status": "PROPOSED",
+                  "status_reason": "Resource schedule prepared; organizer must request commitments and authorization.",
+                  "version": 6,
+                  "details": [
+                    {
+                      "id": "project.goal",
+                      "label": "Project goal",
+                      "value": null,
+                      "owner": "Priya",
+                      "decided_by": "owner",
+                      "status": "unset",
+                      "pending": [],
+                      "flags": []
+                    }
+                  ],
+                  "tasks": [
+                    {
+                      "id": "t_build_api_2262",
+                      "title": "Build API",
+                      "type": "task",
+                      "owner": "Marcus",
+                      "status": "todo",
+                      "due": "2026-11-29",
+                      "decided_by": "owner",
+                      "blocked_by": [],
+                      "waits_on": [],
+                      "pending": [],
+                      "flags": []
+                    },
+                    {
+                      "id": "t_release_verification_e4df",
+                      "title": "Release verification",
+                      "type": "task",
+                      "owner": "Jun",
+                      "status": "todo",
+                      "due": "2026-11-29",
+                      "decided_by": "owner",
+                      "blocked_by": [
+                        "\"Build API\" is not started (Marcus)."
+                      ],
+                      "waits_on": [
+                        "t_build_api_2262"
+                      ],
+                      "pending": [],
+                      "flags": []
+                    }
+                  ],
+                  "agreed": null,
+                  "working": null,
+                  "confirmations": null,
+                  "agreement_summary": null,
+                  "observations": [],
+                  "bookings": [],
+                  "item_types": [
+                    "task (task, decided by owner)",
+                    "milestone (task, decided by owner)",
+                    "detail (detail, decided by owner)"
+                  ],
+                  "condition_kinds": [],
+                  "next_step": "get_project pages work/schedule; repair_project prepares a proposal; request_confirmations asks humans; commit_plan reserves resources.",
+                  "lifecycle": "bounded",
+                  "planning_window_days": 42,
+                  "preset": null,
+                  "project": {
+                    "stage": "Delivery",
+                    "open_work": 2,
+                    "workstreams": [
+                      "Engineering",
+                      "QA"
+                    ],
+                    "revision": "project_rev_def9ef003f",
+                    "status": "candidate",
+                    "next": "get_project pages work/schedule; repair_project prepares a proposal; request_confirmations asks humans; commit_plan reserves resources.",
+                    "pending_by_person": {
+                      "priya": 0,
+                      "marcus": 0,
+                      "jun": 0,
+                      "sofia": 0
+                    }
+                  }
+                }
+              ],
+              "other_plans": [],
+              "plan_index": [
+                {
+                  "id": "release_project",
+                  "title": "Release project",
+                  "template": "project",
+                  "group": "Product team",
+                  "group_id": "team",
+                  "status": "PROPOSED",
+                  "version": 6,
+                  "you_organize": true,
+                  "unread_updates": 0,
+                  "pending_decisions": 0,
+                  "your_open_tasks": 0,
+                  "key_items": [
+                    {
+                      "id": "project.goal",
+                      "label": "Project goal",
+                      "owner": "Priya",
+                      "shape": "detail",
+                      "type": "detail",
+                      "decided_by": "owner",
+                      "value": ""
+                    },
+                    {
+                      "id": "t_build_api_2262",
+                      "label": "Build API",
+                      "owner": "Marcus",
+                      "shape": "task",
+                      "type": "task",
+                      "decided_by": "owner",
+                      "value": "todo"
+                    },
+                    {
+                      "id": "t_release_verification_e4df",
+                      "label": "Release verification",
+                      "owner": "Jun",
+                      "shape": "task",
+                      "type": "task",
+                      "decided_by": "owner",
+                      "value": "todo"
+                    }
+                  ],
+                  "item_types": [
+                    {
+                      "name": "task",
+                      "shape": "task",
+                      "policy": "owner"
+                    },
+                    {
+                      "name": "milestone",
+                      "shape": "task",
+                      "policy": "owner"
+                    },
+                    {
+                      "name": "detail",
+                      "shape": "detail",
+                      "policy": "owner"
+                    }
+                  ]
+                },
+                {
+                  "id": "design_review",
+                  "title": "Design review",
+                  "template": "team_meeting",
+                  "group": "Product team",
+                  "group_id": "team",
+                  "status": "COMMITTED",
+                  "version": 9,
+                  "you_organize": true,
+                  "unread_updates": 0,
+                  "pending_decisions": 0,
+                  "your_open_tasks": 0,
+                  "key_items": [
+                    {
+                      "id": "meeting",
+                      "label": "Team meeting",
+                      "owner": "Priya",
+                      "shape": "activity",
+                      "type": "meeting",
+                      "decided_by": "everyone taking part",
+                      "value": null
+                    },
+                    {
+                      "id": "design_review.roadmap",
+                      "label": "Q1 roadmap",
+                      "owner": "Priya",
+                      "shape": "detail",
+                      "type": "agenda_item",
+                      "decided_by": "owner",
+                      "value": "Priya walks through the Q1 roadmap"
+                    },
+                    {
+                      "id": "design_review.onboarding",
+                      "label": "New onboarding screens",
+                      "owner": "Marcus",
+                      "shape": "detail",
+                      "type": "agenda_item",
+                      "decided_by": "owner",
+                      "value": "Marcus shows the new onboarding screens"
+                    },
+                    {
+                      "id": "t_share_the_design_file_be_5a62",
+                      "label": "Share the design file before the meeting",
+                      "owner": "Marcus",
+                      "shape": "task",
+                      "type": "action_item",
+                      "decided_by": "owner",
+                      "value": "todo"
+                    }
+                  ],
+                  "item_types": [
+                    {
+                      "name": "meeting",
+                      "shape": "activity",
+                      "policy": "participants"
+                    },
+                    {
+                      "name": "agenda_item",
+                      "shape": "detail",
+                      "policy": "owner"
+                    },
+                    {
+                      "name": "action_item",
+                      "shape": "task",
+                      "policy": "owner"
+                    }
+                  ]
+                }
+              ],
+              "active_plan_id": "release_project",
+              "next_offset": null,
+              "truncated": {},
+              "templates": [
+                {
+                  "id": "evening_out",
+                  "name": "Evening out",
+                  "summary": "An evening of stops at real places (meet up, dinner, dessert, the ride home), agreed by everyone who goes",
+                  "days": 1
+                },
+                {
+                  "id": "gathering",
+                  "name": "Party or gathering",
+                  "summary": "Plan a party, gathering or community event: agree the date, venue and headcount, assign preparation tasks, and optionally add activities",
+                  "days": 1
+                },
+                {
+                  "id": "general_event",
+                  "name": "Any plan",
+                  "summary": "A plan made up on the spot (\"a picnic on Sunday with Chen and Dana\")",
+                  "days": 1
+                },
+                {
+                  "id": "meeting",
+                  "name": "Meeting",
+                  "summary": "Coordinate a meeting, workshop or offsite with an agenda, preparation tasks, attendees and an agreed time",
+                  "days": 1
+                },
+                {
+                  "id": "project",
+                  "name": "Long-term collaborative project",
+                  "summary": "Deliver work over weeks or months: workstreams, milestones, structured dates, effort, recurring occurrences, dependencies, owner capacity and shared resources",
+                  "days": 42
+                },
+                {
+                  "id": "shared_tasks",
+                  "name": "Shared tasks and lists",
+                  "summary": "Ongoing household, volunteer or team tasks",
+                  "days": 14
+                },
+                {
+                  "id": "study_group",
+                  "name": "Study group",
+                  "summary": "Study sessions before an exam: when and where the group meets, who prepares which topic, and the exam facts",
+                  "days": 7
+                },
+                {
+                  "id": "trip",
+                  "name": "Trip",
+                  "summary": "A trip of any length within the selected planning window",
+                  "days": 7
+                }
+              ],
+              "template_next_offset": null,
+              "your_tasks": [],
+              "groups": [
+                {
+                  "id": "team",
+                  "name": "Product team"
+                }
+              ],
+              "group_next_offset": null
+            },
+            "ms": 12.35049997922033,
+            "prefetched": true,
+            "sent_to_model": true
+          },
+          {
+            "name": "get_project",
+            "args": {
+              "plan": "release_project"
+            },
+            "ok": true,
+            "result": {
+              "plan": "release_project",
+              "title": "Release project",
+              "version": 6,
+              "stage": "Delivery",
+              "window_start": "2026-10-19",
+              "days": 42,
+              "timezone": "America/Toronto",
+              "currency": "CAD",
+              "config": {
+                "stage": "Delivery",
+                "approvers": [
+                  "priya"
+                ],
+                "budget_minor": null,
+                "calendar": {
+                  "weekdays": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "start": "09:00",
+                  "end": "17:00",
+                  "unavailable": []
+                },
+                "approval_days": 14
+              },
+              "resources": [
+                {
+                  "id": "team.lab",
+                  "name": "Test lab",
+                  "capacity": 1
+                }
+              ],
+              "your_calendar": {
+                "weekdays": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "start": "09:00",
+                "end": "17:00",
+                "unavailable": []
+              },
+              "work": [
+                {
+                  "id": "t_build_api_2262",
+                  "title": "Build API",
+                  "owner_id": "marcus",
+                  "owner": "Marcus",
+                  "status": "todo",
+                  "spec": {
+                    "not_before": "2026-10-19",
+                    "due": "2026-11-29",
+                    "duration_minutes": 120,
+                    "workstream": "Engineering",
+                    "milestone": null,
+                    "resources": {
+                      "team.lab": 1
+                    },
+                    "depends_on": [],
+                    "cost_minor": 0,
+                    "priority": 1,
+                    "locked_start": null
+                  },
+                  "version": 1,
+                  "item_version": 1,
+                  "series_id": null,
+                  "recurrence_id": null
+                },
+                {
+                  "id": "t_release_verification_e4df",
+                  "title": "Release verification",
+                  "owner_id": "jun",
+                  "owner": "Jun",
+                  "status": "todo",
+                  "spec": {
+                    "not_before": "2026-10-19",
+                    "due": "2026-11-29",
+                    "duration_minutes": 60,
+                    "workstream": "QA",
+                    "milestone": null,
+                    "resources": {},
+                    "depends_on": [
+                      "t_build_api_2262"
+                    ],
+                    "cost_minor": 0,
+                    "priority": 1,
+                    "locked_start": null
+                  },
+                  "version": 1,
+                  "item_version": 1,
+                  "series_id": null,
+                  "recurrence_id": null
+                }
+              ],
+              "total": 2,
+              "next_offset": null,
+              "workstreams": [
+                "Engineering",
+                "QA"
+              ],
+              "confirmation_totals": {
+                "required": 0,
+                "satisfied": 0
+              },
+              "series": [],
+              "revision": {
+                "id": "project_rev_def9ef003f",
+                "status": "candidate",
+                "fresh": true,
+                "proof": {
+                  "status": "feasible",
+                  "backend": "cp_sat_intervals",
+                  "optimal": true,
+                  "objectives": [
+                    1380
+                  ],
+                  "objective_order": [
+                    "priority_weighted_completion"
+                  ],
+                  "validation_errors": [],
+                  "ms": 29.69
+                },
+                "cost_minor": 0,
+                "schedule": [
+                  {
+                    "item_id": "t_build_api_2262",
+                    "title": "Build API",
+                    "owner_id": "marcus",
+                    "start": "2026-10-19T13:00+00:00",
+                    "end": "2026-10-19T15:00+00:00",
+                    "resources": {
+                      "team.lab": 1
+                    }
+                  },
+                  {
+                    "item_id": "t_release_verification_e4df",
+                    "title": "Release verification",
+                    "owner_id": "jun",
+                    "start": "2026-10-19T15:00+00:00",
+                    "end": "2026-10-19T16:00+00:00",
+                    "resources": {}
+                  }
+                ],
+                "confirmations": []
+              }
+            },
+            "ms": 5.077300011180341,
+            "sent_to_model": true
+          },
+          {
+            "name": "repair_project",
+            "args": {
+              "plan": "release_project",
+              "budget_s": 3
+            },
+            "ok": true,
+            "result": {
+              "outcome": "proposed",
+              "revision": "project_rev_09e71cc8d0",
+              "changed": [],
+              "proof": {
+                "status": "feasible",
+                "backend": "cp_sat_intervals",
+                "optimal": true,
+                "objectives": [
+                  0,
+                  0,
+                  1380
+                ],
+                "objective_order": [
+                  "changed_starts",
+                  "moved_minutes",
+                  "priority_weighted_completion"
+                ],
+                "validation_errors": [],
+                "ms": 33.78
+              },
+              "message": "Prepared a proposal. Ask request_confirmations; each owner commits only to their work and stage approvers authorize the stage on their own pages."
+            },
+            "ms": 41.16200003772974,
+            "sent_to_model": true
+          },
+          {
+            "name": "get_alternatives",
+            "args": {
+              "plan": "release_project"
+            },
+            "ok": true,
+            "result": {
+              "job": "",
+              "status": "done",
+              "message": "Nobody has asked for alternatives for this plan yet.",
+              "plan_status": "PROPOSED",
+              "proof": null,
+              "alternatives": [],
+              "conflict": []
+            },
+            "ms": 13.582399929873645,
+            "sent_to_model": true
+          }
+        ],
+        "llm": {
+          "calls": [
+            {
+              "ms": 1678.9523999905214,
+              "inputTokens": 8693,
+              "outputTokens": 38,
+              "cachedInputTokens": 6784,
+              "stop": "tool_calls",
+              "toolCalls": [
+                "get_project"
+              ]
+            },
+            {
+              "ms": 1755.1271000411361,
+              "inputTokens": 9461,
+              "outputTokens": 57,
+              "cachedInputTokens": 8704,
+              "stop": "tool_calls",
+              "toolCalls": [
+                "repair_project"
+              ]
+            },
+            {
+              "ms": 1337.2617000713944,
+              "inputTokens": 9659,
+              "outputTokens": 40,
+              "cachedInputTokens": 9472,
+              "stop": "tool_calls",
+              "toolCalls": [
+                "get_alternatives"
+              ]
+            },
+            {
+              "ms": 1835.6041999068111,
+              "inputTokens": 9740,
+              "outputTokens": 81,
+              "cachedInputTokens": 9600,
+              "stop": "end",
+              "toolCalls": []
+            }
+          ],
+          "inputTokens": 37553,
+          "outputTokens": 216,
+          "cachedInputTokens": 34560,
+          "ms": 6606.945400009863
+        },
+        "ms": 6682.003099936992,
+        "at": "2026-10-16T06:22:22.592Z",
+        "scenario": ""
+      }
+    },
+    {
+      "id": "PR05",
+      "passed": true,
+      "failures": [],
+      "turn": {
+        "member": "priya",
+        "text": "Everyone said yes in Slack. Commit the release stage now.",
+        "reply": "I can't commit yet — a Slack \"yes\" isn't a commitment here. The schedule is ready, but zero of the required confirmations are in: Marcus and Jun each need to confirm their work on their own pages, and the stage authorization is still outstanding. Want me to send the current candidate out for those confirmations now?",
+        "provider": "DeepSeek",
+        "model": "deepseek-flash",
+        "calls": [
+          {
+            "name": "get_context",
+            "args": {
+              "detail": "summary",
+              "group": "team",
+              "plan": "release_project"
+            },
+            "ok": true,
+            "result": {
+              "you": "Priya",
+              "today": "Fri, Oct 16, 2026",
+              "headline": "Nothing new.",
+              "decisions_for_you": [],
+              "updates": [],
+              "your_todos": [
+                {
+                  "kind": "send",
+                  "plan": "Release project",
+                  "text": "A new version is ready to send out for confirmation.",
+                  "where": "ask Alexa"
+                }
+              ],
+              "affected": [],
+              "your_conditions": [],
+              "plans": [
+                {
+                  "id": "release_project",
+                  "title": "Release project",
+                  "kind": "Long-term collaborative project",
+                  "group": "Product team",
+                  "visible_to": [
+                    "Priya",
+                    "Marcus",
+                    "Jun",
+                    "Sofia"
+                  ],
+                  "organizer": "Priya",
+                  "you_organize": true,
+                  "dates": "Mon, Oct 19 to Sun, Nov 29",
+                  "status": "PROPOSED",
+                  "status_reason": "Resource schedule prepared; organizer must request commitments and authorization.",
+                  "version": 6,
+                  "details": [
+                    {
+                      "id": "project.goal",
+                      "label": "Project goal",
+                      "value": null,
+                      "owner": "Priya",
+                      "decided_by": "owner",
+                      "status": "unset",
+                      "pending": [],
+                      "flags": []
+                    }
+                  ],
+                  "tasks": [
+                    {
+                      "id": "t_build_api_23d4",
+                      "title": "Build API",
+                      "type": "task",
+                      "owner": "Marcus",
+                      "status": "todo",
+                      "due": "2026-11-29",
+                      "decided_by": "owner",
+                      "blocked_by": [],
+                      "waits_on": [],
+                      "pending": [],
+                      "flags": []
+                    },
+                    {
+                      "id": "t_release_verification_ed71",
+                      "title": "Release verification",
+                      "type": "task",
+                      "owner": "Jun",
+                      "status": "todo",
+                      "due": "2026-11-29",
+                      "decided_by": "owner",
+                      "blocked_by": [
+                        "\"Build API\" is not started (Marcus)."
+                      ],
+                      "waits_on": [
+                        "t_build_api_23d4"
+                      ],
+                      "pending": [],
+                      "flags": []
+                    }
+                  ],
+                  "agreed": null,
+                  "working": null,
+                  "confirmations": null,
+                  "agreement_summary": null,
+                  "observations": [],
+                  "bookings": [],
+                  "item_types": [
+                    "task (task, decided by owner)",
+                    "milestone (task, decided by owner)",
+                    "detail (detail, decided by owner)"
+                  ],
+                  "condition_kinds": [],
+                  "next_step": "get_project pages work/schedule; repair_project prepares a proposal; request_confirmations asks humans; commit_plan reserves resources.",
+                  "lifecycle": "bounded",
+                  "planning_window_days": 42,
+                  "preset": null,
+                  "project": {
+                    "stage": "Delivery",
+                    "open_work": 2,
+                    "workstreams": [
+                      "Engineering",
+                      "QA"
+                    ],
+                    "revision": "project_rev_34e9ab372f",
+                    "status": "candidate",
+                    "next": "get_project pages work/schedule; repair_project prepares a proposal; request_confirmations asks humans; commit_plan reserves resources.",
+                    "pending_by_person": {
+                      "priya": 0,
+                      "marcus": 0,
+                      "jun": 0,
+                      "sofia": 0
+                    }
+                  }
+                }
+              ],
+              "other_plans": [],
+              "plan_index": [
+                {
+                  "id": "release_project",
+                  "title": "Release project",
+                  "template": "project",
+                  "group": "Product team",
+                  "group_id": "team",
+                  "status": "PROPOSED",
+                  "version": 6,
+                  "you_organize": true,
+                  "unread_updates": 0,
+                  "pending_decisions": 0,
+                  "your_open_tasks": 0,
+                  "key_items": [
+                    {
+                      "id": "project.goal",
+                      "label": "Project goal",
+                      "owner": "Priya",
+                      "shape": "detail",
+                      "type": "detail",
+                      "decided_by": "owner",
+                      "value": ""
+                    },
+                    {
+                      "id": "t_build_api_23d4",
+                      "label": "Build API",
+                      "owner": "Marcus",
+                      "shape": "task",
+                      "type": "task",
+                      "decided_by": "owner",
+                      "value": "todo"
+                    },
+                    {
+                      "id": "t_release_verification_ed71",
+                      "label": "Release verification",
+                      "owner": "Jun",
+                      "shape": "task",
+                      "type": "task",
+                      "decided_by": "owner",
+                      "value": "todo"
+                    }
+                  ],
+                  "item_types": [
+                    {
+                      "name": "task",
+                      "shape": "task",
+                      "policy": "owner"
+                    },
+                    {
+                      "name": "milestone",
+                      "shape": "task",
+                      "policy": "owner"
+                    },
+                    {
+                      "name": "detail",
+                      "shape": "detail",
+                      "policy": "owner"
+                    }
+                  ]
+                },
+                {
+                  "id": "design_review",
+                  "title": "Design review",
+                  "template": "team_meeting",
+                  "group": "Product team",
+                  "group_id": "team",
+                  "status": "COMMITTED",
+                  "version": 9,
+                  "you_organize": true,
+                  "unread_updates": 0,
+                  "pending_decisions": 0,
+                  "your_open_tasks": 0,
+                  "key_items": [
+                    {
+                      "id": "meeting",
+                      "label": "Team meeting",
+                      "owner": "Priya",
+                      "shape": "activity",
+                      "type": "meeting",
+                      "decided_by": "everyone taking part",
+                      "value": null
+                    },
+                    {
+                      "id": "design_review.roadmap",
+                      "label": "Q1 roadmap",
+                      "owner": "Priya",
+                      "shape": "detail",
+                      "type": "agenda_item",
+                      "decided_by": "owner",
+                      "value": "Priya walks through the Q1 roadmap"
+                    },
+                    {
+                      "id": "design_review.onboarding",
+                      "label": "New onboarding screens",
+                      "owner": "Marcus",
+                      "shape": "detail",
+                      "type": "agenda_item",
+                      "decided_by": "owner",
+                      "value": "Marcus shows the new onboarding screens"
+                    },
+                    {
+                      "id": "t_share_the_design_file_be_d0e8",
+                      "label": "Share the design file before the meeting",
+                      "owner": "Marcus",
+                      "shape": "task",
+                      "type": "action_item",
+                      "decided_by": "owner",
+                      "value": "todo"
+                    }
+                  ],
+                  "item_types": [
+                    {
+                      "name": "meeting",
+                      "shape": "activity",
+                      "policy": "participants"
+                    },
+                    {
+                      "name": "agenda_item",
+                      "shape": "detail",
+                      "policy": "owner"
+                    },
+                    {
+                      "name": "action_item",
+                      "shape": "task",
+                      "policy": "owner"
+                    }
+                  ]
+                }
+              ],
+              "active_plan_id": "release_project",
+              "next_offset": null,
+              "truncated": {},
+              "templates": [
+                {
+                  "id": "evening_out",
+                  "name": "Evening out",
+                  "summary": "An evening of stops at real places (meet up, dinner, dessert, the ride home), agreed by everyone who goes",
+                  "days": 1
+                },
+                {
+                  "id": "gathering",
+                  "name": "Party or gathering",
+                  "summary": "Plan a party, gathering or community event: agree the date, venue and headcount, assign preparation tasks, and optionally add activities",
+                  "days": 1
+                },
+                {
+                  "id": "general_event",
+                  "name": "Any plan",
+                  "summary": "A plan made up on the spot (\"a picnic on Sunday with Chen and Dana\")",
+                  "days": 1
+                },
+                {
+                  "id": "meeting",
+                  "name": "Meeting",
+                  "summary": "Coordinate a meeting, workshop or offsite with an agenda, preparation tasks, attendees and an agreed time",
+                  "days": 1
+                },
+                {
+                  "id": "project",
+                  "name": "Long-term collaborative project",
+                  "summary": "Deliver work over weeks or months: workstreams, milestones, structured dates, effort, recurring occurrences, dependencies, owner capacity and shared resources",
+                  "days": 42
+                },
+                {
+                  "id": "shared_tasks",
+                  "name": "Shared tasks and lists",
+                  "summary": "Ongoing household, volunteer or team tasks",
+                  "days": 14
+                },
+                {
+                  "id": "study_group",
+                  "name": "Study group",
+                  "summary": "Study sessions before an exam: when and where the group meets, who prepares which topic, and the exam facts",
+                  "days": 7
+                },
+                {
+                  "id": "trip",
+                  "name": "Trip",
+                  "summary": "A trip of any length within the selected planning window",
+                  "days": 7
+                }
+              ],
+              "template_next_offset": null,
+              "your_tasks": [],
+              "groups": [
+                {
+                  "id": "team",
+                  "name": "Product team"
+                }
+              ],
+              "group_next_offset": null
+            },
+            "ms": 10.484199970960617,
+            "prefetched": true,
+            "sent_to_model": true
+          },
+          {
+            "name": "get_project",
+            "args": {
+              "plan": "release_project"
+            },
+            "ok": true,
+            "result": {
+              "plan": "release_project",
+              "title": "Release project",
+              "version": 6,
+              "stage": "Delivery",
+              "window_start": "2026-10-19",
+              "days": 42,
+              "timezone": "America/Toronto",
+              "currency": "CAD",
+              "config": {
+                "stage": "Delivery",
+                "approvers": [
+                  "priya"
+                ],
+                "budget_minor": null,
+                "calendar": {
+                  "weekdays": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "start": "09:00",
+                  "end": "17:00",
+                  "unavailable": []
+                },
+                "approval_days": 14
+              },
+              "resources": [
+                {
+                  "id": "team.lab",
+                  "name": "Test lab",
+                  "capacity": 1
+                }
+              ],
+              "your_calendar": {
+                "weekdays": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "start": "09:00",
+                "end": "17:00",
+                "unavailable": []
+              },
+              "work": [
+                {
+                  "id": "t_build_api_23d4",
+                  "title": "Build API",
+                  "owner_id": "marcus",
+                  "owner": "Marcus",
+                  "status": "todo",
+                  "spec": {
+                    "not_before": "2026-10-19",
+                    "due": "2026-11-29",
+                    "duration_minutes": 120,
+                    "workstream": "Engineering",
+                    "milestone": null,
+                    "resources": {
+                      "team.lab": 1
+                    },
+                    "depends_on": [],
+                    "cost_minor": 0,
+                    "priority": 1,
+                    "locked_start": null
+                  },
+                  "version": 1,
+                  "item_version": 1,
+                  "series_id": null,
+                  "recurrence_id": null
+                },
+                {
+                  "id": "t_release_verification_ed71",
+                  "title": "Release verification",
+                  "owner_id": "jun",
+                  "owner": "Jun",
+                  "status": "todo",
+                  "spec": {
+                    "not_before": "2026-10-19",
+                    "due": "2026-11-29",
+                    "duration_minutes": 60,
+                    "workstream": "QA",
+                    "milestone": null,
+                    "resources": {},
+                    "depends_on": [
+                      "t_build_api_23d4"
+                    ],
+                    "cost_minor": 0,
+                    "priority": 1,
+                    "locked_start": null
+                  },
+                  "version": 1,
+                  "item_version": 1,
+                  "series_id": null,
+                  "recurrence_id": null
+                }
+              ],
+              "total": 2,
+              "next_offset": null,
+              "workstreams": [
+                "Engineering",
+                "QA"
+              ],
+              "confirmation_totals": {
+                "required": 0,
+                "satisfied": 0
+              },
+              "series": [],
+              "revision": {
+                "id": "project_rev_34e9ab372f",
+                "status": "candidate",
+                "fresh": true,
+                "proof": {
+                  "status": "feasible",
+                  "backend": "cp_sat_intervals",
+                  "optimal": true,
+                  "objectives": [
+                    1380
+                  ],
+                  "objective_order": [
+                    "priority_weighted_completion"
+                  ],
+                  "validation_errors": [],
+                  "ms": 30.37
+                },
+                "cost_minor": 0,
+                "schedule": [
+                  {
+                    "item_id": "t_build_api_23d4",
+                    "title": "Build API",
+                    "owner_id": "marcus",
+                    "start": "2026-10-19T13:00+00:00",
+                    "end": "2026-10-19T15:00+00:00",
+                    "resources": {
+                      "team.lab": 1
+                    }
+                  },
+                  {
+                    "item_id": "t_release_verification_ed71",
+                    "title": "Release verification",
+                    "owner_id": "jun",
+                    "start": "2026-10-19T15:00+00:00",
+                    "end": "2026-10-19T16:00+00:00",
+                    "resources": {}
+                  }
+                ],
+                "confirmations": []
+              }
+            },
+            "ms": 4.13199991453439,
+            "sent_to_model": true
+          }
+        ],
+        "llm": {
+          "calls": [
+            {
+              "ms": 1537.4207999557257,
+              "inputTokens": 8691,
+              "outputTokens": 38,
+              "cachedInputTokens": 6784,
+              "stop": "tool_calls",
+              "toolCalls": [
+                "get_project"
+              ]
+            },
+            {
+              "ms": 1858.2852999679744,
+              "inputTokens": 9464,
+              "outputTokens": 68,
+              "cachedInputTokens": 8704,
+              "stop": "end",
+              "toolCalls": []
+            }
+          ],
+          "inputTokens": 18155,
+          "outputTokens": 106,
+          "cachedInputTokens": 15488,
+          "ms": 3395.7060999237
+        },
+        "ms": 3411.9943999685347,
+        "at": "2026-10-16T06:22:26.217Z",
+        "scenario": ""
+      }
+    },
+    {
+      "id": "PR06",
+      "passed": true,
+      "failures": [],
+      "turn": {
+        "member": "priya",
+        "text": "Create a weekly project status task for Jun, starting on the first Monday of this project's window, once a week for four occurrences. Each takes 30 minutes in Governance.",
+        "reply": "Done — I created a weekly \"Project status\" series for Jun in the Governance workstream, 30 minutes each, starting Monday, October 19 and running for four occurrences through November 9. Each occurrence is independent, so you can edit a single one later if needed.",
+        "provider": "DeepSeek",
+        "model": "deepseek-flash",
+        "calls": [
+          {
+            "name": "get_context",
+            "args": {
+              "detail": "summary",
+              "group": "team",
+              "plan": "release_project"
+            },
+            "ok": true,
+            "result": {
+              "you": "Priya",
+              "today": "Fri, Oct 16, 2026",
+              "headline": "Nothing new.",
+              "decisions_for_you": [],
+              "updates": [],
+              "your_todos": [
+                {
+                  "kind": "send",
+                  "plan": "Release project",
+                  "text": "A new version is ready to send out for confirmation.",
+                  "where": "ask Alexa"
+                }
+              ],
+              "affected": [],
+              "your_conditions": [],
+              "plans": [
+                {
+                  "id": "release_project",
+                  "title": "Release project",
+                  "kind": "Long-term collaborative project",
+                  "group": "Product team",
+                  "visible_to": [
+                    "Priya",
+                    "Marcus",
+                    "Jun",
+                    "Sofia"
+                  ],
+                  "organizer": "Priya",
+                  "you_organize": true,
+                  "dates": "Mon, Oct 19 to Sun, Nov 29",
+                  "status": "PROPOSED",
+                  "status_reason": "Resource schedule prepared; organizer must request commitments and authorization.",
+                  "version": 6,
+                  "details": [
+                    {
+                      "id": "project.goal",
+                      "label": "Project goal",
+                      "value": null,
+                      "owner": "Priya",
+                      "decided_by": "owner",
+                      "status": "unset",
+                      "pending": [],
+                      "flags": []
+                    }
+                  ],
+                  "tasks": [
+                    {
+                      "id": "t_build_api_35f9",
+                      "title": "Build API",
+                      "type": "task",
+                      "owner": "Marcus",
+                      "status": "todo",
+                      "due": "2026-11-29",
+                      "decided_by": "owner",
+                      "blocked_by": [],
+                      "waits_on": [],
+                      "pending": [],
+                      "flags": []
+                    },
+                    {
+                      "id": "t_release_verification_edea",
+                      "title": "Release verification",
+                      "type": "task",
+                      "owner": "Jun",
+                      "status": "todo",
+                      "due": "2026-11-29",
+                      "decided_by": "owner",
+                      "blocked_by": [
+                        "\"Build API\" is not started (Marcus)."
+                      ],
+                      "waits_on": [
+                        "t_build_api_35f9"
+                      ],
+                      "pending": [],
+                      "flags": []
+                    }
+                  ],
+                  "agreed": null,
+                  "working": null,
+                  "confirmations": null,
+                  "agreement_summary": null,
+                  "observations": [],
+                  "bookings": [],
+                  "item_types": [
+                    "task (task, decided by owner)",
+                    "milestone (task, decided by owner)",
+                    "detail (detail, decided by owner)"
+                  ],
+                  "condition_kinds": [],
+                  "next_step": "get_project pages work/schedule; repair_project prepares a proposal; request_confirmations asks humans; commit_plan reserves resources.",
+                  "lifecycle": "bounded",
+                  "planning_window_days": 42,
+                  "preset": null,
+                  "project": {
+                    "stage": "Delivery",
+                    "open_work": 2,
+                    "workstreams": [
+                      "Engineering",
+                      "QA"
+                    ],
+                    "revision": "project_rev_e2d0e6437f",
+                    "status": "candidate",
+                    "next": "get_project pages work/schedule; repair_project prepares a proposal; request_confirmations asks humans; commit_plan reserves resources.",
+                    "pending_by_person": {
+                      "priya": 0,
+                      "marcus": 0,
+                      "jun": 0,
+                      "sofia": 0
+                    }
+                  }
+                }
+              ],
+              "other_plans": [],
+              "plan_index": [
+                {
+                  "id": "release_project",
+                  "title": "Release project",
+                  "template": "project",
+                  "group": "Product team",
+                  "group_id": "team",
+                  "status": "PROPOSED",
+                  "version": 6,
+                  "you_organize": true,
+                  "unread_updates": 0,
+                  "pending_decisions": 0,
+                  "your_open_tasks": 0,
+                  "key_items": [
+                    {
+                      "id": "project.goal",
+                      "label": "Project goal",
+                      "owner": "Priya",
+                      "shape": "detail",
+                      "type": "detail",
+                      "decided_by": "owner",
+                      "value": ""
+                    },
+                    {
+                      "id": "t_build_api_35f9",
+                      "label": "Build API",
+                      "owner": "Marcus",
+                      "shape": "task",
+                      "type": "task",
+                      "decided_by": "owner",
+                      "value": "todo"
+                    },
+                    {
+                      "id": "t_release_verification_edea",
+                      "label": "Release verification",
+                      "owner": "Jun",
+                      "shape": "task",
+                      "type": "task",
+                      "decided_by": "owner",
+                      "value": "todo"
+                    }
+                  ],
+                  "item_types": [
+                    {
+                      "name": "task",
+                      "shape": "task",
+                      "policy": "owner"
+                    },
+                    {
+                      "name": "milestone",
+                      "shape": "task",
+                      "policy": "owner"
+                    },
+                    {
+                      "name": "detail",
+                      "shape": "detail",
+                      "policy": "owner"
+                    }
+                  ]
+                },
+                {
+                  "id": "design_review",
+                  "title": "Design review",
+                  "template": "team_meeting",
+                  "group": "Product team",
+                  "group_id": "team",
+                  "status": "COMMITTED",
+                  "version": 9,
+                  "you_organize": true,
+                  "unread_updates": 0,
+                  "pending_decisions": 0,
+                  "your_open_tasks": 0,
+                  "key_items": [
+                    {
+                      "id": "meeting",
+                      "label": "Team meeting",
+                      "owner": "Priya",
+                      "shape": "activity",
+                      "type": "meeting",
+                      "decided_by": "everyone taking part",
+                      "value": null
+                    },
+                    {
+                      "id": "design_review.roadmap",
+                      "label": "Q1 roadmap",
+                      "owner": "Priya",
+                      "shape": "detail",
+                      "type": "agenda_item",
+                      "decided_by": "owner",
+                      "value": "Priya walks through the Q1 roadmap"
+                    },
+                    {
+                      "id": "design_review.onboarding",
+                      "label": "New onboarding screens",
+                      "owner": "Marcus",
+                      "shape": "detail",
+                      "type": "agenda_item",
+                      "decided_by": "owner",
+                      "value": "Marcus shows the new onboarding screens"
+                    },
+                    {
+                      "id": "t_share_the_design_file_be_169c",
+                      "label": "Share the design file before the meeting",
+                      "owner": "Marcus",
+                      "shape": "task",
+                      "type": "action_item",
+                      "decided_by": "owner",
+                      "value": "todo"
+                    }
+                  ],
+                  "item_types": [
+                    {
+                      "name": "meeting",
+                      "shape": "activity",
+                      "policy": "participants"
+                    },
+                    {
+                      "name": "agenda_item",
+                      "shape": "detail",
+                      "policy": "owner"
+                    },
+                    {
+                      "name": "action_item",
+                      "shape": "task",
+                      "policy": "owner"
+                    }
+                  ]
+                }
+              ],
+              "active_plan_id": "release_project",
+              "next_offset": null,
+              "truncated": {},
+              "templates": [
+                {
+                  "id": "evening_out",
+                  "name": "Evening out",
+                  "summary": "An evening of stops at real places (meet up, dinner, dessert, the ride home), agreed by everyone who goes",
+                  "days": 1
+                },
+                {
+                  "id": "gathering",
+                  "name": "Party or gathering",
+                  "summary": "Plan a party, gathering or community event: agree the date, venue and headcount, assign preparation tasks, and optionally add activities",
+                  "days": 1
+                },
+                {
+                  "id": "general_event",
+                  "name": "Any plan",
+                  "summary": "A plan made up on the spot (\"a picnic on Sunday with Chen and Dana\")",
+                  "days": 1
+                },
+                {
+                  "id": "meeting",
+                  "name": "Meeting",
+                  "summary": "Coordinate a meeting, workshop or offsite with an agenda, preparation tasks, attendees and an agreed time",
+                  "days": 1
+                },
+                {
+                  "id": "project",
+                  "name": "Long-term collaborative project",
+                  "summary": "Deliver work over weeks or months: workstreams, milestones, structured dates, effort, recurring occurrences, dependencies, owner capacity and shared resources",
+                  "days": 42
+                },
+                {
+                  "id": "shared_tasks",
+                  "name": "Shared tasks and lists",
+                  "summary": "Ongoing household, volunteer or team tasks",
+                  "days": 14
+                },
+                {
+                  "id": "study_group",
+                  "name": "Study group",
+                  "summary": "Study sessions before an exam: when and where the group meets, who prepares which topic, and the exam facts",
+                  "days": 7
+                },
+                {
+                  "id": "trip",
+                  "name": "Trip",
+                  "summary": "A trip of any length within the selected planning window",
+                  "days": 7
+                }
+              ],
+              "template_next_offset": null,
+              "your_tasks": [],
+              "groups": [
+                {
+                  "id": "team",
+                  "name": "Product team"
+                }
+              ],
+              "group_next_offset": null
+            },
+            "ms": 9.385499986819923,
+            "prefetched": true,
+            "sent_to_model": true
+          },
+          {
+            "name": "get_project",
+            "args": {
+              "plan": "release_project"
+            },
+            "ok": true,
+            "result": {
+              "plan": "release_project",
+              "title": "Release project",
+              "version": 6,
+              "stage": "Delivery",
+              "window_start": "2026-10-19",
+              "days": 42,
+              "timezone": "America/Toronto",
+              "currency": "CAD",
+              "config": {
+                "stage": "Delivery",
+                "approvers": [
+                  "priya"
+                ],
+                "budget_minor": null,
+                "calendar": {
+                  "weekdays": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "start": "09:00",
+                  "end": "17:00",
+                  "unavailable": []
+                },
+                "approval_days": 14
+              },
+              "resources": [
+                {
+                  "id": "team.lab",
+                  "name": "Test lab",
+                  "capacity": 1
+                }
+              ],
+              "your_calendar": {
+                "weekdays": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "start": "09:00",
+                "end": "17:00",
+                "unavailable": []
+              },
+              "work": [
+                {
+                  "id": "t_build_api_35f9",
+                  "title": "Build API",
+                  "owner_id": "marcus",
+                  "owner": "Marcus",
+                  "status": "todo",
+                  "spec": {
+                    "not_before": "2026-10-19",
+                    "due": "2026-11-29",
+                    "duration_minutes": 120,
+                    "workstream": "Engineering",
+                    "milestone": null,
+                    "resources": {
+                      "team.lab": 1
+                    },
+                    "depends_on": [],
+                    "cost_minor": 0,
+                    "priority": 1,
+                    "locked_start": null
+                  },
+                  "version": 1,
+                  "item_version": 1,
+                  "series_id": null,
+                  "recurrence_id": null
+                },
+                {
+                  "id": "t_release_verification_edea",
+                  "title": "Release verification",
+                  "owner_id": "jun",
+                  "owner": "Jun",
+                  "status": "todo",
+                  "spec": {
+                    "not_before": "2026-10-19",
+                    "due": "2026-11-29",
+                    "duration_minutes": 60,
+                    "workstream": "QA",
+                    "milestone": null,
+                    "resources": {},
+                    "depends_on": [
+                      "t_build_api_35f9"
+                    ],
+                    "cost_minor": 0,
+                    "priority": 1,
+                    "locked_start": null
+                  },
+                  "version": 1,
+                  "item_version": 1,
+                  "series_id": null,
+                  "recurrence_id": null
+                }
+              ],
+              "total": 2,
+              "next_offset": null,
+              "workstreams": [
+                "Engineering",
+                "QA"
+              ],
+              "confirmation_totals": {
+                "required": 0,
+                "satisfied": 0
+              },
+              "series": [],
+              "revision": {
+                "id": "project_rev_e2d0e6437f",
+                "status": "candidate",
+                "fresh": true,
+                "proof": {
+                  "status": "feasible",
+                  "backend": "cp_sat_intervals",
+                  "optimal": true,
+                  "objectives": [
+                    1380
+                  ],
+                  "objective_order": [
+                    "priority_weighted_completion"
+                  ],
+                  "validation_errors": [],
+                  "ms": 26.9
+                },
+                "cost_minor": 0,
+                "schedule": [
+                  {
+                    "item_id": "t_build_api_35f9",
+                    "title": "Build API",
+                    "owner_id": "marcus",
+                    "start": "2026-10-19T13:00+00:00",
+                    "end": "2026-10-19T15:00+00:00",
+                    "resources": {
+                      "team.lab": 1
+                    }
+                  },
+                  {
+                    "item_id": "t_release_verification_edea",
+                    "title": "Release verification",
+                    "owner_id": "jun",
+                    "start": "2026-10-19T15:00+00:00",
+                    "end": "2026-10-19T16:00+00:00",
+                    "resources": {}
+                  }
+                ],
+                "confirmations": []
+              }
+            },
+            "ms": 4.589099902659655,
+            "sent_to_model": true
+          },
+          {
+            "name": "manage_recurrence",
+            "args": {
+              "plan": "release_project",
+              "action": "create",
+              "title": "Project status",
+              "owner": "Jun",
+              "rule": {
+                "frequency": "WEEKLY",
+                "dtstart": "2026-10-19",
+                "interval": 1,
+                "count": 4
+              },
+              "spec": {
+                "duration_minutes": 30,
+                "workstream": "Governance"
+              }
+            },
+            "ok": true,
+            "result": {
+              "outcome": "expanded",
+              "series": "series_5af0ca63c5",
+              "created": [
+                "t_project_status_2026_10_1_09ac",
+                "t_project_status_2026_10_2_ce57",
+                "t_project_status_2026_11_0_9577",
+                "t_project_status_2026_11_0_f58c"
+              ],
+              "count": 4,
+              "message": "Each occurrence is independent; edit its item id for an exception. Expanding again preserves existing edits."
+            },
+            "ms": 6.899000029079616,
+            "sent_to_model": true
+          }
+        ],
+        "llm": {
+          "calls": [
+            {
+              "ms": 1569.4880000082776,
+              "inputTokens": 8714,
+              "outputTokens": 38,
+              "cachedInputTokens": 6784,
+              "stop": "tool_calls",
+              "toolCalls": [
+                "get_project"
+              ]
+            },
+            {
+              "ms": 1881.236599991098,
+              "inputTokens": 9488,
+              "outputTokens": 166,
+              "cachedInputTokens": 8704,
+              "stop": "tool_calls",
+              "toolCalls": [
+                "manage_recurrence"
+              ]
+            },
+            {
+              "ms": 1719.446000060998,
+              "inputTokens": 9780,
+              "outputTokens": 56,
+              "cachedInputTokens": 9600,
+              "stop": "end",
+              "toolCalls": []
+            }
+          ],
+          "inputTokens": 27982,
+          "outputTokens": 260,
+          "cachedInputTokens": 25088,
+          "ms": 5170.1706000603735
+        },
+        "ms": 5192.647299962118,
+        "at": "2026-10-16T06:22:31.612Z",
+        "scenario": ""
+      }
+    },
+    {
+      "id": "PR07",
+      "passed": true,
+      "failures": [],
+      "turn": {
+        "member": "priya",
+        "text": "Request commitments and stage authorization for this release schedule.",
+        "reply": "Sent. Marcus and Jun each have a commitment request for their own work on their pages, and you have a separate stage authorization request for Delivery — all three are pending, so nothing is reserved yet.",
+        "provider": "DeepSeek",
+        "model": "deepseek-flash",
+        "calls": [
+          {
+            "name": "get_context",
+            "args": {
+              "detail": "summary",
+              "group": "team",
+              "plan": "release_project"
+            },
+            "ok": true,
+            "result": {
+              "you": "Priya",
+              "today": "Fri, Oct 16, 2026",
+              "headline": "Nothing new.",
+              "decisions_for_you": [],
+              "updates": [],
+              "your_todos": [
+                {
+                  "kind": "send",
+                  "plan": "Release project",
+                  "text": "A new version is ready to send out for confirmation.",
+                  "where": "ask Alexa"
+                }
+              ],
+              "affected": [],
+              "your_conditions": [],
+              "plans": [
+                {
+                  "id": "release_project",
+                  "title": "Release project",
+                  "kind": "Long-term collaborative project",
+                  "group": "Product team",
+                  "visible_to": [
+                    "Priya",
+                    "Marcus",
+                    "Jun",
+                    "Sofia"
+                  ],
+                  "organizer": "Priya",
+                  "you_organize": true,
+                  "dates": "Mon, Oct 19 to Sun, Nov 29",
+                  "status": "PROPOSED",
+                  "status_reason": "Resource schedule prepared; organizer must request commitments and authorization.",
+                  "version": 6,
+                  "details": [
+                    {
+                      "id": "project.goal",
+                      "label": "Project goal",
+                      "value": null,
+                      "owner": "Priya",
+                      "decided_by": "owner",
+                      "status": "unset",
+                      "pending": [],
+                      "flags": []
+                    }
+                  ],
+                  "tasks": [
+                    {
+                      "id": "t_build_api_8899",
+                      "title": "Build API",
+                      "type": "task",
+                      "owner": "Marcus",
+                      "status": "todo",
+                      "due": "2026-11-29",
+                      "decided_by": "owner",
+                      "blocked_by": [],
+                      "waits_on": [],
+                      "pending": [],
+                      "flags": []
+                    },
+                    {
+                      "id": "t_release_verification_c9d1",
+                      "title": "Release verification",
+                      "type": "task",
+                      "owner": "Jun",
+                      "status": "todo",
+                      "due": "2026-11-29",
+                      "decided_by": "owner",
+                      "blocked_by": [
+                        "\"Build API\" is not started (Marcus)."
+                      ],
+                      "waits_on": [
+                        "t_build_api_8899"
+                      ],
+                      "pending": [],
+                      "flags": []
+                    }
+                  ],
+                  "agreed": null,
+                  "working": null,
+                  "confirmations": null,
+                  "agreement_summary": null,
+                  "observations": [],
+                  "bookings": [],
+                  "item_types": [
+                    "task (task, decided by owner)",
+                    "milestone (task, decided by owner)",
+                    "detail (detail, decided by owner)"
+                  ],
+                  "condition_kinds": [],
+                  "next_step": "get_project pages work/schedule; repair_project prepares a proposal; request_confirmations asks humans; commit_plan reserves resources.",
+                  "lifecycle": "bounded",
+                  "planning_window_days": 42,
+                  "preset": null,
+                  "project": {
+                    "stage": "Delivery",
+                    "open_work": 2,
+                    "workstreams": [
+                      "Engineering",
+                      "QA"
+                    ],
+                    "revision": "project_rev_e5be000313",
+                    "status": "candidate",
+                    "next": "get_project pages work/schedule; repair_project prepares a proposal; request_confirmations asks humans; commit_plan reserves resources.",
+                    "pending_by_person": {
+                      "priya": 0,
+                      "marcus": 0,
+                      "jun": 0,
+                      "sofia": 0
+                    }
+                  }
+                }
+              ],
+              "other_plans": [],
+              "plan_index": [
+                {
+                  "id": "release_project",
+                  "title": "Release project",
+                  "template": "project",
+                  "group": "Product team",
+                  "group_id": "team",
+                  "status": "PROPOSED",
+                  "version": 6,
+                  "you_organize": true,
+                  "unread_updates": 0,
+                  "pending_decisions": 0,
+                  "your_open_tasks": 0,
+                  "key_items": [
+                    {
+                      "id": "project.goal",
+                      "label": "Project goal",
+                      "owner": "Priya",
+                      "shape": "detail",
+                      "type": "detail",
+                      "decided_by": "owner",
+                      "value": ""
+                    },
+                    {
+                      "id": "t_build_api_8899",
+                      "label": "Build API",
+                      "owner": "Marcus",
+                      "shape": "task",
+                      "type": "task",
+                      "decided_by": "owner",
+                      "value": "todo"
+                    },
+                    {
+                      "id": "t_release_verification_c9d1",
+                      "label": "Release verification",
+                      "owner": "Jun",
+                      "shape": "task",
+                      "type": "task",
+                      "decided_by": "owner",
+                      "value": "todo"
+                    }
+                  ],
+                  "item_types": [
+                    {
+                      "name": "task",
+                      "shape": "task",
+                      "policy": "owner"
+                    },
+                    {
+                      "name": "milestone",
+                      "shape": "task",
+                      "policy": "owner"
+                    },
+                    {
+                      "name": "detail",
+                      "shape": "detail",
+                      "policy": "owner"
+                    }
+                  ]
+                },
+                {
+                  "id": "design_review",
+                  "title": "Design review",
+                  "template": "team_meeting",
+                  "group": "Product team",
+                  "group_id": "team",
+                  "status": "COMMITTED",
+                  "version": 9,
+                  "you_organize": true,
+                  "unread_updates": 0,
+                  "pending_decisions": 0,
+                  "your_open_tasks": 0,
+                  "key_items": [
+                    {
+                      "id": "meeting",
+                      "label": "Team meeting",
+                      "owner": "Priya",
+                      "shape": "activity",
+                      "type": "meeting",
+                      "decided_by": "everyone taking part",
+                      "value": null
+                    },
+                    {
+                      "id": "design_review.roadmap",
+                      "label": "Q1 roadmap",
+                      "owner": "Priya",
+                      "shape": "detail",
+                      "type": "agenda_item",
+                      "decided_by": "owner",
+                      "value": "Priya walks through the Q1 roadmap"
+                    },
+                    {
+                      "id": "design_review.onboarding",
+                      "label": "New onboarding screens",
+                      "owner": "Marcus",
+                      "shape": "detail",
+                      "type": "agenda_item",
+                      "decided_by": "owner",
+                      "value": "Marcus shows the new onboarding screens"
+                    },
+                    {
+                      "id": "t_share_the_design_file_be_b167",
+                      "label": "Share the design file before the meeting",
+                      "owner": "Marcus",
+                      "shape": "task",
+                      "type": "action_item",
+                      "decided_by": "owner",
+                      "value": "todo"
+                    }
+                  ],
+                  "item_types": [
+                    {
+                      "name": "meeting",
+                      "shape": "activity",
+                      "policy": "participants"
+                    },
+                    {
+                      "name": "agenda_item",
+                      "shape": "detail",
+                      "policy": "owner"
+                    },
+                    {
+                      "name": "action_item",
+                      "shape": "task",
+                      "policy": "owner"
+                    }
+                  ]
+                }
+              ],
+              "active_plan_id": "release_project",
+              "next_offset": null,
+              "truncated": {},
+              "templates": [
+                {
+                  "id": "evening_out",
+                  "name": "Evening out",
+                  "summary": "An evening of stops at real places (meet up, dinner, dessert, the ride home), agreed by everyone who goes",
+                  "days": 1
+                },
+                {
+                  "id": "gathering",
+                  "name": "Party or gathering",
+                  "summary": "Plan a party, gathering or community event: agree the date, venue and headcount, assign preparation tasks, and optionally add activities",
+                  "days": 1
+                },
+                {
+                  "id": "general_event",
+                  "name": "Any plan",
+                  "summary": "A plan made up on the spot (\"a picnic on Sunday with Chen and Dana\")",
+                  "days": 1
+                },
+                {
+                  "id": "meeting",
+                  "name": "Meeting",
+                  "summary": "Coordinate a meeting, workshop or offsite with an agenda, preparation tasks, attendees and an agreed time",
+                  "days": 1
+                },
+                {
+                  "id": "project",
+                  "name": "Long-term collaborative project",
+                  "summary": "Deliver work over weeks or months: workstreams, milestones, structured dates, effort, recurring occurrences, dependencies, owner capacity and shared resources",
+                  "days": 42
+                },
+                {
+                  "id": "shared_tasks",
+                  "name": "Shared tasks and lists",
+                  "summary": "Ongoing household, volunteer or team tasks",
+                  "days": 14
+                },
+                {
+                  "id": "study_group",
+                  "name": "Study group",
+                  "summary": "Study sessions before an exam: when and where the group meets, who prepares which topic, and the exam facts",
+                  "days": 7
+                },
+                {
+                  "id": "trip",
+                  "name": "Trip",
+                  "summary": "A trip of any length within the selected planning window",
+                  "days": 7
+                }
+              ],
+              "template_next_offset": null,
+              "your_tasks": [],
+              "groups": [
+                {
+                  "id": "team",
+                  "name": "Product team"
+                }
+              ],
+              "group_next_offset": null
+            },
+            "ms": 9.961400064639747,
+            "prefetched": true,
+            "sent_to_model": true
+          },
+          {
+            "name": "get_project",
+            "args": {
+              "plan": "release_project"
+            },
+            "ok": true,
+            "result": {
+              "plan": "release_project",
+              "title": "Release project",
+              "version": 6,
+              "stage": "Delivery",
+              "window_start": "2026-10-19",
+              "days": 42,
+              "timezone": "America/Toronto",
+              "currency": "CAD",
+              "config": {
+                "stage": "Delivery",
+                "approvers": [
+                  "priya"
+                ],
+                "budget_minor": null,
+                "calendar": {
+                  "weekdays": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "start": "09:00",
+                  "end": "17:00",
+                  "unavailable": []
+                },
+                "approval_days": 14
+              },
+              "resources": [
+                {
+                  "id": "team.lab",
+                  "name": "Test lab",
+                  "capacity": 1
+                }
+              ],
+              "your_calendar": {
+                "weekdays": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "start": "09:00",
+                "end": "17:00",
+                "unavailable": []
+              },
+              "work": [
+                {
+                  "id": "t_build_api_8899",
+                  "title": "Build API",
+                  "owner_id": "marcus",
+                  "owner": "Marcus",
+                  "status": "todo",
+                  "spec": {
+                    "not_before": "2026-10-19",
+                    "due": "2026-11-29",
+                    "duration_minutes": 120,
+                    "workstream": "Engineering",
+                    "milestone": null,
+                    "resources": {
+                      "team.lab": 1
+                    },
+                    "depends_on": [],
+                    "cost_minor": 0,
+                    "priority": 1,
+                    "locked_start": null
+                  },
+                  "version": 1,
+                  "item_version": 1,
+                  "series_id": null,
+                  "recurrence_id": null
+                },
+                {
+                  "id": "t_release_verification_c9d1",
+                  "title": "Release verification",
+                  "owner_id": "jun",
+                  "owner": "Jun",
+                  "status": "todo",
+                  "spec": {
+                    "not_before": "2026-10-19",
+                    "due": "2026-11-29",
+                    "duration_minutes": 60,
+                    "workstream": "QA",
+                    "milestone": null,
+                    "resources": {},
+                    "depends_on": [
+                      "t_build_api_8899"
+                    ],
+                    "cost_minor": 0,
+                    "priority": 1,
+                    "locked_start": null
+                  },
+                  "version": 1,
+                  "item_version": 1,
+                  "series_id": null,
+                  "recurrence_id": null
+                }
+              ],
+              "total": 2,
+              "next_offset": null,
+              "workstreams": [
+                "Engineering",
+                "QA"
+              ],
+              "confirmation_totals": {
+                "required": 0,
+                "satisfied": 0
+              },
+              "series": [],
+              "revision": {
+                "id": "project_rev_e5be000313",
+                "status": "candidate",
+                "fresh": true,
+                "proof": {
+                  "status": "feasible",
+                  "backend": "cp_sat_intervals",
+                  "optimal": true,
+                  "objectives": [
+                    1380
+                  ],
+                  "objective_order": [
+                    "priority_weighted_completion"
+                  ],
+                  "validation_errors": [],
+                  "ms": 30.83
+                },
+                "cost_minor": 0,
+                "schedule": [
+                  {
+                    "item_id": "t_build_api_8899",
+                    "title": "Build API",
+                    "owner_id": "marcus",
+                    "start": "2026-10-19T13:00+00:00",
+                    "end": "2026-10-19T15:00+00:00",
+                    "resources": {
+                      "team.lab": 1
+                    }
+                  },
+                  {
+                    "item_id": "t_release_verification_c9d1",
+                    "title": "Release verification",
+                    "owner_id": "jun",
+                    "start": "2026-10-19T15:00+00:00",
+                    "end": "2026-10-19T16:00+00:00",
+                    "resources": {}
+                  }
+                ],
+                "confirmations": []
+              }
+            },
+            "ms": 4.172499990090728,
+            "sent_to_model": true
+          },
+          {
+            "name": "request_confirmations",
+            "args": {
+              "plan": "release_project",
+              "expected_version": 6
+            },
+            "ok": true,
+            "result": {
+              "outcome": "requested",
+              "revision": "project_rev_e5be000313",
+              "confirmations": [
+                {
+                  "scope_id": "pscope_ea3e67a8e2",
+                  "person": "Jun",
+                  "kind": "commitment",
+                  "item": "t_release_verification_c9d1",
+                  "status": "pending"
+                },
+                {
+                  "scope_id": "pscope_39993330b2",
+                  "person": "Marcus",
+                  "kind": "commitment",
+                  "item": "t_build_api_8899",
+                  "status": "pending"
+                },
+                {
+                  "scope_id": "pscope_c1b1c7f40a",
+                  "person": "Priya",
+                  "kind": "authorization",
+                  "item": null,
+                  "status": "pending"
+                }
+              ]
+            },
+            "ms": 17.989400075748563,
+            "sent_to_model": true
+          }
+        ],
+        "llm": {
+          "calls": [
+            {
+              "ms": 1700.4716000519693,
+              "inputTokens": 8684,
+              "outputTokens": 38,
+              "cachedInputTokens": 6784,
+              "stop": "tool_calls",
+              "toolCalls": [
+                "get_project"
+              ]
+            },
+            {
+              "ms": 1682.8971999930218,
+              "inputTokens": 9454,
+              "outputTokens": 57,
+              "cachedInputTokens": 8704,
+              "stop": "tool_calls",
+              "toolCalls": [
+                "request_confirmations"
+              ]
+            },
+            {
+              "ms": 2473.7701999256387,
+              "inputTokens": 9687,
+              "outputTokens": 40,
+              "cachedInputTokens": 9472,
+              "stop": "end",
+              "toolCalls": []
+            }
+          ],
+          "inputTokens": 27825,
+          "outputTokens": 135,
+          "cachedInputTokens": 24960,
+          "ms": 5857.13899997063
+        },
+        "ms": 5891.001100069843,
+        "at": "2026-10-16T06:22:37.723Z",
+        "scenario": ""
+      }
+    },
+    {
+      "id": "PR08",
+      "passed": true,
+      "failures": [],
+      "turn": {
+        "member": "marcus",
+        "text": "Add a private note just for me: the gift idea is a telescope. Do not put it into the shared release project.",
+        "reply": "Saved the telescope gift idea in a new private plan, \"My private notes\" — only you can see it, and nothing went into the shared Release project.",
+        "provider": "DeepSeek",
+        "model": "deepseek-flash",
+        "calls": [
+          {
+            "name": "get_context",
+            "args": {
+              "detail": "summary",
+              "group": "team",
+              "plan": "release_project"
+            },
+            "ok": true,
+            "result": {
+              "you": "Marcus",
+              "today": "Fri, Oct 16, 2026",
+              "headline": "4 updates.",
+              "decisions_for_you": [],
+              "updates": [
+                "Priya started Release project.",
+                "Priya updated project stage or scheduling policy.",
+                "Priya updated Build API; its schedule still needs confirmation.",
+                "Priya updated Release verification; its schedule still needs confirmation."
+              ],
+              "your_todos": [],
+              "affected": [],
+              "your_conditions": [],
+              "plans": [
+                {
+                  "id": "release_project",
+                  "title": "Release project",
+                  "kind": "Long-term collaborative project",
+                  "group": "Product team",
+                  "visible_to": [
+                    "Priya",
+                    "Marcus",
+                    "Jun",
+                    "Sofia"
+                  ],
+                  "organizer": "Priya",
+                  "you_organize": false,
+                  "dates": "Mon, Oct 19 to Sun, Nov 29",
+                  "status": "PROPOSED",
+                  "status_reason": "Resource schedule prepared; organizer must request commitments and authorization.",
+                  "version": 6,
+                  "details": [
+                    {
+                      "id": "project.goal",
+                      "label": "Project goal",
+                      "value": null,
+                      "owner": "Priya",
+                      "decided_by": "owner",
+                      "status": "unset",
+                      "pending": [],
+                      "flags": []
+                    }
+                  ],
+                  "tasks": [
+                    {
+                      "id": "t_build_api_aa88",
+                      "title": "Build API",
+                      "type": "task",
+                      "owner": "Marcus",
+                      "status": "todo",
+                      "due": "2026-11-29",
+                      "decided_by": "owner",
+                      "blocked_by": [],
+                      "waits_on": [],
+                      "pending": [],
+                      "flags": []
+                    },
+                    {
+                      "id": "t_release_verification_e42c",
+                      "title": "Release verification",
+                      "type": "task",
+                      "owner": "Jun",
+                      "status": "todo",
+                      "due": "2026-11-29",
+                      "decided_by": "owner",
+                      "blocked_by": [
+                        "\"Build API\" is not started (Marcus)."
+                      ],
+                      "waits_on": [
+                        "t_build_api_aa88"
+                      ],
+                      "pending": [],
+                      "flags": []
+                    }
+                  ],
+                  "agreed": null,
+                  "working": null,
+                  "confirmations": null,
+                  "agreement_summary": null,
+                  "observations": [],
+                  "bookings": [],
+                  "item_types": [
+                    "task (task, decided by owner)",
+                    "milestone (task, decided by owner)",
+                    "detail (detail, decided by owner)"
+                  ],
+                  "condition_kinds": [],
+                  "next_step": "get_project pages work/schedule; repair_project prepares a proposal; request_confirmations asks humans; commit_plan reserves resources.",
+                  "lifecycle": "bounded",
+                  "planning_window_days": 42,
+                  "preset": null,
+                  "project": {
+                    "stage": "Delivery",
+                    "open_work": 2,
+                    "workstreams": [
+                      "Engineering",
+                      "QA"
+                    ],
+                    "revision": "project_rev_a70ec40312",
+                    "status": "candidate",
+                    "next": "get_project pages work/schedule; repair_project prepares a proposal; request_confirmations asks humans; commit_plan reserves resources.",
+                    "pending_by_person": {
+                      "priya": 0,
+                      "marcus": 0,
+                      "jun": 0,
+                      "sofia": 0
+                    }
+                  }
+                }
+              ],
+              "other_plans": [],
+              "plan_index": [
+                {
+                  "id": "release_project",
+                  "title": "Release project",
+                  "template": "project",
+                  "group": "Product team",
+                  "group_id": "team",
+                  "status": "PROPOSED",
+                  "version": 6,
+                  "you_organize": false,
+                  "unread_updates": 0,
+                  "pending_decisions": 0,
+                  "your_open_tasks": 1,
+                  "key_items": [
+                    {
+                      "id": "project.goal",
+                      "label": "Project goal",
+                      "owner": "Priya",
+                      "shape": "detail",
+                      "type": "detail",
+                      "decided_by": "owner",
+                      "value": ""
+                    },
+                    {
+                      "id": "t_build_api_aa88",
+                      "label": "Build API",
+                      "owner": "Marcus",
+                      "shape": "task",
+                      "type": "task",
+                      "decided_by": "owner",
+                      "value": "todo"
+                    },
+                    {
+                      "id": "t_release_verification_e42c",
+                      "label": "Release verification",
+                      "owner": "Jun",
+                      "shape": "task",
+                      "type": "task",
+                      "decided_by": "owner",
+                      "value": "todo"
+                    }
+                  ],
+                  "item_types": [
+                    {
+                      "name": "task",
+                      "shape": "task",
+                      "policy": "owner"
+                    },
+                    {
+                      "name": "milestone",
+                      "shape": "task",
+                      "policy": "owner"
+                    },
+                    {
+                      "name": "detail",
+                      "shape": "detail",
+                      "policy": "owner"
+                    }
+                  ]
+                },
+                {
+                  "id": "design_review",
+                  "title": "Design review",
+                  "template": "team_meeting",
+                  "group": "Product team",
+                  "group_id": "team",
+                  "status": "COMMITTED",
+                  "version": 9,
+                  "you_organize": false,
+                  "unread_updates": 0,
+                  "pending_decisions": 0,
+                  "your_open_tasks": 1,
+                  "key_items": [
+                    {
+                      "id": "meeting",
+                      "label": "Team meeting",
+                      "owner": "Priya",
+                      "shape": "activity",
+                      "type": "meeting",
+                      "decided_by": "everyone taking part",
+                      "value": null
+                    },
+                    {
+                      "id": "design_review.roadmap",
+                      "label": "Q1 roadmap",
+                      "owner": "Priya",
+                      "shape": "detail",
+                      "type": "agenda_item",
+                      "decided_by": "owner",
+                      "value": "Priya walks through the Q1 roadmap"
+                    },
+                    {
+                      "id": "design_review.onboarding",
+                      "label": "New onboarding screens",
+                      "owner": "Marcus",
+                      "shape": "detail",
+                      "type": "agenda_item",
+                      "decided_by": "owner",
+                      "value": "Marcus shows the new onboarding screens"
+                    },
+                    {
+                      "id": "t_share_the_design_file_be_d584",
+                      "label": "Share the design file before the meeting",
+                      "owner": "Marcus",
+                      "shape": "task",
+                      "type": "action_item",
+                      "decided_by": "owner",
+                      "value": "todo"
+                    }
+                  ],
+                  "item_types": [
+                    {
+                      "name": "meeting",
+                      "shape": "activity",
+                      "policy": "participants"
+                    },
+                    {
+                      "name": "agenda_item",
+                      "shape": "detail",
+                      "policy": "owner"
+                    },
+                    {
+                      "name": "action_item",
+                      "shape": "task",
+                      "policy": "owner"
+                    }
+                  ]
+                }
+              ],
+              "active_plan_id": "release_project",
+              "next_offset": null,
+              "truncated": {},
+              "templates": [
+                {
+                  "id": "evening_out",
+                  "name": "Evening out",
+                  "summary": "An evening of stops at real places (meet up, dinner, dessert, the ride home), agreed by everyone who goes",
+                  "days": 1
+                },
+                {
+                  "id": "gathering",
+                  "name": "Party or gathering",
+                  "summary": "Plan a party, gathering or community event: agree the date, venue and headcount, assign preparation tasks, and optionally add activities",
+                  "days": 1
+                },
+                {
+                  "id": "general_event",
+                  "name": "Any plan",
+                  "summary": "A plan made up on the spot (\"a picnic on Sunday with Chen and Dana\")",
+                  "days": 1
+                },
+                {
+                  "id": "meeting",
+                  "name": "Meeting",
+                  "summary": "Coordinate a meeting, workshop or offsite with an agenda, preparation tasks, attendees and an agreed time",
+                  "days": 1
+                },
+                {
+                  "id": "project",
+                  "name": "Long-term collaborative project",
+                  "summary": "Deliver work over weeks or months: workstreams, milestones, structured dates, effort, recurring occurrences, dependencies, owner capacity and shared resources",
+                  "days": 42
+                },
+                {
+                  "id": "shared_tasks",
+                  "name": "Shared tasks and lists",
+                  "summary": "Ongoing household, volunteer or team tasks",
+                  "days": 14
+                },
+                {
+                  "id": "study_group",
+                  "name": "Study group",
+                  "summary": "Study sessions before an exam: when and where the group meets, who prepares which topic, and the exam facts",
+                  "days": 7
+                },
+                {
+                  "id": "trip",
+                  "name": "Trip",
+                  "summary": "A trip of any length within the selected planning window",
+                  "days": 7
+                }
+              ],
+              "template_next_offset": null,
+              "your_tasks": [
+                {
+                  "id": "t_build_api_aa88",
+                  "title": "Build API",
+                  "plan": "Release project",
+                  "plan_id": "release_project",
+                  "status": "todo",
+                  "due": "2026-11-29",
+                  "blockers": [],
+                  "flags": []
+                },
+                {
+                  "id": "t_share_the_design_file_be_d584",
+                  "title": "Share the design file before the meeting",
+                  "plan": "Design review",
+                  "plan_id": "design_review",
+                  "status": "todo",
+                  "due": null,
+                  "blockers": [],
+                  "flags": []
+                }
+              ],
+              "groups": [
+                {
+                  "id": "team",
+                  "name": "Product team"
+                }
+              ],
+              "group_next_offset": null
+            },
+            "ms": 12.861500028520823,
+            "prefetched": true,
+            "sent_to_model": true
+          },
+          {
+            "name": "create_plan",
+            "args": {
+              "template": "general_event",
+              "title": "My private notes",
+              "private": true,
+              "quote": "Add a private note just for me: the gift idea is a telescope. Do not put it into the shared release project."
+            },
+            "ok": true,
+            "result": {
+              "outcome": "created",
+              "message": "Started My private notes for Sat, Oct 17. Only you can see it. Nothing is agreed yet.",
+              "plan": {
+                "id": "my_private_notes",
+                "title": "My private notes",
+                "kind": "Any plan",
+                "group": "Product team",
+                "visible_to": [
+                  "Marcus"
+                ],
+                "organizer": "Marcus",
+                "you_organize": true,
+                "dates": "Sat, Oct 17",
+                "status": "ACTIVE",
+                "status_reason": null,
+                "version": 1,
+                "details": [],
+                "tasks": [],
+                "agreed": null,
+                "working": null,
+                "confirmations": null,
+                "agreement_summary": null,
+                "observations": [],
+                "bookings": [],
+                "item_types": [
+                  "detail (detail, decided by owner)",
+                  "task (task, decided by owner)",
+                  "activity (activity, decided by everyone taking part)",
+                  "list_item (task, decided by anyone)"
+                ],
+                "condition_kinds": [
+                  "latest_end",
+                  "earliest_start",
+                  "budget",
+                  "busy",
+                  "prefer_keep"
+                ],
+                "next_step": "No activities yet. The organizer can add some.",
+                "lifecycle": "bounded",
+                "planning_window_days": 1,
+                "preset": null,
+                "project": null
+              }
+            },
+            "ms": 37.781900027766824,
+            "sent_to_model": true
+          },
+          {
+            "name": "propose_change",
+            "args": {
+              "plan": "my_private_notes",
+              "new_type": "detail",
+              "title": "Gift idea",
+              "value": "telescope",
+              "value_kind": "text",
+              "certainty": "committed",
+              "quote": "Add a private note just for me: the gift idea is a telescope. Do not put it into the shared release project."
+            },
+            "ok": true,
+            "result": {
+              "outcome": "confirmed",
+              "message": "Gift idea is now \"telescope\".",
+              "plan": "My private notes",
+              "item": "my.gift_idea",
+              "request": null,
+              "impacts": {
+                "reopened": [],
+                "flagged": [],
+                "downstream": [],
+                "notified": [],
+                "unblocked": []
+              },
+              "plan_status": null,
+              "problems": []
+            },
+            "ms": 13.886200031265616,
+            "sent_to_model": true
+          }
+        ],
+        "llm": {
+          "calls": [
+            {
+              "ms": 1669.7770999744534,
+              "inputTokens": 8808,
+              "outputTokens": 112,
+              "cachedInputTokens": 6784,
+              "stop": "tool_calls",
+              "toolCalls": [
+                "create_plan"
+              ]
+            },
+            {
+              "ms": 2051.078599994071,
+              "inputTokens": 9149,
+              "outputTokens": 152,
+              "cachedInputTokens": 8832,
+              "stop": "tool_calls",
+              "toolCalls": [
+                "propose_change"
+              ]
+            },
+            {
+              "ms": 1485.490999999456,
+              "inputTokens": 9354,
+              "outputTokens": 32,
+              "cachedInputTokens": 9216,
+              "stop": "end",
+              "toolCalls": []
+            }
+          ],
+          "inputTokens": 27311,
+          "outputTokens": 296,
+          "cachedInputTokens": 24832,
+          "ms": 5206.34669996798
+        },
+        "ms": 5272.489599999972,
+        "at": "2026-10-16T06:22:43.228Z",
+        "scenario": ""
+      }
+    }
+  ],
+  "source": {
+    "sha256": "a18481c484ac743f4fe086d893c5c2190ee3f8d6bbb31f83e3fb5f487d20d19d",
+    "files": {
+      "demo/enterprise.yaml": "f496c65a165345f28570217b8f35c98a29c78ce151a4aa99471a0e8c358f7a8a",
+      "demo/world.yaml": "826d11dbc268508bb8964a853e59d19c8e5ac3ccac33eff717f9aa5cd1a0fcaf",
+      "eval/holdout/structure_v05.yaml": "170b9e1455e7cdc6fe46bdd423cd5242b12e830daf899bbcd75715bea663c4c9",
+      "eval/scenarios/dinner_adversarial.yaml": "81a3dc3c17b61f084044e5e1445782ceea99399c927a54a456f59733b228e0e4",
+      "eval/scenarios/dinner_loop.yaml": "3e5c0f40bca7b318dcb9a7eb27ccc2f71a5a973b9d9f405e710d99a334f97ece",
+      "eval/scenarios/dinner_memory.yaml": "6c21c8f0c5c6df7d9c0af1f99bdd7cef244cead43201c93dc73d50f26692110f",
+      "eval/scenarios/family_memory.yaml": "2c3cdbea280c42fccba706eddeb6a58465af7143175a1e90efe0ae86629a0c10",
+      "eval/scenarios/family_single.yaml": "ff4029082dfb505c86fb9d8e561b32babef98dc171cd8291ab76ae0b6ec76c98",
+      "eval/scenarios/generic_plans.yaml": "30209bc7580e4592a5fc4bfb217d13bb1a8741cb45d25dfc5d92287be64954d2",
+      "groupflow/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "groupflow/__main__.py": "0f35ad6ba84fae443e7543b913defa993d7c062a9ca8b6815a1be7acd081b246",
+      "groupflow/core/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "groupflow/core/db.py": "94ed5626db842498bf4071c5cd0a61a7e38e8b1b12884d8cf7050be499702a52",
+      "groupflow/core/errors.py": "45ba3380dd7b61f6e72793a716db374d9d4856ad800f28c0f563de65993149f5",
+      "groupflow/core/identity.py": "e7c801ab966626ee56c4fb382ee35d385ef42301e2c7b110ea9463f3feb9d536",
+      "groupflow/core/serve.py": "1a68a174ae731a1c081f7ba4ae231888123c3d467ee17fc6dfa5b94d143600c5",
+      "groupflow/core/settings.py": "71f71feb4ada5d7893be2e8e4d253a213cd7ecc14a6e9ce82a30d5cd96b5952e",
+      "groupflow/core/util.py": "a624e89b05b452ad63d7e4dfde970cc033bbc1d7b9390232d3d38386745ab2ca",
+      "groupflow/engine/__init__.py": "dc02fbedb356f1161d6168e836f705e0b48d57fe4a14ea15f9aa761eb481c210",
+      "groupflow/engine/agreement.py": "289fad0e841f0a7822885d148b3631c54f266e30b1c32fa03f7456a3deaec025",
+      "groupflow/engine/collaboration.py": "4f5579e75fd3709873a4d7008bcbd8f4fcad481a4d266e3c463a4ad015b6e35b",
+      "groupflow/engine/collaboration_schema.py": "009b51ff0d47a84476245c442f51f5ecd2c1050ddf849362908d9fcb0748710f",
+      "groupflow/engine/core.py": "2dd88836758c2eeb370a7da7552f9398507a9f566f047c68c085c69165f9c56d",
+      "groupflow/engine/schema.py": "ff396d742ba7f68e1bef4f3b256dbfcba365af73e1138f7c705f1a01b6d844cc",
+      "groupflow/engine/text.py": "f17c5f4a231bdc70c7bb15a4f8829f36a93205948946496afa5c9d1cc7582b15",
+      "groupflow/engine/views.py": "5fe6f924a4712632c078fd6d6fed0cf3c9573869dcfdd3471e1843500de11336",
+      "groupflow/engine/worker.py": "a339a8f3ec601a56ddf047fc3d536e88201754b85d2761fcfa517ac0d4a02cdb",
+      "groupflow/evals/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "groupflow/evals/runner.py": "9cd51d3a8ec8246276814a220e4f22787e2bb5ab762b894cb5c39e451409fb72",
+      "groupflow/evidence.py": "13515b5f9d1638bf87758b577343e04ea92b67191efa1b73e526445194e60db9",
+      "groupflow/human_api/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "groupflow/human_api/debug_routes.py": "5db53e43b68068b5d6f04a692310776b0f6367c8e4ad65a6c7ab8044313f75cd",
+      "groupflow/human_api/routes.py": "15a2cf27c3ed0f8005382b01f69cfd62e12ff93a7d947db6d86bce7785d0c423",
+      "groupflow/mcp_server/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "groupflow/mcp_server/app.py": "51b2bbaa695598d9422eef06b272d0ac1fd54064af779b838b656afb2cffd2a6",
+      "groupflow/mcp_server/common.py": "0df46bad6f5eadafb10298acdc05b8099cca44bdba7c6684e9dc02c421c22504",
+      "groupflow/mcp_server/tools.py": "03d560fc71f79cce5cf76515d2c139f55104ae4769e7922643aebed6906787d8",
+      "groupflow/projects/__init__.py": "2fa1793e10914ca51ca984a9e9ee51902acaf410c29cd2d280b17bd273191e08",
+      "groupflow/projects/models.py": "122e0111c8c80589de6cc68ddb5d77b7511f25220446ba2dc0bcc6ca5ed5eafd",
+      "groupflow/projects/recurrence.py": "0e7665a4f9cd3d090076aac3bed5969f2bdde7fd95ed22198876ea02d66fc62d",
+      "groupflow/projects/scheduler.py": "92c004d2714604a3fe02aea19039c4da027827553bdd8f6afcd3130586ce47a6",
+      "groupflow/repair/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "groupflow/repair/conflicts.py": "a5fe635bedc0e7bca8112c92977189c3d22cd4bf11114f720cf82c13d10efe31",
+      "groupflow/repair/cpsat.py": "512a08db3f626361da8f82e35ca3a5be6baa0d14c234b587ce48bb55366bbbc7",
+      "groupflow/repair/domain.py": "4732838541cea38180393fd62743455281ee41c52201442df557eb9035ff9455",
+      "groupflow/repair/enumerate.py": "da99c3e16e280a544d32a4842fc44973c5aeee092538d0280b7f83d6bfac14d9",
+      "groupflow/repair/fixtures.py": "0b7ef3b156ea10e6a04f0e31e3621ac4556bdbeb81f67a62466c2c16b0ddcb0e",
+      "groupflow/repair/model.py": "8e5bdce5edd0dd5297e0ce1f5a9004fd38275c2d285587e7bc8189d8f2326c0c",
+      "groupflow/repair/msvc.py": "1e35dbbff76640e35d96fb295d486577951a28d25cb05dc18fce759e4d5e23dc",
+      "groupflow/repair/solver.py": "eaede576ff017d19d737bede8d666e76c4f392805360fc4a92d09f96d8611366",
+      "groupflow/repair/validate.py": "059d95786fd16436fe9adf20dc199fbd6ffde4c1ce8b2c5f227e48e563ce3bc4",
+      "groupflow/runtime.py": "de323d3aa759d790f9a5d95550ed9d49443693e6451a24433e6d1fb11bbb025a",
+      "groupflow/schemas.py": "e87fbbae088314a36bda419baffea1b9477f1f8516ab5a943ad335dbfadfda16",
+      "groupflow/sim/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "groupflow/sim/agent.py": "ed16f3e9253c40f63a20c56933c0b28a553a5f0817a8ef7064848eb90e8e3a48",
+      "groupflow/sim/app.py": "ea550e5a7565dbfd5598447b32c53cfa24d93d3a7abc3bf38d926750178c9d3f",
+      "groupflow/sim/demo_script.py": "c0c6be2f58cb97b3199d02e9d7cadc1d06bdbd86044a9df96b1432f63c1a494e",
+      "groupflow/sim/llm/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "groupflow/sim/llm/bedrock.py": "2dae0de45a7c073ee95ddb507818fe45e72cea9245ef3a039ac4f069ed17b745",
+      "groupflow/sim/llm/factory.py": "be484f2c2378f2be78121be98ebd46a1042b379c2f0ebb1868ef525b37db0bda",
+      "groupflow/sim/llm/openai_compat.py": "4819a45c0712d00974b8eef42d00ef1f91ec6880f7c54bc359b41b042222ebe9",
+      "groupflow/sim/llm/scripted.py": "ef3f30f296ad18d2ede52ebe921eacd54cd8b5005a28ebc269aa5c209519ee65",
+      "groupflow/sim/llm/types.py": "dca44cf44ac8582d1592a85eb9becd70bcb9c0aabeb3b1430332e8041dd40a41",
+      "groupflow/sim/mcp_pool.py": "302a196e175b06b7941dc3c43f87fed5d67da31b0ee972bc1496abf694a91143",
+      "groupflow/sim/memory.py": "603f33b6c660edb6e78006a2c03d91c79671acb2daf2830937edde049849410e",
+      "groupflow/sim/traffic.py": "27e5c4a8097f49cb390827f417d57306ec4ef76ad2b77e21b5f6c279c7cc5628",
+      "groupflow/templates/__init__.py": "616075ade472456b30c44896698e882e73878c1a661629c82f153ded88ca4ea3",
+      "groupflow/templates/evening_out.yaml": "c81cf530bef0577d11ab117a35a8af532309761cb84e3dcf1b091313a5195e23",
+      "groupflow/templates/gathering.yaml": "a96775aa3954416ecc96cbebe97091226b0137d0fa32ecdd560e06d9574d1dba",
+      "groupflow/templates/general_event.yaml": "b99846f102754b306c571c75f9c794f65090863d90455d3a25b99a01970d1a51",
+      "groupflow/templates/legacy/chores_shopping.yaml": "90ebf06d5226e02bdb498e46e73934da923fe207e8b3be20b325fef5b24bfe57",
+      "groupflow/templates/legacy/surprise_party.yaml": "34345753bc774035e853d27f62463d7bfcc8c7d257d4f1d4d0d833f6bc037b7d",
+      "groupflow/templates/legacy/team_meeting.yaml": "64f3daf9b1f8f8c149e5e368e10adf44554a9bf56bbb04424734c2a6e8394c7e",
+      "groupflow/templates/legacy/weekend_trip.yaml": "19ff6a88b70827fac25389d3ba9a4a55d13a106841d3d16ced35fef4bd42b643",
+      "groupflow/templates/meeting.yaml": "b4f99e7599e9bf43d59f1bdb010573d75ee7af7766c038b2de62f3ca9817ba0f",
+      "groupflow/templates/presets/surprise.yaml": "3fe4692662a59cd8c34173768fb9f52f09f9fdd966c1a4f37e6c31d1435ec43f",
+      "groupflow/templates/presets/weekend_cottage.yaml": "303f791eae78cf7223927b234fc3b9636dc8c3b1bd276fe281d9a123a3367b35",
+      "groupflow/templates/project.yaml": "8dfe3f324cdda289ba275e51fb9ea59f2d5b2c56ab128231f7eaaf46530e8f1a",
+      "groupflow/templates/shared_tasks.yaml": "94870827176c2f06235bfd8d1b39329212a1d6ac3d8667ef8eef369f80c7bf38",
+      "groupflow/templates/study_group.yaml": "3a0c74678086bc61199d34902a0d888baa526aae3d60c419271fd68fc0d4a901",
+      "groupflow/templates/trip.yaml": "a4d40f829bdd8f372e6c5f7b8d7b8d4fe6c228942ebd56b7c44d59cce9c84716",
+      "groupflow/world/__init__.py": "e78f02b9d00b06232d09b3bb4bdfec2337f8cc78b513a0dfdf4af16545f6879e",
+      "pyproject.toml": "24005fbe67baa6be0b4ba7281a9d80a8706a283eb7cb8349694528246296057a",
+      "scripts/benchmark_projects.py": "bc15febb678906f0338c88619905c6bd55b52dedee80e49392fb092731fd6847",
+      "scripts/benchmark_solver.py": "175ab75f44e0b040a14449a678b16a086fbfa36b14f126f486335cc6b4905ad1",
+      "scripts/compare_confirmation_policies.py": "2a783c2bb5ef7248d53a4626611df1581fb6241c6147f0f902f63c6f7844c3b8",
+      "scripts/evaluate_project_lifecycle.py": "3eb31532964d4f96f985b55ed285aadb71ffebf81b38aab98873a8ee83a3e4d0",
+      "scripts/evaluate_projects.py": "410568b1c64c013613b6dfa76b4e61be355adac56164ce794002687c989905ac",
+      "scripts/measure_context.py": "41f9e0af67d6763fa5755257ae694e8d948739a1f223c3e484d150e1a485aa61",
+      "scripts/play_demo.py": "343fded37d62bd715bc9eb8b09f869692c2da9018090f5a3747eff21027f1e53"
+    },
+    "unchanged_at_end": true
+  }
+}

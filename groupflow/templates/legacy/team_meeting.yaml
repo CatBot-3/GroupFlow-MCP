@@ -1,0 +1,46 @@
+id: team_meeting
+name: Team meeting
+description: >
+  Finding a meeting time and room that work for everyone over a work week. Everyone invited
+  confirms the slot on their own page; people keep their busy times private, and a repair moves the
+  meeting as little as possible when someone's calendar or a room changes.
+days: 5
+item_types:
+  - name: meeting
+    label: Meeting
+    shape: activity
+    policy: participants
+    default_minutes: 60
+    place_kinds: [room]
+    description: A meeting in a room, confirmed by everyone invited.
+  - name: agenda_item
+    label: Agenda item
+    shape: detail
+    policy: owner
+    description: A topic for the meeting, owned by whoever brings it.
+  - name: action_item
+    label: Action item
+    shape: task
+    policy: owner
+    description: Something one person does before or after the meeting.
+conditions:
+  - {name: busy, check: unavailable_window, label: busy time}
+  - {name: earliest_start, check: earliest_start, label: earliest meeting time}
+  - {name: latest_end, check: latest_end, label: latest meeting end}
+  - {name: room_needs, check: needs, label: room needs, applies_to: [room], tags: [video, whiteboard, step_free]}
+  - {name: prefer_keep, check: prefer_keep, label: wish to keep the slot, soft: true}
+search:
+  time_shifts: [60, -60, 120, 240, 1440, 1500, -1440, 2880]
+  max_options: 12
+catalog:
+  version: rooms_v1
+  default_travel: 5
+  travel_minutes:
+    - [office, office, 5]
+  places:
+    - {id: room_maple, name: Maple room, kind: room, zone: office, open: "08:00", close: "18:00", capacity: 6, price: 0, tags: [video, whiteboard, step_free], aliases: [maple]}
+    - {id: room_birch, name: Birch room, kind: room, zone: office, open: "08:00", close: "18:00", capacity: 4, price: 0, tags: [whiteboard, step_free], aliases: [birch]}
+    - {id: room_cedar, name: Cedar room, kind: room, zone: office, open: "08:00", close: "20:00", capacity: 10, price: 0, tags: [video, step_free], aliases: [cedar]}
+starter:
+  activities:
+    - {key: meeting, title: Team meeting, type: meeting, day: 1, start: "10:00", end: "11:00", place: room_maple}

@@ -1,0 +1,5 @@
+template: gathering
+hidden_from_guest: true
+description: >
+  A surprise celebration. The creator must supply hidden_from containing the guest;
+  the server creates a restricted space before adding any content.

@@ -1,0 +1,36 @@
+{
+  "synthetic_qa_database": true,
+  "status": "COMMITTED",
+  "current_is_committed": true,
+  "work_units": 18,
+  "scopes": 19,
+  "project_receipts": 22,
+  "reservations": 22,
+  "repair_proof": {
+    "status": "feasible",
+    "backend": "cp_sat_intervals",
+    "optimal": true,
+    "objectives": [
+      0,
+      0,
+      414300
+    ],
+    "objective_order": [
+      "changed_starts",
+      "moved_minutes",
+      "priority_weighted_completion"
+    ],
+    "validation_errors": [],
+    "ms": 238.6
+  },
+  "before_reconfirmation": {
+    "carried_forward": 16,
+    "new_work_commitments": 2,
+    "new_stage_authorization": 1
+  },
+  "browser_console_errors": 0,
+  "screenshots": [
+    "GroupFlow_v04_browser_commit.jpg",
+    "GroupFlow_v04_browser_repaired.jpg"
+  ]
+}

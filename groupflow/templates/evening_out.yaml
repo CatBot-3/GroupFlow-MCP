@@ -1,0 +1,60 @@
+id: evening_out
+name: Evening out
+description: >
+  An evening of stops at real places (meet up, dinner, dessert, the ride home), agreed by everyone
+  who goes. People keep private conditions such as a latest home time, a budget or a diet. When a
+  place falls through, GroupFlow finds the smallest change that still works for everyone and asks
+  only the people affected to confirm again.
+days: 1
+item_types:
+  - name: stop
+    label: Stop
+    shape: activity
+    policy: participants
+    default_minutes: 60
+    description: One stop of the evening at a place from the catalog.
+  - name: detail
+    label: Detail
+    shape: detail
+    policy: owner
+    description: A note about the evening, decided by its owner.
+  - name: task
+    label: Task
+    shape: task
+    policy: owner
+conditions:
+  - {name: home_by, check: latest_end, label: latest time to be home}
+  - {name: available_from, check: earliest_start, label: earliest time they can start}
+  - {name: budget, check: max_total_cost, label: budget for the evening}
+  - {name: diet, check: needs, label: dietary needs, applies_to: [meal, dessert], tags: [vegetarian, nut_free]}
+  - {name: accessibility, check: needs, label: access needs, tags: [step_free]}
+  - {name: everyone_attends, check: must_attend, label: everyone attends a stop}
+  - {name: prefer_keep, check: prefer_keep, label: wish to keep a stop as planned, soft: true}
+booking_kinds: [meal, dessert, travel]
+search:
+  time_shifts: [15, 30, -15, 45]
+  max_options: 4
+catalog:
+  version: evening_fixture_v1
+  travel_minutes:
+    - [downtown, downtown, 15]
+    - [downtown, harbour, 15]
+    - [harbour, harbour, 15]
+    - [harbour, uptown, 30]
+    - [downtown, uptown, 30]
+    - [uptown, uptown, 15]
+  places:
+    - {id: central_hub, name: Central Hub, kind: meetup, zone: downtown, open: "08:00", close: "23:59", capacity: 50, price: 0, tags: [step_free]}
+    - {id: restaurant_a, name: Restaurant A, kind: meal, zone: harbour, open: "17:00", close: "22:30", capacity: 10, price: 28, tags: [vegetarian, nut_free, step_free]}
+    - {id: restaurant_b, name: Restaurant B, kind: meal, zone: harbour, open: "17:00", close: "22:30", capacity: 8, price: 30, tags: [vegetarian, nut_free, step_free]}
+    - {id: restaurant_c, name: Restaurant C, kind: meal, zone: harbour, open: "17:00", close: "22:30", capacity: 12, price: 27, tags: [vegetarian, nut_free, step_free], start_slots: ["19:00"]}
+    - {id: restaurant_e, name: Restaurant E, kind: meal, zone: harbour, open: "17:00", close: "22:30", capacity: 10, price: 26, tags: [vegetarian, step_free]}
+    - {id: dessert_d, name: Dessert Shop D, kind: dessert, zone: harbour, open: "12:00", close: "22:00", capacity: 20, price: 8, tags: [vegetarian, nut_free, step_free]}
+    - {id: dessert_f, name: Dessert Shop F, kind: dessert, zone: uptown, open: "12:00", close: "23:00", capacity: 20, price: 7, tags: [vegetarian, nut_free]}
+    - {id: ride_home, name: Shared ride home, kind: travel, zone: transit, open: "00:00", close: "23:59", capacity: 6, price: 5, tags: [step_free]}
+starter:
+  activities:
+    - {key: meetup, title: Meet up, type: stop, start: "18:00", end: "18:15", place: central_hub}
+    - {key: dinner, title: Dinner, type: stop, start: "18:30", end: "19:30", place: restaurant_a}
+    - {key: dessert, title: Dessert, type: stop, start: "19:45", end: "20:15", place: dessert_d}
+    - {key: return_home, title: Ride home, type: stop, start: "20:15", end: "20:45", place: ride_home}

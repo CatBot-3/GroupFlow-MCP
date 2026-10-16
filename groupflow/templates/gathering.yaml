@@ -1,0 +1,23 @@
+id: gathering
+name: Party or gathering
+version: '2'
+description: >
+  Plan a party, gathering or community event: agree the date, venue and headcount,
+  assign preparation tasks, and optionally add activities. Use the surprise preset
+  with explicit hidden_from for a secret celebration. Ownership never implies privacy.
+days: 1
+item_types:
+  - {name: detail, label: Detail, shape: detail, policy: owner}
+  - {name: task, label: Preparation task, shape: task, policy: owner}
+  - {name: activity, label: Activity, shape: activity, policy: participants}
+conditions:
+  - {name: latest_end, check: latest_end, label: latest finish}
+  - {name: busy, check: unavailable_window, label: busy time}
+  - {name: budget, check: max_total_cost, label: budget}
+starter:
+  details:
+    - {key: event.date, label: Date and time, value_kind: datetime, aliases: [date, time, when]}
+    - {key: event.venue, label: Venue, value_kind: place, aliases: [venue, place, where]}
+    - {key: event.headcount, label: Guest count, value_kind: count, aliases: [guests, headcount]}
+  tasks:
+    - {title: Send invitations}

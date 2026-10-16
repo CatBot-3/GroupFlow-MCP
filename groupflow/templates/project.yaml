@@ -1,0 +1,17 @@
+id: project
+name: Long-term collaborative project
+version: '1'
+description: >
+  Deliver work over weeks or months: workstreams, milestones, structured dates,
+  effort, recurring occurrences, dependencies, owner capacity and shared resources.
+  Use project tools to repair schedules, then request individual commitments and
+  stage authorization on each person's page before committing the schedule.
+days: 42
+lifecycle: bounded
+item_types:
+  - {name: task, label: Work item, shape: task, policy: owner}
+  - {name: milestone, label: Milestone, shape: task, policy: owner}
+  - {name: detail, label: Project decision, shape: detail, policy: owner}
+starter:
+  details:
+    - {key: project.goal, label: Project goal}

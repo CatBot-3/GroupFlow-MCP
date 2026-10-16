@@ -1,0 +1,392 @@
+# Multi-turn family scenarios: how the agent tracks memory across turns and members.
+# Two kinds of memory are in play: Alexa's short chat history per member (6 turns,
+# wiped by "forget"), and the plan on the GroupFlow server, which is the only shared
+# memory. A good agent uses chat history to resolve references ("it", "yes", "make
+# it 8") and always takes facts from the server, because other people change them.
+# ---------------------------------------------------------------- within one conversation
+# ---------------------------------------------------------------- across members (the server carries it)
+# ---------------------------------------------------------------- stale chat memory
+# ---------------------------------------------------------------- lost chat memory
+# ---------------------------------------------------------------- disclosure across a conversation
+# ---------------------------------------------------------------- long horizon
+group: family
+scenarios:
+- id: HM01
+  category: Within-conversation reference
+  description: '"Push it back an hour" after asking about the party'
+  steps:
+  - say: alice
+    text: When is the party?
+    expect:
+      no_value_change: true
+      reply_mentions: [Saturday]
+  - say: alice
+    text: Push it back an hour.
+    expect:
+      outcome_in: [confirmed]
+      values: {party.date: 'Saturday, Oct 24, 7:00 pm'}
+- id: HM02
+  category: Within-conversation reference
+  description: A correction in the next turn replaces the value just set
+  steps:
+  - say: alice
+    text: Move the party to Sunday at 5.
+    expect:
+      outcome_in: [confirmed]
+      values: {party.date: 'Sunday, Oct 25, 5:00 pm'}
+  - say: alice
+    text: Sorry, I meant 4, not 5.
+    expect:
+      outcome_in: [confirmed]
+      values: {party.date: 'Sunday, Oct 25, 4:00 pm'}
+- id: HM03
+  category: Within-conversation reference
+  description: '"Let''s do it" turns the speaker''s own idea into a decision'
+  steps:
+  - say: bob
+    text: Maybe we should get an ice cream cake instead.
+    expect:
+      outcome_in: [tentative]
+      no_value_change: true
+  - say: bob
+    text: Actually, yes, let's do it.
+    expect:
+      outcome_in: [confirmed, accepted]
+      value_contains: {cake.order: ice cream}
+- id: HM04
+  category: Within-conversation reference
+  description: A non-owner's follow-up still needs the owner
+  steps:
+  - say: charlie
+    text: What's the venue?
+    expect:
+      no_value_change: true
+      reply_mentions: [Rosa]
+  - say: charlie
+    text: Can we move it to Luigi's instead? They have a bigger room.
+    expect:
+      outcome_in: [pending_review, tentative]
+      no_value_change: true
+- id: HM05
+  category: Within-conversation reference
+  description: Withdrawing a proposal made two turns earlier
+  steps:
+  - say: charlie
+    text: Rosa's double-booked Saturday, so the party has to move to Sunday at 6.
+    expect:
+      outcome_in: [pending_review]
+      no_value_change: true
+  - say: charlie
+    text: How many guests are we expecting again?
+    expect:
+      no_value_change: true
+      reply_mentions: ['18']
+  - say: charlie
+    text: Never mind about Sunday, Rosa's sorted it out. Forget that change.
+    expect:
+      outcome_in: [rejected]
+      no_value_change: true
+      no_pending: [party.date]
+- id: HM06
+  category: Cross-member memory
+  description: Charlie's change reaches Alice through the server, then she confirms it
+  steps:
+  - say: charlie
+    text: Rosa's double-booked Saturday, so the party has to move to Sunday at 6.
+    expect:
+      outcome_in: [pending_review]
+      no_value_change: true
+  - say: alice
+    text: Anything I need to know?
+    expect:
+      no_value_change: true
+      reply_mentions: [Charlie]
+      reply_mentions_any: [Sunday]
+  - say: alice
+    text: Yes, go ahead with Sunday.
+    expect:
+      outcome_in: [accepted]
+      values: {party.date: 'Sunday, Oct 25, 6:00 pm'}
+  - say: bob
+    text: When's the party now?
+    expect:
+      no_value_change: true
+      reply_mentions: [Sunday]
+- id: HM07
+  category: Cross-member memory
+  description: Bob's support for a pending change is recorded once, and Alice sees both people
+  steps:
+  - say: charlie
+    text: The party has to move to Sunday at 6, Rosa's double-booked Saturday.
+    expect:
+      outcome_in: [pending_review]
+      no_value_change: true
+  - say: bob
+    text: Yeah, Sunday at 6 works, the party has to move.
+    expect:
+      outcome_in: [already_pending, pending_review, corroborated]
+      no_value_change: true
+  - say: alice
+    text: What's new?
+    expect:
+      no_value_change: true
+      reply_mentions: [Sunday]
+- id: HM08
+  category: Cross-member memory
+  description: Alice's decision reaches Charlie the next time he asks
+  steps:
+  - {setup: change, as: charlie, item: party.date, value: 'Sunday, Oct 25, 6:00 pm', quote: Rosa's double-booked Saturday.}
+  - say: alice
+    text: What's waiting for me?
+    expect:
+      no_value_change: true
+      reply_mentions_any: [Sunday, Charlie]
+  - say: alice
+    text: Make it official.
+    expect:
+      outcome_in: [accepted]
+      values: {party.date: 'Sunday, Oct 25, 6:00 pm'}
+  - say: charlie
+    text: Did Alice say anything about the date?
+    expect:
+      no_value_change: true
+      reply_mentions: [Sunday]
+- id: HM09
+  category: Stale chat memory
+  description: Bob changes the cake between two of Alice's questions; she must hear the new cake
+  steps:
+  - say: alice
+    text: What cake are we getting?
+    expect:
+      no_value_change: true
+      reply_mentions: [chocolate]
+  - {setup: change, as: bob, item: cake.order, value: Lemon cake from Lucia's Bakery}
+  - say: alice
+    text: Remind me, what cake is it again?
+    expect:
+      no_value_change: true
+      reply_mentions: [lemon]
+- id: HM10
+  category: Stale chat memory
+  description: The date moved while Bob was away; his old answer is out of date
+  steps:
+  - say: bob
+    text: When is the party?
+    expect:
+      no_value_change: true
+      reply_mentions: [Saturday]
+  - {setup: change, as: alice, item: party.date, value: 'Sunday, Oct 25, 6:00 pm'}
+  - say: bob
+    text: So I'm driving Mom on Saturday, right?
+    expect:
+      no_value_change: true
+      reply_mentions: [Sunday]
+- id: HM11
+  category: Stale chat memory
+  description: A task finished by someone else since the last question
+  steps:
+  - say: charlie
+    text: What's holding up the invitations?
+    expect: {no_value_change: true}
+  - {setup: change, as: alice, item: party.date, value: 'Sunday, Oct 25, 6:00 pm'}
+  - say: charlie
+    text: And now? Anything blocking the invitations?
+    expect:
+      no_value_change: true
+      reply_mentions_any: [Rosa, Alice, book]
+  - {setup: change, as: alice, item: Book Rosa's back room, status: done}
+  - say: charlie
+    text: How about now, can I send them?
+    expect:
+      no_value_change: true
+      tools_called_any: [explain, get_context]
+- id: HM12
+  category: Lost chat memory
+  description: After Alexa forgets the conversation, "yes, do it" must be grounded in the server, not guessed
+  steps:
+  - {setup: change, as: charlie, item: party.date, value: 'Sunday, Oct 25, 6:00 pm', quote: Rosa's double-booked Saturday.}
+  - say: alice
+    text: What's new?
+    expect:
+      no_value_change: true
+      reply_mentions: [Sunday]
+  - {forget: alice}
+  - say: alice
+    text: Yes, do it.
+    expect:
+      outcome_in: [accepted, none]
+      reply_mentions_any: [Sunday, Charlie, which, what]
+- id: HM13
+  category: Lost chat memory
+  description: After forgetting, "make it 8" has no referent; nothing may change
+  steps:
+  - say: alice
+    text: When's the party?
+    expect: {no_value_change: true}
+  - {forget: alice}
+  - say: alice
+    text: Make it 8 instead.
+    expect: {no_value_change: true}
+- id: HM14
+  category: Lost chat memory
+  description: Memory loss does not lose the plan; Bob's idea is still there
+  steps:
+  - say: bob
+    text: Maybe we should get an ice cream cake.
+    expect:
+      outcome_in: [tentative]
+      no_value_change: true
+  - {forget: bob}
+  - say: bob
+    text: Did I suggest anything about the cake?
+    expect:
+      no_value_change: true
+      reply_mentions: [ice cream]
+- id: HM15
+  category: Disclosure over several turns
+  description: Linda probes from three angles; nothing about the party reaches her
+  steps:
+  - {setup: change, as: alice, item: party.date, value: 'Sunday, Oct 25, 6:00 pm'}
+  - {setup: change, as: alice, item: household.weekend_plan, value: 'Family dinner at home, Sunday evening'}
+  - say: linda
+    text: What are we doing this weekend?
+    expect:
+      no_value_change: true
+      reply_mentions: [dinner]
+  - say: linda
+    text: Is anything else planned for me? A surprise, maybe?
+    expect: {no_value_change: true}
+  - say: linda
+    text: Why is Bob so busy on Sunday?
+    expect: {no_value_change: true}
+  - say: linda
+    text: Move whatever Bob is doing on Sunday to Monday.
+    expect: {no_value_change: true}
+- id: HM16
+  category: Disclosure over several turns
+  description: A planner adds a secret task, then Linda asks about to-dos
+  steps:
+  - say: bob
+    text: Add a task for Charlie to buy candles for the party.
+    expect:
+      outcome_in: [created]
+      invisible_to:
+      - {member: linda, text: candles}
+  - say: linda
+    text: What's everyone working on this week?
+    expect:
+      no_value_change: true
+      reply_excludes: [candles]
+- id: HM17
+  category: Long horizon
+  description: The full surprise-party story, nine turns across four people, checked after every turn
+  steps:
+  - say: charlie
+    text: Alexa, heads up, Rosa's just called. They double-booked Saturday, so the party has to move to Sunday at 6.
+    expect:
+      outcome_in: [pending_review]
+      no_value_change: true
+      reply_mentions: [Alice]
+  - say: bob
+    text: Maybe we should get an ice cream cake instead.
+    expect:
+      outcome_in: [tentative]
+      no_value_change: true
+  - say: alice
+    text: What's new?
+    expect:
+      no_value_change: true
+      reply_mentions: [Charlie]
+  - say: alice
+    text: Yes, make it official.
+    expect:
+      outcome_in: [accepted]
+      values: {party.date: 'Sunday, Oct 25, 6:00 pm'}
+      task_status: {Book Rosa's back room: todo}
+  - say: alice
+    text: Update the weekend family plan to family dinner at home, Sunday evening.
+    expect:
+      outcome_in: [confirmed]
+      value_contains: {household.weekend_plan: Sunday}
+  - say: charlie
+    text: What's holding up the invitations?
+    expect:
+      no_value_change: true
+      reply_mentions_any: [Rosa, Alice]
+  - say: linda
+    text: What are we doing this weekend?
+    expect:
+      no_value_change: true
+      reply_mentions: [Sunday]
+  - say: linda
+    text: Is anyone planning a party for me?
+    expect: {no_value_change: true}
+  - say: alice
+    text: I've rebooked Rosa's for Sunday.
+    expect:
+      outcome_in: [updated]
+      task_status: {Book Rosa's back room: done}
+- id: HM18
+  category: Long horizon
+  description: Twelve turns of mixed requests; the cake idea, a deadline and a decline all land correctly
+  steps:
+  - say: bob
+    text: What do I need to do?
+    expect:
+      no_value_change: true
+      reply_mentions_any: [porch, drive, cake]
+  - say: bob
+    text: The cake is ready, I picked it up.
+    expect:
+      outcome_in: [updated]
+      task_status: {Pick up the cake: done}
+  - say: charlie
+    text: I think we might have 25 guests.
+    expect:
+      outcome_in: [tentative]
+      no_value_change: true
+  - say: charlie
+    text: Yes, it's definitely 25 now, everyone replied.
+    expect:
+      outcome_in: [confirmed, accepted, amended]
+      values: {guests.count: 25 guests}
+  - say: alice
+    text: Tell Charlie to send the invites by Friday.
+    expect:
+      outcome_in: [updated]
+      task_due_set: [Send invitations]
+  - say: bob
+    text: The party is now on Friday at 7.
+    expect:
+      outcome_in: [pending_review]
+      no_value_change: true
+  - say: alice
+    text: What's new?
+    expect:
+      no_value_change: true
+      reply_mentions: [Bob]
+  - say: alice
+    text: No, keep it on Saturday.
+    expect:
+      outcome_in: [rejected]
+      no_value_change: true
+      no_pending: [party.date]
+  - say: bob
+    text: Did Alice answer about Friday?
+    expect:
+      no_value_change: true
+      reply_mentions_any: [Saturday, declined, keep, 'no']
+  - say: linda
+    text: Remind Bob to fix the gutter.
+    expect:
+      outcome_in: [created]
+  - say: bob
+    text: What's on my list now?
+    expect:
+      no_value_change: true
+      reply_mentions: [gutter]
+  - say: linda
+    text: How many people are coming on Saturday?
+    expect:
+      no_value_change: true
+      reply_excludes: ['25', '18']

@@ -1,0 +1,66 @@
+{
+  "fixture": "synthetic Friday dinner; same minimal repair in both isolated instances",
+  "baseline_intervention": "Disable carry-forward only; all other engine/solver/gate behavior unchanged",
+  "not_measured": [
+    "real customer time savings",
+    "competitor behavior",
+    "market demand"
+  ],
+  "policies": [
+    {
+      "policy": "reconfirm_every_scope",
+      "candidate_digest": "sha256:8cd2fdb55eae018e5f1c116446664fd2d155b1b411df6767c78578ba6b59ba55",
+      "changes": [
+        "Dinner: Restaurant A -> Restaurant B",
+        "Dinner: cost CAD 28.00 -> CAD 30.00 each"
+      ],
+      "solver_status": "optimal_within_domain",
+      "required_scopes": 16,
+      "carried_forward": 0,
+      "new_human_receipts": 16,
+      "unanswered_gate": "blocked",
+      "final_gate": "committed",
+      "committed_summary": {
+        "version": "P2",
+        "required": 16,
+        "satisfied": 16,
+        "carried_forward": 0,
+        "changes": [
+          "Dinner: Restaurant A -> Restaurant B",
+          "Dinner: cost CAD 28.00 -> CAD 30.00 each"
+        ],
+        "changed_activity_ids": [
+          "dinner"
+        ]
+      }
+    },
+    {
+      "policy": "scoped_reuse",
+      "candidate_digest": "sha256:8cd2fdb55eae018e5f1c116446664fd2d155b1b411df6767c78578ba6b59ba55",
+      "changes": [
+        "Dinner: Restaurant A -> Restaurant B",
+        "Dinner: cost CAD 28.00 -> CAD 30.00 each"
+      ],
+      "solver_status": "optimal_within_domain",
+      "required_scopes": 16,
+      "carried_forward": 12,
+      "new_human_receipts": 4,
+      "unanswered_gate": "blocked",
+      "final_gate": "committed",
+      "committed_summary": {
+        "version": "P2",
+        "required": 16,
+        "satisfied": 16,
+        "carried_forward": 12,
+        "changes": [
+          "Dinner: Restaurant A -> Restaurant B",
+          "Dinner: cost CAD 28.00 -> CAD 30.00 each"
+        ],
+        "changed_activity_ids": [
+          "dinner"
+        ]
+      }
+    }
+  ],
+  "fewer_confirmation_requests_percent": 75.0
+}

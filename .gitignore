@@ -1,0 +1,23 @@
+# secrets and local data
+.env
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+*.egg-info/
+build/
+
+# web
+web/node_modules/
+
+# evaluation runs and local logs
+eval/runs/*.log
+eval/runs/*.err
+*.log
+*.err

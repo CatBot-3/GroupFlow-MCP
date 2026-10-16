@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "groupflow"
+version = "0.5.0"
+description = "GroupFlow: an Alexa+ MCP server that keeps a group's shared plans, decisions and agreements in one place, with templates for each kind of plan."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = [
+  "mcp==2.3.0",
+  "fastapi>=0.120",
+  "uvicorn>=0.30",
+  "httpx>=0.27",
+  "pydantic>=2.12",
+  "pyyaml>=6.0",
+  "ortools>=9.12",
+  "boto3>=1.35",
+  "tzdata>=2024.1; sys_platform == 'win32'",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.24"]
+
+[project.scripts]
+groupflow = "groupflow.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["groupflow*"]
+
+[tool.setuptools.package-data]
+groupflow = ["templates/*.yaml", "templates/legacy/*.yaml", "templates/presets/*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = ["ignore::DeprecationWarning"]

@@ -1,0 +1,232 @@
+# The demo world. All people and data are fictional. Each simulated Echo connects to the MCP
+# server with its person's bearer token, so identity comes from the connection, never from what
+# the model says. The passcode is a separate credential for the person's own confirmation page,
+# which the agent never holds. A real Alexa+ deployment would use account linking (OAuth) for the
+# token and a proper login for the page.
+#
+# People can be in several groups (Alice and Bob are in the family and in the friends group;
+# Chen is in the friends, the cottage trip and the study group; Jun and Priya each have two).
+# Plans are made from templates (groupflow/templates) and seeded by replaying what people said
+# through the engine itself, so every value has real provenance.
+
+people:
+  - {id: alice, name: Alice, token: gf_demo_alice_7f3k, passcode: alice-demo, color: "#C98A00"}
+  - {id: bob, name: Bob, token: gf_demo_bob_2m9q, passcode: bob-demo, color: "#2F6FB0"}
+  - {id: charlie, name: Charlie, token: gf_demo_charlie_8d1x, passcode: charlie-demo, color: "#2F8A57"}
+  - {id: linda, name: Linda, token: gf_demo_linda_5p0w, passcode: linda-demo, color: "#C0437A"}
+  - {id: chen, name: Chen, token: gf_demo_chen_k3v6, passcode: chen-demo, color: "#2F855A"}
+  - {id: dana, name: Dana, token: gf_demo_dana_m9x1, passcode: dana-demo, color: "#B83280"}
+  - {id: omar, name: Omar, token: gf_demo_omar_r5t2, passcode: omar-demo, color: "#8A5A2B"}
+  - {id: priya, name: Priya, token: gf_demo_priya_h8c4, passcode: priya-demo, color: "#6B46C1"}
+  - {id: marcus, name: Marcus, token: gf_demo_marcus_w2p7, passcode: marcus-demo, color: "#2C7A7B"}
+  - {id: jun, name: Jun, token: gf_demo_jun_b6n3, passcode: jun-demo, color: "#C05621"}
+  - {id: sofia, name: Sofia, token: gf_demo_sofia_e4k9, passcode: sofia-demo, color: "#2B6CB0"}
+  - {id: sam, name: Sam, token: gf_demo_sam_t7m1, passcode: sam-demo, color: "#718096"}
+  - {id: noor, name: Noor, token: gf_demo_noor_q3z8, passcode: noor-demo, color: "#B7791F"}
+
+groups:
+  - id: family
+    name: Family
+    description: Linda, her children Alice and Bob, and her brother Charlie.
+    timezone: America/Toronto
+    currency: CAD
+    members:
+      - {id: alice, role: organizer, label: Daughter}
+      - {id: bob, label: Son}
+      - {id: charlie, label: Linda's brother}
+      - {id: linda, role: organizer, label: Mom}
+    spaces:
+      - {id: family.planners, name: Surprise planners, members: [alice, bob, charlie], description: Hidden from Linda}
+  - id: friends
+    name: Friday friends
+    description: Four friends who go out together.
+    timezone: America/Toronto
+    currency: CAD
+    members:
+      - {id: alice, role: organizer, label: Friend}
+      - {id: bob, label: Friend}
+      - {id: chen, label: Friend}
+      - {id: dana, label: Friend}
+  - id: cottage
+    name: Cottage crew
+    description: Friends planning a weekend away.
+    timezone: America/Toronto
+    currency: CAD
+    members:
+      - {id: dana, role: organizer, label: Trip organizer}
+      - {id: chen, label: Friend}
+      - {id: omar, label: Friend}
+      - {id: priya, label: Friend}
+  - id: team
+    name: Product team
+    description: A small team at work.
+    timezone: America/Toronto
+    currency: CAD
+    members:
+      - {id: priya, role: organizer, label: Team lead}
+      - {id: marcus, label: Designer}
+      - {id: jun, label: Engineer}
+      - {id: sofia, label: Engineer}
+  - id: study
+    name: CS 341 study group
+    description: Classmates preparing for a midterm.
+    timezone: America/Toronto
+    currency: CAD
+    members:
+      - {id: chen, role: organizer, label: Classmate}
+      - {id: sam, label: Classmate}
+      - {id: noor, label: Classmate}
+      - {id: jun, label: Classmate}
+
+plans:
+  # ------------------------------------------------------------------ the surprise party (owner policy, hidden from Linda)
+  - id: party
+    group: family
+    template: surprise_party
+    title: Linda's surprise party
+    start_date: "2026-10-24"
+    organizer: alice
+    hidden_from: [linda]
+    starter: false
+    script:
+      - {at: "2026-10-06T23:10:00Z", as: alice, do: change, item: party.date, title: "Party date & time", value_kind: datetime, value: "Saturday, Oct 24, 6:00 pm",
+         quote: "Let's throw Mom's surprise party on Saturday the 24th at 6.", aliases: [party date, date, time, when, day, move, moved, reschedule, postpone]}
+      - {at: "2026-10-06T23:12:00Z", as: alice, do: change, item: party.venue, title: Venue, value_kind: place, value: "Rosa's Trattoria, back room",
+         quote: "Rosa's back room is perfect. I'll book it.", aliases: [venue, place, location, restaurant, where]}
+      - {at: "2026-10-06T23:15:00Z", as: alice, do: change, new_type: task, title: "Book Rosa's back room", quote: "I'll call Rosa's tomorrow.", ref: venue_task}
+      - {as: alice, do: link, item: $venue_task, depends_on: party.date}
+      - {as: alice, do: link, item: $venue_task, depends_on: party.venue}
+      - {at: "2026-10-07T14:00:00Z", as: alice, do: change, item: $venue_task, status: done, quote: "Booked Rosa's back room for Saturday at 6."}
+      - {at: "2026-10-07T16:30:00Z", as: bob, do: change, item: cake.order, title: Cake, value: "Chocolate cake from Lucia's Bakery",
+         quote: "I'll get Mom's favorite, the chocolate cake from Lucia's.", aliases: [cake, dessert, bakery]}
+      - {at: "2026-10-07T16:35:00Z", as: bob, do: change, new_type: task, title: Order the cake, ref: cake_task}
+      - {as: bob, do: link, item: $cake_task, depends_on: party.date}
+      - {as: bob, do: link, item: $cake_task, depends_on: cake.order}
+      - {at: "2026-10-07T22:05:00Z", as: charlie, do: change, item: guests.count, title: Guest count, value_kind: count, value: "18 guests",
+         quote: "I've got 18 people on the list so far.", aliases: [guests, guest count, headcount, people, how many]}
+      - {as: bob, do: link, item: $cake_task, depends_on: guests.count}
+      - {at: "2026-10-07T22:10:00Z", as: charlie, do: change, new_type: task, title: Send invitations, ref: invites}
+      - {as: charlie, do: link, item: $invites, depends_on: $venue_task}
+      - {as: charlie, do: link, item: $invites, depends_on: party.date}
+      - {as: charlie, do: link, item: $invites, depends_on: party.venue}
+      - {at: "2026-10-08T14:00:00Z", as: alice, do: change, new_type: task, title: Drive Linda to the party, owner: bob, ref: ride}
+      - {as: alice, do: link, item: $ride, depends_on: $venue_task}
+      - {as: alice, do: link, item: $ride, depends_on: party.date}
+      - {at: "2026-10-08T14:05:00Z", as: charlie, do: change, new_type: task, title: Decorate the back room, ref: decorate}
+      - {as: charlie, do: link, item: $decorate, depends_on: $venue_task}
+      - {at: "2026-10-08T20:00:00Z", as: bob, do: change, item: $cake_task, status: done, quote: "Cake ordered for pickup Saturday at 4."}
+      - {at: "2026-10-08T20:05:00Z", as: bob, do: change, new_type: task, title: Pick up the cake, ref: pickup}
+      - {as: bob, do: link, item: $pickup, depends_on: $cake_task}
+
+  # ------------------------------------------------------------------ the household's running plan (chores, shopping, everyday facts)
+  - id: home
+    group: family
+    template: chores_shopping
+    title: Home
+    start_date: "2026-10-19"
+    organizer: linda
+    starter: false
+    script:
+      - {at: "2026-10-08T13:00:00Z", as: alice, do: change, item: household.weekend_plan, title: Weekend family plan, value: "Family dinner at home, Saturday evening",
+         quote: "Let's tell Mom we're having a quiet family dinner at home on Saturday.", aliases: [weekend, this weekend, family plan, family dinner, dinner, saturday plan]}
+      - {as: alice, do: link, item: household.weekend_plan, depends_on: party.date}
+      - {at: "2026-10-09T15:00:00Z", as: linda, do: change, item: household.book_club, title: "Linda's book club", value_kind: datetime,
+         value: "Thursday, Oct 22, 7:00 pm at Margaret's", quote: "Book club is at Margaret's on Thursday the 22nd at 7.", aliases: [book club, margaret]}
+      - {at: "2026-10-09T15:05:00Z", as: linda, do: change, new_type: chore, title: Fix the porch light, owner: bob, quote: "Bob, can you fix the porch light?"}
+      - {at: "2026-10-09T15:10:00Z", as: linda, do: change, new_type: shopping, title: Milk}
+      - {at: "2026-10-09T15:11:00Z", as: linda, do: change, new_type: shopping, title: Coffee beans}
+
+  # ------------------------------------------------------------------ Friday dinner (participants policy, private conditions, repair)
+  - id: friday_dinner
+    group: friends
+    template: evening_out
+    title: Friday dinner
+    start_date: {prefer: "2026-10-16", else: next friday}
+    organizer: alice
+    starter: true
+    conditions:
+      - {owner: alice, name: home_by, value: {time: "21:00"}}
+      - {owner: bob, name: home_by, value: {time: "21:00"}}
+      - {owner: chen, name: home_by, value: {time: "21:00"}}
+      - {owner: dana, name: home_by, value: {time: "21:00"}}
+      - {owner: alice, name: budget, value: {amount: 45}}
+      - {owner: bob, name: budget, value: {amount: 45}}
+      - {owner: chen, name: budget, value: {amount: 45}}
+      - {owner: dana, name: budget, value: {amount: 45}}
+      - {owner: chen, name: diet, value: {tags: [nut_free]}}
+      - {owner: dana, name: diet, value: {tags: [vegetarian]}}
+      - {owner: alice, name: everyone_attends, value: {activity: dinner}}
+      - {owner: bob, name: prefer_keep, value: {activity: dessert}}
+    stages:
+      default: committed
+      draft: []
+      proposed: [propose]
+      awaiting: [send]
+      committed: [send, confirm_all, commit]
+      degraded: [send, confirm_all, commit, {observe: place_unavailable, place: restaurant_a, from: "18:00", to: "21:00"}]
+
+  # ------------------------------------------------------------------ a weekend away (multi-day, mixed policies)
+  - id: cottage_weekend
+    group: cottage
+    template: weekend_trip
+    title: Cottage weekend
+    start_date: {prefer: "2026-11-06", else: next friday}
+    organizer: dana
+    starter: true
+    conditions:
+      - {owner: priya, name: busy, value: {day: Sat, from: "08:00", to: "11:00"}}
+      - {owner: omar, name: budget, value: {amount: 250}}
+      - {owner: chen, name: diet, value: {tags: [vegetarian]}}
+    script:
+      - {as: dana, do: change, item: trip.meeting_point, value: "Dana's place, 4:30 pm", quote: "Let's all meet at my place at 4:30."}
+      - {as: dana, do: link, item: Book the minivan, depends_on: drive_up}
+      - {as: chen, do: change, new_type: packing, title: Sunscreen}
+      - {as: omar, do: change, new_type: packing, title: Cooler and ice packs}
+      - {as: priya, do: change, new_type: task, title: Bring board games, owner: priya}
+    stages:
+      default: draft
+
+  # ------------------------------------------------------------------ a team meeting over a work week
+  - id: design_review
+    group: team
+    template: team_meeting
+    title: Design review
+    start_date: {prefer: "2026-10-19", else: next monday}
+    organizer: priya
+    starter: true
+    conditions:
+      - {owner: jun, name: busy, value: {day: Tue, from: "12:00", to: "13:00"}}
+      - {owner: sofia, name: earliest_start, value: {time: "09:30"}}
+      - {owner: marcus, name: room_needs, value: {tags: [video]}}
+    script:
+      - {as: priya, do: change, new_type: agenda_item, item: design_review.roadmap, title: Q1 roadmap, value: "Priya walks through the Q1 roadmap", quote: "I'll cover the Q1 roadmap."}
+      - {as: marcus, do: change, new_type: agenda_item, item: design_review.onboarding, title: New onboarding screens, value: "Marcus shows the new onboarding screens"}
+      - {as: marcus, do: change, new_type: action_item, title: Share the design file before the meeting}
+    stages:
+      default: committed
+      draft: []
+      committed: [send, confirm_all, commit]
+
+  # ------------------------------------------------------------------ a study group before a midterm
+  - id: cs341_prep
+    group: study
+    template: study_group
+    title: CS 341 midterm prep
+    start_date: {prefer: "2026-10-19", else: next monday}
+    organizer: chen
+    starter: true
+    activities:
+      - {key: session_dp, title: Dynamic programming session, type: session, day: 0, start: "18:00", end: "20:00", place: library_room_3}
+      - {key: session_graphs, title: Graphs session, type: session, day: 2, start: "18:00", end: "20:00", place: library_room_3}
+    conditions:
+      - {owner: sam, name: latest_end, value: {time: "21:00"}}
+      - {owner: noor, name: needs, value: {tags: [quiet]}}
+    script:
+      - {as: chen, do: change, item: exam.date, value: "{day:4} 2:30 pm, room MC 2066", quote: "The midterm is Friday at 2:30 in MC 2066."}
+      - {as: chen, do: change, new_type: prep, title: Past midterm walkthrough}
+      - {as: chen, do: change, new_type: prep, title: Dynamic programming notes, owner: sam}
+      - {as: chen, do: change, new_type: prep, title: Graph algorithms practice set, owner: noor}
+    stages:
+      default: committed
+      draft: []
+      committed: [send, confirm_all, commit]

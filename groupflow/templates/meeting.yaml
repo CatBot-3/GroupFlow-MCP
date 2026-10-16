@@ -1,0 +1,18 @@
+id: meeting
+name: Meeting
+version: '2'
+description: >
+  Coordinate a meeting, workshop or offsite with an agenda, preparation tasks,
+  attendees and an agreed time. Recurring delivery work belongs in project.
+days: 1
+item_types:
+  - {name: activity, label: Session, shape: activity, policy: participants}
+  - {name: task, label: Preparation task, shape: task, policy: owner}
+  - {name: detail, label: Decision or agenda, shape: detail, policy: owner}
+conditions:
+  - {name: busy, check: unavailable_window, label: busy time}
+  - {name: earliest_start, check: earliest_start, label: earliest start}
+  - {name: latest_end, check: latest_end, label: latest finish}
+starter:
+  details:
+    - {key: meeting.agenda, label: Agenda}

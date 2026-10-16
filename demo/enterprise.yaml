@@ -1,0 +1,56 @@
+# Synthetic enterprise demo only. These credentials are deliberately public.
+people:
+  - {id: ava, name: Ava, token: gf_demo_ava_enterprise, passcode: '1111', color: '#366b8a'}
+  - {id: ben, name: Ben, token: gf_demo_ben_enterprise, passcode: '2222', color: '#b66338'}
+  - {id: mei, name: Mei, token: gf_demo_mei_enterprise, passcode: '3333', color: '#597a48'}
+  - {id: lee, name: Lee, token: gf_demo_lee_enterprise, passcode: '4444', color: '#855ea2'}
+groups:
+  - id: enterprise
+    name: Six-week product release
+    timezone: America/Toronto
+    currency: CAD
+    description: Cross-team delivery with design, engineering, QA, weekly reporting and a stage authorization gate.
+    members:
+      - {id: ava, role: organizer, label: Release lead and workspace admin}
+      - {id: ben, label: Engineering}
+      - {id: mei, label: Product design}
+      - {id: lee, label: Quality assurance}
+plans:
+  - id: release
+    group: enterprise
+    template: project
+    title: Atlas release · six weeks
+    organizer: ava
+    start_date: {prefer: '2026-10-19', else: next monday}
+    days: 42
+    starter: false
+    lifecycle: ongoing
+    project:
+      prepare: true
+      config:
+        stage: Release readiness
+        approvers: [ava]
+        budget_minor: 2000000
+        approval_days: 14
+        resources:
+          - {id: enterprise.lab, name: Integration lab, capacity: 1}
+          - {id: enterprise.review, name: Review channel, capacity: 2}
+      work:
+        - {key: research, title: Confirm release requirements, owner: mei, start_day: 0, due_day: 2, spec: {workstream: Design, duration_minutes: 240, cost_minor: 40000}}
+        - {key: design, title: Approve interaction spec, owner: mei, start_day: 2, due_day: 4, depends_on: [research], spec: {workstream: Design, duration_minutes: 240, cost_minor: 40000}}
+        - {key: architecture, title: Review architecture, owner: ben, start_day: 0, due_day: 4, spec: {workstream: Engineering, duration_minutes: 240, resources: {enterprise.review: 1}, cost_minor: 50000}}
+        - {key: build1, title: Implement API slice, owner: ben, start_day: 7, due_day: 9, depends_on: [design, architecture], spec: {workstream: Engineering, milestone: Feature complete, duration_minutes: 480, cost_minor: 80000}}
+        - {key: build2, title: Implement client slice, owner: ben, start_day: 9, due_day: 11, depends_on: [build1], spec: {workstream: Engineering, milestone: Feature complete, duration_minutes: 480, cost_minor: 80000}}
+        - {key: testplan, title: Prepare acceptance cases, owner: lee, start_day: 7, due_day: 11, depends_on: [design], spec: {workstream: QA, duration_minutes: 240, cost_minor: 40000}}
+        - {key: integration, title: Integrate release candidate, owner: ben, start_day: 14, due_day: 16, depends_on: [build2], spec: {workstream: Engineering, duration_minutes: 240, resources: {enterprise.lab: 1}, cost_minor: 50000}}
+        - {key: acceptance, title: Run acceptance suite, owner: lee, start_day: 14, due_day: 18, depends_on: [testplan, integration], spec: {workstream: QA, duration_minutes: 240, resources: {enterprise.lab: 1}, cost_minor: 50000}}
+        - {key: usability, title: Review release usability, owner: mei, start_day: 21, due_day: 23, depends_on: [integration], spec: {workstream: Design, duration_minutes: 240, resources: {enterprise.review: 1}, cost_minor: 40000}}
+        - {key: regression, title: Run final regression, owner: lee, start_day: 28, due_day: 30, depends_on: [acceptance, usability], spec: {workstream: QA, duration_minutes: 240, resources: {enterprise.lab: 1}, cost_minor: 50000}}
+        - {key: readiness, title: Release readiness milestone, owner: ava, start_day: 35, due_day: 39, depends_on: [regression], spec: {workstream: Governance, duration_minutes: 0, milestone: Launch}}
+        - {key: handoff, title: Publish operational handoff, owner: ava, start_day: 35, due_day: 39, depends_on: [readiness], spec: {workstream: Governance, duration_minutes: 120, cost_minor: 20000}}
+      series:
+        - title: Weekly engineering status
+          owner: ben
+          start_day: 0
+          rule: {frequency: WEEKLY, count: 12}
+          spec: {duration_minutes: 30, workstream: Governance}

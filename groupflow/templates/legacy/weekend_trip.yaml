@@ -1,0 +1,74 @@
+id: weekend_trip
+name: Weekend trip
+description: >
+  A trip over several days: getting there, where to stay, what to do each day, shared costs, and a
+  packing list. Activities are agreed by everyone who goes; tasks belong to one person; the packing
+  list is open for anyone to tick off.
+days: 3
+item_types:
+  - name: activity
+    label: Activity
+    shape: activity
+    policy: participants
+    default_minutes: 120
+    description: Something the group does together on a given day.
+  - name: task
+    label: Task
+    shape: task
+    policy: owner
+    description: Something one person takes care of (book the car, bring the cooler).
+  - name: packing
+    label: Packing list item
+    shape: task
+    policy: open
+    intent_terms: [packing list, 行李清单]
+    description: Something to bring; anyone can add it or mark it packed.
+  - name: detail
+    label: Detail
+    shape: detail
+    policy: owner
+    description: A trip detail with one owner (meeting point, cottage door code).
+conditions:
+  - {name: available_from, check: earliest_start, label: earliest time they can start a day}
+  - {name: latest_end, check: latest_end, label: latest time to finish a day}
+  - {name: budget, check: max_total_cost, label: budget for the trip}
+  - {name: diet, check: needs, label: dietary needs, applies_to: [meal, brunch], tags: [vegetarian, nut_free, gluten_free]}
+  - {name: accessibility, check: needs, label: access needs, tags: [step_free]}
+  - {name: busy, check: unavailable_window, label: busy time}
+  - {name: prefer_keep, check: prefer_keep, label: wish to keep an activity as planned, soft: true}
+booking_kinds: [lodging, meal, brunch, travel]
+search:
+  time_shifts: [60, -60, 120, 180]
+  max_options: 5
+catalog:
+  version: trip_fixture_v1
+  default_travel: 60
+  travel_minutes:
+    - [city, city, 15]
+    - [lake, lake, 10]
+    - [lake, ridge, 20]
+    - [ridge, ridge, 10]
+    - [city, lake, 150]
+    - [city, ridge, 160]
+  places:
+    - {id: minivan, name: Rental minivan, kind: travel, zone: transit, open: "06:00", close: "23:00", capacity: 7, price: 35, tags: [step_free]}
+    - {id: pine_lake_cottage, name: Pine Lake Cottage, kind: lodging, zone: lake, open: "15:00", close: "23:00", capacity: 6, price: 120, tags: [step_free], aliases: [the cottage, cottage]}
+    - {id: maple_ridge_cabin, name: Maple Ridge Cabin, kind: lodging, zone: ridge, open: "16:00", close: "22:00", capacity: 5, price: 95, tags: [], aliases: [the cabin, cabin]}
+    - {id: lookout_trail, name: Lookout Trail, kind: hike, zone: ridge, open: "08:00", close: "17:00", capacity: 30, price: 0, tags: []}
+    - {id: falls_loop, name: Falls Loop, kind: hike, zone: lake, open: "09:00", close: "18:00", capacity: 30, price: 0, tags: [step_free]}
+    - {id: lakeside_grill, name: Lakeside Grill, kind: meal, zone: lake, open: "11:00", close: "22:00", capacity: 12, price: 32, tags: [vegetarian, step_free]}
+    - {id: ridge_pizza, name: Ridge Pizza, kind: meal, zone: ridge, open: "11:00", close: "23:00", capacity: 10, price: 22, tags: [vegetarian, nut_free, gluten_free]}
+    - {id: sunrise_cafe, name: Sunrise Cafe, kind: brunch, zone: lake, open: "07:00", close: "14:00", capacity: 8, price: 18, tags: [vegetarian, gluten_free, step_free]}
+    - {id: dock_diner, name: Dock Diner, kind: brunch, zone: lake, open: "08:00", close: "15:00", capacity: 10, price: 16, tags: [vegetarian]}
+starter:
+  activities:
+    - {key: drive_up, title: Drive up, day: 0, start: "17:00", end: "19:30", place: minivan}
+    - {key: check_in, title: Check in, day: 0, start: "19:45", end: "20:15", place: pine_lake_cottage}
+    - {key: day_hike, title: Day hike, day: 1, start: "10:00", end: "13:00", place: lookout_trail}
+    - {key: group_dinner, title: Group dinner, day: 1, start: "18:30", end: "20:00", place: lakeside_grill}
+    - {key: brunch, title: Brunch, day: 2, start: "10:00", end: "11:00", place: sunrise_cafe}
+    - {key: drive_back, title: Drive back, day: 2, start: "13:00", end: "15:30", place: minivan}
+  tasks:
+    - {title: Book the minivan}
+  details:
+    - {key: trip.meeting_point, label: Meeting point, value_kind: place, aliases: [meet, meeting point, pick up, pickup]}

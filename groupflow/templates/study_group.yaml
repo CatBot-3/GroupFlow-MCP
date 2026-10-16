@@ -1,0 +1,49 @@
+id: study_group
+name: Study group
+description: >
+  Study sessions before an exam: when and where the group meets, who prepares which topic, and the
+  exam facts. Sessions are confirmed by everyone who comes; each prep task belongs to one person.
+days: 7
+item_types:
+  - name: session
+    label: Study session
+    shape: activity
+    policy: participants
+    default_minutes: 120
+    place_kinds: [study_room, cafe]
+    description: A session at a study room or cafe, confirmed by everyone who comes.
+  - name: prep
+    label: Prep task
+    shape: task
+    policy: owner
+    description: A topic one person prepares for the group.
+  - name: detail
+    label: Detail
+    shape: detail
+    policy: owner
+    description: A fact about the course or exam, with one owner.
+conditions:
+  - {name: busy, check: unavailable_window, label: busy time}
+  - {name: earliest_start, check: earliest_start, label: earliest start}
+  - {name: latest_end, check: latest_end, label: latest end}
+  - {name: budget, check: max_total_cost, label: budget}
+  - {name: needs, check: needs, label: place needs, tags: [quiet, whiteboard, step_free]}
+  - {name: prefer_keep, check: prefer_keep, label: wish to keep a session, soft: true}
+search:
+  time_shifts: [60, -60, 120, 1440, -1440, 180]
+  max_options: 8
+catalog:
+  version: campus_v1
+  default_travel: 20
+  travel_minutes:
+    - [campus, campus, 10]
+    - [campus, downtown, 20]
+    - [downtown, downtown, 10]
+  places:
+    - {id: library_room_3, name: Library room 3, kind: study_room, zone: campus, open: "08:00", close: "22:00", capacity: 6, price: 0, tags: [quiet, whiteboard, step_free], aliases: [library, room 3]}
+    - {id: library_room_5, name: Library room 5, kind: study_room, zone: campus, open: "08:00", close: "22:00", capacity: 4, price: 0, tags: [quiet, step_free], aliases: [room 5]}
+    - {id: engineering_lounge, name: Engineering lounge, kind: study_room, zone: campus, open: "07:00", close: "23:00", capacity: 12, price: 0, tags: [whiteboard], aliases: [lounge]}
+    - {id: bean_there_cafe, name: Bean There Cafe, kind: cafe, zone: downtown, open: "07:00", close: "21:00", capacity: 8, price: 6, tags: [step_free], aliases: [cafe, bean there]}
+starter:
+  details:
+    - {key: exam.date, label: Exam date, value_kind: datetime, aliases: [exam, midterm, test, when is the exam]}

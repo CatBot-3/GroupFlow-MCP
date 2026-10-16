@@ -1,0 +1,37 @@
+id: general_event
+name: Any plan
+description: >
+  A plan made up on the spot ("a picnic on Sunday with Chen and Dana"). It can hold details,
+  tasks and activities; places are free text unless they match a known place.
+days: 1
+item_types:
+  - name: detail
+    label: Detail
+    shape: detail
+    policy: owner
+    description: One agreed value, decided by its owner.
+  - name: task
+    label: Task
+    shape: task
+    policy: owner
+    description: Something one person does.
+  - name: activity
+    label: Activity
+    shape: activity
+    policy: participants
+    default_minutes: 120
+    description: Something people attend together; everyone taking part confirms it.
+  - name: list_item
+    label: List item
+    shape: task
+    policy: open
+    description: A shared list entry (bring this, buy that) anyone can tick off.
+conditions:
+  - {name: latest_end, check: latest_end, label: latest time to finish}
+  - {name: earliest_start, check: earliest_start, label: earliest time to start}
+  - {name: budget, check: max_total_cost, label: budget}
+  - {name: busy, check: unavailable_window, label: busy time}
+  - {name: prefer_keep, check: prefer_keep, label: wish to keep an activity, soft: true}
+search:
+  time_shifts: [30, -30, 60, -60]
+  max_options: 5

@@ -1,0 +1,35 @@
+id: surprise_party
+name: Surprise party
+description: >
+  A party some of the group plan for someone else in it. The plan lives in a space that leaves
+  the guest of honour out, so nothing about it can reach them. Each detail has one owner who
+  decides it; tasks belong to whoever does them.
+days: 1
+hidden_from_guest: true
+item_types:
+  - name: detail
+    label: Detail
+    shape: detail
+    policy: owner
+    description: One agreed value (date, venue, cake, guest count), decided by its owner.
+  - name: task
+    label: Task
+    shape: task
+    policy: owner
+    description: Something one person does (book the room, order the cake).
+starter:
+  details:
+    - key: party.date
+      label: Party date & time
+      value_kind: datetime
+      aliases: [party date, date, time, when, day, move, moved, reschedule, postpone]
+    - key: party.venue
+      label: Venue
+      value_kind: place
+      aliases: [venue, place, location, restaurant, where]
+    - key: guests.count
+      label: Guest count
+      value_kind: count
+      aliases: [guests, guest count, headcount, people, how many]
+  tasks:
+    - title: Send invitations

@@ -1,0 +1,60 @@
+{
+  "verified_at": "2026-10-16T06:41:21.237Z",
+  "url": "http://127.0.0.1:8902/?group=friends&step=9&view=alice",
+  "checks": [
+    {
+      "check": "Linda authorized graph excludes hidden party data",
+      "passed": true
+    },
+    {
+      "check": "All five scenario groups remain in Test lab",
+      "passed": true
+    },
+    {
+      "check": "390px friends view has no page horizontal overflow",
+      "passed": true,
+      "dimensions": {
+        "scrollWidth": 375,
+        "width": 390
+      }
+    },
+    {
+      "check": "Mobile graph scrolls within its own canvas",
+      "passed": true,
+      "dimensions": {
+        "clientWidth": 375,
+        "graphContent": 1055,
+        "graphViewport": 293,
+        "scrollWidth": 375,
+        "width": 390
+      }
+    },
+    {
+      "check": "Graph category selection reveals canonical group id",
+      "passed": true
+    },
+    {
+      "check": "Committed P2 shows 16/16 satisfied and 12 carried forward in returned MCP fields",
+      "passed": true
+    },
+    {
+      "check": "No browser console errors since final reload",
+      "passed": true
+    }
+  ],
+  "console_errors": [],
+  "guided_story": {
+    "steps": 9,
+    "completed": true,
+    "human_responses": "scripted test identities through own-page HTTP flow",
+    "persistence": "P2 retained after server restart"
+  },
+  "screenshots": [
+    "friends_committed_verified.png",
+    "memory_map_verified.png",
+    "model_trace_verified.png",
+    "friends_mobile_verified.png",
+    "memory_confirmation_record_verified.png"
+  ],
+  "limitation": "New model requests currently require DeepSeek account balance; saved-state browsing remains available."
+}

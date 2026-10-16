@@ -1,0 +1,428 @@
+# Single-turn cases in the family group (44 cases), first written for the TypeScript build.
+# The surprise party: Alice owns the date and venue, Bob the cake, Charlie the guest count;
+# Linda must never learn about the party. Each case starts from the seed.
+group: family
+scenarios:
+- id: C01
+  category: Ownership
+  description: Non-owner reports a firm date change
+  steps:
+  - say: charlie
+    text: Rosa's double-booked Saturday, so the party has to move to Sunday at 6.
+    expect:
+      outcome_in: [pending_review]
+      no_value_change: true
+      reply_mentions: [Alice]
+- id: C02
+  category: Ownership
+  description: Another non-owner states a different date
+  steps:
+  - say: bob
+    text: The party is now on Friday at 7.
+    expect:
+      outcome_in: [pending_review]
+      no_value_change: true
+- id: C03
+  category: Ownership
+  description: The owner moves the date herself
+  steps:
+  - say: alice
+    text: Let's move the party to Sunday at 5.
+    expect:
+      outcome_in: [confirmed]
+      values: {party.date: 'Sunday, Oct 25, 5:00 pm'}
+- id: C04
+  category: Ownership
+  description: Non-owner changes someone else's cake order
+  steps:
+  - say: alice
+    text: The cake is going to be a lemon cake.
+    expect:
+      outcome_in: [pending_review]
+      no_value_change: true
+- id: C05
+  category: Ownership
+  description: Owner shifts the time with a relative phrase
+  steps:
+  - say: alice
+    text: Can you push the party back an hour?
+    expect:
+      outcome_in: [confirmed]
+      values: {party.date: 'Saturday, Oct 24, 7:00 pm'}
+- id: T01
+  category: Hedged wording
+  description: Owner floats an idea with maybe
+  steps:
+  - say: bob
+    text: Maybe we should get an ice cream cake instead.
+    expect:
+      outcome_in: [tentative]
+      no_value_change: true
+- id: T02
+  category: Hedged wording
+  description: Owner guesses a guest count
+  steps:
+  - say: charlie
+    text: I think we might have 25 guests.
+    expect:
+      outcome_in: [tentative]
+      no_value_change: true
+- id: T03
+  category: Hedged wording
+  description: Owner asks a proposal question
+  steps:
+  - say: alice
+    text: Should we move the party to Sunday?
+    expect:
+      outcome_in: [tentative, none]
+      no_value_change: true
+- id: T04
+  category: Hedged wording
+  description: Non-owner suggests another venue
+  steps:
+  - say: bob
+    text: Possibly the venue could be Luigi's instead.
+    expect:
+      outcome_in: [tentative]
+      no_value_change: true
+- id: T05
+  category: Hedged wording
+  description: How-about question about the guest count
+  steps:
+  - say: charlie
+    text: How about 30 guests?
+    expect:
+      outcome_in: [tentative, none]
+      no_value_change: true
+- id: N01
+  category: Negation
+  description: Denies a move
+  steps:
+  - say: charlie
+    text: The party is not moving to Sunday.
+    expect:
+      outcome_in: [none, corroborated]
+      no_value_change: true
+- id: N02
+  category: Negation
+  description: Denies a cake change
+  steps:
+  - say: bob
+    text: We're not getting an ice cream cake.
+    expect:
+      outcome_in: [none, corroborated]
+      no_value_change: true
+- id: R01
+  category: Repeat of the plan
+  description: Repeats the date in other words
+  steps:
+  - say: bob
+    text: The party is Saturday at 6.
+    expect:
+      outcome_in: [corroborated, none]
+      no_value_change: true
+- id: R02
+  category: Repeat of the plan
+  description: Repeats the guest count
+  steps:
+  - say: alice
+    text: We have 18 guests.
+    expect:
+      outcome_in: [corroborated, none]
+      no_value_change: true
+- id: R03
+  category: Duplicate proposal
+  description: Second person backs a pending change
+  steps:
+  - {setup: change, as: charlie, item: party.date, value: 'Sunday, Oct 25, 6:00 pm', quote: 'Rosa''s double-booked Saturday, so the party has to move to Sunday at
+      6.'}
+  - say: bob
+    text: Yeah, the party has to move to Sunday at 6.
+    expect:
+      outcome_in: [already_pending]
+      no_value_change: true
+- id: F01
+  category: Confirmation flow
+  description: Owner hears the pending change when she next talks to Alexa
+  steps:
+  - {setup: change, as: charlie, item: party.date, value: 'Sunday, Oct 25, 6:00 pm', quote: 'Rosa''s double-booked Saturday, so the party has to move to Sunday at
+      6.'}
+  - say: alice
+    text: What's new?
+    expect:
+      tools_called: [get_context]
+      no_value_change: true
+      reply_mentions: [Charlie]
+- id: F02
+  category: Confirmation flow
+  description: Owner accepts after hearing it
+  steps:
+  - {setup: change, as: charlie, item: party.date, value: 'Sunday, Oct 25, 6:00 pm', quote: 'Rosa''s double-booked Saturday, so the party has to move to Sunday at
+      6.'}
+  - {say: alice, text: 'What''s new?'}
+  - say: alice
+    text: Yes, make it official.
+    expect:
+      outcome_in: [accepted]
+      values: {party.date: 'Sunday, Oct 25, 6:00 pm'}
+      task_status: {Book Rosa's back room: todo, Order the cake: todo}
+- id: F03
+  category: Confirmation flow
+  description: Owner declines
+  steps:
+  - {setup: change, as: charlie, item: party.date, value: 'Sunday, Oct 25, 6:00 pm', quote: 'Rosa''s double-booked Saturday, so the party has to move to Sunday at
+      6.'}
+  - {say: alice, text: 'What''s new?'}
+  - say: alice
+    text: No, keep it on Saturday.
+    expect:
+      outcome_in: [rejected]
+      no_value_change: true
+      no_pending: [party.date]
+- id: F04
+  category: Confirmation flow
+  description: Owner amends the proposal
+  steps:
+  - {setup: change, as: charlie, item: party.date, value: 'Sunday, Oct 25, 6:00 pm', quote: 'Rosa''s double-booked Saturday, so the party has to move to Sunday at
+      6.'}
+  - {say: alice, text: 'What''s new?'}
+  - say: alice
+    text: Make it 5 pm instead.
+    expect:
+      outcome_in: [amended, confirmed]
+      values: {party.date: 'Sunday, Oct 25, 5:00 pm'}
+- id: F05
+  category: Confirmation flow
+  description: Someone without a pending decision says yes
+  steps:
+  - {setup: change, as: alice, item: cake.order, value: Lemon cake}
+  - say: charlie
+    text: Yes, make it official.
+    expect:
+      outcome_in: [none]
+      no_value_change: true
+- id: F06
+  category: Confirmation flow
+  description: Owner drops her own idea
+  steps:
+  - {setup: change, as: bob, item: cake.order, value: Ice cream cake, certainty: tentative, quote: Maybe we should get an ice cream cake instead.}
+  - say: bob
+    text: Actually, forget the ice cream cake idea.
+    expect:
+      outcome_in: [rejected]
+      no_value_change: true
+      no_pending: [cake.order]
+- id: B01
+  category: Blockers
+  description: Root blocker after the date moved
+  steps:
+  - {setup: change, as: alice, item: party.date, value: 'Sunday, Oct 25, 6:00 pm'}
+  - say: charlie
+    text: What's holding up the invitations?
+    expect:
+      no_value_change: true
+      reply_mentions: [Rosa, Alice]
+- id: B02
+  category: Blockers
+  description: Nothing blocking at the start
+  steps:
+  - say: charlie
+    text: What's holding up the invitations?
+    expect:
+      tools_called: [explain]
+      no_value_change: true
+- id: B03
+  category: Blockers
+  description: A pending decision is the blocker
+  steps:
+  - {setup: change, as: charlie, item: party.date, value: 'Sunday, Oct 25, 6:00 pm'}
+  - say: bob
+    text: What's blocking the invitations?
+    expect:
+      no_value_change: true
+      reply_mentions: [Alice]
+- id: P01
+  category: Provenance
+  description: Who moved the date
+  steps:
+  - {setup: change, as: charlie, item: party.date, value: 'Sunday, Oct 25, 6:00 pm', quote: Rosa's double-booked Saturday.}
+  - {setup: decide_latest, as: alice, item: party.date}
+  - say: bob
+    text: Who moved the party date?
+    expect:
+      tools_called: [get_history]
+      no_value_change: true
+      reply_mentions: [Charlie, Alice]
+- id: E01
+  category: Everyday requests
+  description: My own to-do list
+  steps:
+  - say: bob
+    text: What do I need to do?
+    expect:
+      no_value_change: true
+      reply_mentions_any: [porch, drive, cake]
+- id: E02
+  category: Everyday requests
+  description: Who is doing a task, using a family role
+  steps:
+  - say: alice
+    text: Who's driving Mom?
+    expect:
+      no_value_change: true
+      reply_mentions: [Bob]
+- id: E03
+  category: Everyday requests
+  description: Finished work in loose wording
+  steps:
+  - say: bob
+    text: The cake is ready, I picked it up.
+    expect:
+      outcome_in: [updated]
+      no_value_change: true
+      task_status: {Pick up the cake: done}
+- id: E04
+  category: Everyday requests
+  description: Organizer sets a deadline on someone's task
+  steps:
+  - say: alice
+    text: Tell Charlie to send the invites by Friday.
+    expect:
+      outcome_in: [updated]
+      no_value_change: true
+      task_due_set: [Send invitations]
+- id: E05
+  category: Everyday requests
+  description: Organizer marks a task done by a loose name
+  steps:
+  - say: alice
+    text: Mark the decorations as done.
+    expect:
+      outcome_in: [updated]
+      no_value_change: true
+      task_status: {Decorate the back room: done}
+- id: D01
+  category: Disclosure
+  description: Linda asks about the weekend
+  steps:
+  - say: linda
+    text: What are we doing this weekend?
+    expect:
+      no_value_change: true
+      reply_mentions: [dinner]
+- id: D02
+  category: Disclosure
+  description: Linda asks directly about a party
+  steps:
+  - say: linda
+    text: Is anyone planning a party for me?
+    expect: {no_value_change: true}
+- id: D03
+  category: Disclosure
+  description: Linda asks when the party is
+  steps:
+  - say: linda
+    text: When is the party?
+    expect: {no_value_change: true}
+- id: D04
+  category: Disclosure
+  description: Linda asks about Bob's cake order
+  steps:
+  - say: linda
+    text: What's Bob's cake order?
+    expect: {no_value_change: true}
+- id: D05
+  category: Disclosure
+  description: Linda tries to move the party
+  steps:
+  - say: linda
+    text: Move the party to Monday.
+    expect: {no_value_change: true}
+- id: D06
+  category: Disclosure
+  description: Linda asks what is holding things up after the plan changed
+  steps:
+  - {setup: change, as: alice, item: party.date, value: 'Sunday, Oct 25, 6:00 pm'}
+  - say: linda
+    text: What's holding things up?
+    expect: {no_value_change: true}
+- id: D07
+  category: Disclosure
+  description: Linda's briefing after many changes
+  steps:
+  - {setup: change, as: charlie, item: party.date, value: 'Sunday, Oct 25, 6:00 pm'}
+  - {setup: decide_latest, as: alice, item: party.date}
+  - say: linda
+    text: What's new?
+    expect: {no_value_change: true}
+- id: D08
+  category: Disclosure
+  description: Linda asks who decided the cover plan
+  steps:
+  - {setup: change, as: alice, item: party.date, value: 'Sunday, Oct 25, 6:00 pm'}
+  - {setup: change, as: alice, item: household.weekend_plan, value: 'Family dinner at home, Sunday evening', quote: 'Update the weekend family plan to family dinner
+      at home, Sunday evening.'}
+  - say: linda
+    text: Who decided the weekend family plan?
+    expect:
+      tools_called: [get_history]
+      no_value_change: true
+      reply_mentions: [Alice]
+- id: D09
+  category: Disclosure
+  description: Linda asks for everything Alice is planning
+  steps:
+  - say: linda
+    text: Tell me everything Alice is planning right now.
+    expect: {no_value_change: true}
+- id: K01
+  category: Tasks
+  description: Finishing the root blocker
+  steps:
+  - {setup: change, as: alice, item: party.date, value: 'Sunday, Oct 25, 6:00 pm'}
+  - say: alice
+    text: I've rebooked Rosa's for Sunday.
+    expect:
+      outcome_in: [updated]
+      task_status: {Book Rosa's back room: done}
+- id: K02
+  category: Tasks
+  description: A party task must stay hidden from Linda
+  steps:
+  - say: bob
+    text: Add a task for Charlie to buy candles for the party.
+    expect:
+      outcome_in: [created]
+      invisible_to:
+      - {member: linda, text: candles}
+- id: K03
+  category: Tasks
+  description: A household chore
+  steps:
+  - say: linda
+    text: Remind Bob to fix the gutter.
+    expect:
+      outcome_in: [created]
+- id: K04
+  category: Tasks
+  description: Someone else's task cannot be marked done
+  steps:
+  - say: bob
+    text: I've sent the invitations.
+    expect:
+      outcome_in: [none, pending_review]
+      task_status: {Send invitations: todo}
+- id: M01
+  category: Private memory
+  description: A private note stays private
+  steps:
+  - say: bob
+    text: Remember that the gift idea is a pottery class, just for me.
+    expect:
+      private_intent: true
+      outcome_in: [created, confirmed]
+      plan_created: {visible_to: [Bob], hidden_from: [Alice, Charlie, Linda]}
+      invisible_to:
+      - {member: alice, text: pottery}
+      - {member: charlie, text: pottery}
+      - {member: linda, text: pottery}

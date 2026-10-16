@@ -1,0 +1,24 @@
+id: trip
+name: Trip
+version: '2'
+description: >
+  A trip of any length within the selected planning window. Add the actual route,
+  lodging, daily activities and packing tasks. No destination or itinerary is assumed.
+  The optional weekend_cottage preset contains synthetic demo data.
+days: 7
+item_types:
+  - {name: activity, label: Activity, shape: activity, policy: participants, default_minutes: 120}
+  - {name: task, label: Task, shape: task, policy: owner}
+  - {name: packing, label: Packing item, shape: task, policy: open, intent_terms: [packing list, 行李清单]}
+  - {name: detail, label: Detail, shape: detail, policy: owner}
+conditions:
+  - {name: available_from, check: earliest_start, label: earliest daily start}
+  - {name: latest_end, check: latest_end, label: latest daily finish}
+  - {name: budget, check: max_total_cost, label: total trip budget}
+  - {name: busy, check: unavailable_window, label: busy time}
+  - {name: prefer_keep, check: prefer_keep, label: keep an activity, soft: true}
+search: {time_shifts: [60, -60, 120, -120], max_options: 5}
+starter:
+  details:
+    - {key: trip.destination, label: Destination, value_kind: place}
+    - {key: trip.meeting_point, label: Meeting point, value_kind: place}
