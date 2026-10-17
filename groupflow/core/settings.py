@@ -71,6 +71,9 @@ class ServerSettings:
     # json: one JSON body per MCP request (simplest for proxies). sse: streamed responses, which also let the server ask the person a
     # follow-up through the host (MCP elicitation) when the host supports it.
     mcp_responses: str = field(default_factory=lambda: env("GROUPFLOW_MCP_RESPONSES", "json"))
+    # Automatic check-ins on plans that went quiet while something waits: rules (the server's own judgement), model (a language model
+    # reviews and words them, within what the server allows; uses the AGENT_PROVIDER settings) or off.
+    checkins: str = field(default_factory=lambda: env("GROUPFLOW_CHECKINS", "rules"))
 
 
 @dataclass(frozen=True)

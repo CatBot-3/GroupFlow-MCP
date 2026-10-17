@@ -8,7 +8,7 @@ export interface ChatMessage {
   id: number; room: string; author: string; author_name: string; text: string; at: string;
   meta: {
     for?: string; in_reply_to?: number; calls?: ToolNote[]; ms?: number; error?: string;
-    followup?: { id: string; question: string; options: string[] }; notice?: boolean; from?: string; plan?: string;
+    followup?: { id: string; question: string; options: string[] }; notice?: boolean; kind?: string; from?: string; plan?: string;
   };
 }
 export interface Room { id: string; title: string; kind: 'group' | 'dm'; members: ChatMember[]; your_role?: string; last: ChatMessage | null }

@@ -70,6 +70,7 @@ export function GroupStage({ scenario, transcripts, echo, tick, resetKey, onRese
   const [place, setPlace] = useState(scenario.places[0]?.id ?? '');
   const [closeDay, setCloseDay] = useState<number | null>(null);
   const [stage, setStage] = useState(scenario.stages[0] ?? '');
+  const [skipNote, setSkipNote] = useState<string | null>(null);
   const viewAsRef = useRef(viewAs);
   viewAsRef.current = viewAs;
   const planRef = useRef(planId);
@@ -366,6 +367,24 @@ export function GroupStage({ scenario, transcripts, echo, tick, resetKey, onRese
         <button type="button" className="ghost" onClick={async () => { await api.forget(null); onChanged(); }}
           title="Wipes Alexa's chat history for everyone. The plans stay, because they live on the GroupFlow server.">Clear Alexa's chat memory</button>
       </div>
+      <div className="console-row">
+        <button type="button" className="ghost" title="Runs what the server's worker does after two days with no progress: reminders due by then go out, and plans stuck waiting on someone get a check-in. The clock itself does not move."
+          onClick={async () => {
+            try {
+              const r = await api.skipAhead(48, scenario.id);
+              const rounds = r.checkins.map((c) => {
+                const people = c.sent.map((x) => x.name);
+                return c.reviewed ? `${c.plan}: quiet, but nothing stuck` : `${c.plan}: checked in with ${people.join(', ') || 'nobody'}`;
+              });
+              const reminders = r.reminders_sent ? `${r.reminders_sent} reminder${r.reminders_sent === 1 ? '' : 's'} sent. ` : '';
+              setSkipNote(`${reminders}${rounds.length ? rounds.join('; ') + ` (${r.reviewer}).` : 'No plan is stuck waiting on anyone.'}`);
+              onChanged();
+            } catch (err) {
+              setError((err as Error).message);
+            }
+          }}>Skip ahead two quiet days</button>
+        <span className="console-note" aria-live="polite">{skipNote ?? 'Reminders and automatic check-ins, as the server would send them.'}</span>
+      </div>
     </details>
   );
 
@@ -375,7 +394,7 @@ export function GroupStage({ scenario, transcripts, echo, tick, resetKey, onRese
       {presentation && <OutcomeStrip plan={board?.plans.find((p) => p.id === shownPlan)} memoryOpen={memoryOpen} onMemory={() => setMemoryOpen((v) => !v)} />}
       {!presentation && <div className="lab-memory-control"><button type="button" className="ghost" disabled={viewAs === 'all'} onClick={() => setMemoryOpen((v) => !v)} aria-expanded={memoryOpen && viewAs !== 'all'}>{memoryOpen && viewAs !== 'all' ? 'Hide authorized memory' : 'Explore authorized MCP memory'}</button><span>{viewAs === 'all' ? 'Choose a person in the plan view first. The admin inspector is never used for this graph.' : 'The graph uses the selected person’s MCP session.'}</span></div>}
       {error && <div className="banner" role="alert">{error}</div>}
-      {memoryOpen && viewAs !== 'all' && <MemoryExplorer key={`${viewAs}:${shownPlan}`} member={viewAs} group={scenario.id} plan={shownPlan} tick={tick} />}
+      {memoryOpen && viewAs !== 'all' && <MemoryExplorer key={`${viewAs}:${shownPlan}`} member={viewAs} group={scenario.id} plan={shownPlan} planTitle={planTabs.find((p) => p.id === shownPlan)?.title} tick={tick} />}
       <main className={`main group ${presentation ? 'focused-stage' : ''}`}>
         <section className="echoes" aria-label={`${scenario.label}: Echo devices and each person's own GroupFlow page`}>
           {presentation && <nav className="speaker-picker" aria-label="Demo speaker">{members.map((m) => <button type="button" key={m.id} className={viewAs === m.id ? 'selected' : ''} onClick={() => setViewAs(m.id)}><span className="speaker-dot" style={{ background: m.color }} />{m.name}</button>)}</nav>}

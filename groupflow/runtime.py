@@ -5,6 +5,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
+from groupflow.checkins import build_checkins
 from groupflow.core.db import Db
 from groupflow.core.identity import Identity
 from groupflow.core.settings import ServerSettings
@@ -58,7 +59,9 @@ def build_runtime(settings: ServerSettings | None = None, db_path: str | None = 
         engine.reset_rate_limits()
 
     services = Services(db=db, identity=identity, engine=engine, on_call=on_call, on_reset=reset)
-    worker = Worker(engine, interval_s=worker_interval_s)
+    checkins = build_checkins(engine, settings.checkins)
+    services.extra["checkins"] = checkins
+    worker = Worker(engine, interval_s=worker_interval_s, checkins=checkins)
     app = create_server_app(services, host=settings.host, allowed_origins=settings.allowed_origins, demo_admin=settings.demo_admin,
                             admin_key=settings.admin_key, worker=worker, responses=settings.mcp_responses)
     return Runtime(db=db, services=services, worker=worker, app=app, world=world)

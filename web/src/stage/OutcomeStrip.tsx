@@ -7,11 +7,13 @@ export function OutcomeStrip({ plan, onMemory, memoryOpen }: { plan: PlanView | 
   const total = c?.required ?? summary?.required ?? 0;
   const remaining = c ? c.required - c.satisfied : summary ? summary.required - summary.satisfied : null;
   const version = plan?.working ?? plan?.agreed;
+  const changed = plan ? summary?.changed_activity_ids.length ?? version?.changed_activity_ids?.length ?? 0 : null;
+  const unsent = !!plan?.working && !c;
   return <section className="outcome-strip" aria-label="Plan changes and confirmation effort">
     <div className="outcome-title"><span>Friday with friends</span><h1>Plans change. Keep everyone in agreement.</h1></div>
-    <div className="outcome-stat"><strong>{plan ? summary?.changed_activity_ids.length ?? version?.changed_activity_ids?.length ?? 0 : '—'}</strong><span>activities changed</span></div>
+    <div className="outcome-stat"><strong>{changed ?? '—'}</strong><span>{changed === 1 ? 'activity changed' : 'activities changed'}</span></div>
     <div className="outcome-stat kept"><strong>{plan ? kept : '—'}</strong><span>confirmations kept</span></div>
-    <div className="outcome-stat"><strong>{remaining ?? '—'}</strong><span>answers still needed</span></div>
+    <div className="outcome-stat"><strong>{unsent ? 'Not sent' : remaining ?? '—'}</strong><span>{unsent ? 'nobody asked yet' : remaining === 1 ? 'answer still needed' : 'answers still needed'}</span></div>
     <button type="button" className="primary memory-toggle" onClick={onMemory} aria-expanded={memoryOpen}>{memoryOpen ? 'Back to the plan' : 'See how AI uses memory'}</button>
     {kept > 0 && total > 0 && <p className="outcome-comparison">Keep {kept} valid confirmations. Request {total - kept} new answers instead of all {total} ({Math.round(kept / total * 100)}% fewer requests). Same-plan policy comparison in this synthetic demo; not measured time savings.</p>}
   </section>;

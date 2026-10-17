@@ -38,6 +38,13 @@ const TOOL_WORDS: Record<string, string> = {
   commit_plan: 'commit',
   explain: 'explained',
   get_history: 'history',
+  create_group: 'started group',
+  invite_to_group: 'made invite',
+  notify_people: 'told people',
+  ask_followup: 'asked first',
+  answer_followup: 'acted on answer',
+  set_reminder: 'set reminder',
+  review_plan: 'checked progress',
 };
 
 const QUIET = new Set(['get_context', 'search_plan', 'explain', 'get_history']);

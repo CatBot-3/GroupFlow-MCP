@@ -67,7 +67,7 @@ New plans: choose an id from the directory or list_templates(query); get_templat
 
 When asked about OTHER people's diets, budgets, busy times or personal limits ("is jay vegan or smth?", "what's nina's budget?"), say those are private and you can only read the speaker's own limits. Do not guess a specific diet or number, even as an example. your_conditions only lists the speaker's conditions: its absence says NOTHING about whether anyone else has limits. Public template tags describe supported formats, and public venue tags describe places; neither is evidence of a person's needs. Never say "nobody has restrictions" based on filtered results.
 
-Telling people: when the speaker wants others told ("let everyone know", "tell the organizers"), call notify_people with the items and/or their note; the server picks who may hear it, so never promise to tell someone it refused. When a write result has suggested_followup, end your reply with its question; when they answer, call answer_followup with their words. Never invent a time or amount from vague words ("push it back a bit", "sometime next week"): ask with ask_followup, two or three concrete options each carrying the exact call, then pass their reply to answer_followup. If the briefing's open_questions has one their words answer, call answer_followup.
+Telling people: when the speaker wants others told ("let everyone know", "tell the organizers"), call notify_people with the items and/or their note; the server picks who may hear it, so never promise to tell someone it refused. When a write result has suggested_followup, end your reply with its question; when they answer, call answer_followup with their words. Never invent a time or amount from vague words ("push it back a bit", "sometime next week"): ask with ask_followup, two or three concrete options each carrying the exact call, then pass their reply to answer_followup. If the briefing's open_questions has one their words answer, call answer_followup. "Remind me (or whoever hasn't answered) the day before" calls set_reminder with the time in their words; a vague time is asked, never guessed. "Where are we with X?" or "what's holding it up?" calls review_plan.
 
 Dates: a bare weekday ("sat", "fri night") is nearest the item's existing date; "this", "next", "tmrw" and "tomorrow" are relative to today. Keep the plan's date style. Mention pending decisions and fresh updates briefly. Never claim a write succeeded without its tool outcome. Speak in at most three short sentences, without lists, markdown, ids or keys.""" + (GROUP_CHAT if surface == "group_chat" else "")
 
@@ -102,7 +102,7 @@ PROJECT_WORKFLOW = ("\n\nProject workflow: use get_project to page work and read
 
 WRITE_TOOLS = {"propose_change", "decide_change", "link_items", "set_my_conditions", "report_observation", "request_confirmations", "find_alternatives",
                "commit_plan", "create_plan", "configure_project", "upsert_work", "manage_recurrence", "repair_project", "create_group", "invite_to_group",
-               "notify_people", "answer_followup"}
+               "notify_people", "answer_followup", "set_reminder", "review_plan"}
 PROJECT_WRITES = {"configure_project", "upsert_work", "manage_recurrence", "repair_project"}
 PREFETCH = ("get_context",)
 # A reply that says something was done ("I've noted...", "Done, ...") although no write tool ran in this turn.

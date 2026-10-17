@@ -256,3 +256,41 @@ async def test_telling_people_reaches_their_private_threads_and_a_question_gets_
     sent = await alice.say("dm:alice", "can we push the party back a bit")
     reply = await wait_for_reply(alice, "dm:alice", sent["message"]["id"])
     assert reply["meta"]["followup"]["options"] == ["7 pm", "7:30 pm"] and reply["meta"]["for"] == "alice"
+
+
+async def open_thread(p: Person, kind: str, timeout: float = 5) -> list[str]:
+    """Open the person's live stream (the chat relays what the server queued for them on connect) and collect frames of one kind."""
+    got: list[str] = []
+    async with p.c.stream("GET", "/api/chat/stream", headers=p.h, timeout=10) as r:
+        try:
+            async with asyncio.timeout(timeout):
+                async for line in r.aiter_lines():
+                    if line.startswith("data:") and (data := json.loads(line[5:])).get("meta", {}).get("kind") == kind:
+                        got.append(data["text"])
+        except TimeoutError:
+            pass
+    return got
+
+
+async def test_reminders_and_check_ins_reach_the_private_thread_once_through_the_persons_own_session(chat):
+    bob = await sign_in(chat, "bob", "bob-demo")
+    engine = chat.h.engine
+    rid = engine.set_reminder("alice", when="in 2 hours", plan="home", audience=["Bob"], note="porch light")["id"]
+    engine.db.run("UPDATE reminders SET due_at = ? WHERE id = ?", "2000-01-01T00:00:00.000Z", rid)
+    engine.deliver_due_reminders()  # the server's worker may already have sent it; either way it goes out once
+    assert engine.db.scalar("SELECT status FROM reminders WHERE id = ?", rid) == "sent"
+    assert await open_thread(bob, "reminder", timeout=1.5) == ['Reminder from Alice about Home. Alice says: "porch light"']
+    assert await open_thread(bob, "reminder", timeout=1.0) == []  # never posted twice
+    thread = (await bob.get("/api/chat/rooms/dm:bob/messages")).json()["messages"]
+    assert [m["author"] for m in thread if m["meta"].get("kind") == "reminder"] == ["assistant"]
+
+
+async def test_skip_ahead_runs_check_ins_and_posts_them_to_private_threads(chat):
+    dana = await sign_in(chat, "dana", "dana-demo")
+    await chat.post("/api/reset", json={"scenario": "friends:awaiting"})
+    got = await chat.post("/api/demo/skip-ahead", json={"hours": 48, "group": "friends"})
+    assert got.status_code == 200, got.text
+    [round_] = got.json()["checkins"]
+    assert round_["plan"] == "Friday dinner" and sorted(s["name"] for s in round_["sent"]) == ["Alice", "Bob", "Chen", "Dana"]
+    nudges = await open_thread(dana, "nudge", timeout=1.5)
+    assert len(nudges) == 1 and nudges[0].startswith("Check-in on Friday dinner")

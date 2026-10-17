@@ -24,7 +24,7 @@ from typing import Any
 
 from groupflow.core.errors import DomainError
 
-from .core import STATUS_WORDS, UNSET, Row, Scope, _names
+from .core import ASSISTANT, STATUS_WORDS, UNSET, Row, Scope, _names
 
 NOTIFY_LEVELS = ("everyone", "organizers", "participants", "owners", "needs_answer")
 LEVEL_WORDS = {"all": "everyone", "everybody": "everyone", "the_group": "everyone", "group": "everyone", "organizer": "organizers",
@@ -39,7 +39,7 @@ OFFER_TTL = timedelta(minutes=10)  # an offer the assistant may not have asked g
 FOLLOWUP_OPEN_MAX = 3
 FOLLOWUP_SUGGESTED_MAX = 5
 FOLLOWUP_TOOLS = ("notify_people", "propose_change", "decide_change", "request_confirmations", "find_alternatives", "commit_plan",
-                  "create_plan", "report_observation", "set_my_conditions")
+                  "create_plan", "report_observation", "set_my_conditions", "set_reminder")
 YES = {"yes", "y", "yeah", "yea", "yep", "yup", "ya", "ye", "sure", "ok", "okay", "k", "do it", "go ahead", "please", "yes please", "sounds good",
        "go for it", "definitely", "absolutely", "of course", "why not"}
 NO = {"no", "n", "nah", "nope", "no thanks", "dont", "don't", "skip", "skip it", "not now", "leave it", "never mind", "nevermind", "no need"}
@@ -80,7 +80,7 @@ class Notices:
         try:
             result = super().propose_change(actor_id, *args, **kwargs)  # type: ignore[misc]
         except DomainError as err:
-            if not args:
+            if not args and ASSISTANT.get():
                 self._clarify_plan(actor_id, err, "propose_change", kwargs)
             raise
         return self._offer_to_tell(actor_id, result, marker)
@@ -278,8 +278,8 @@ class Notices:
                                m, p["id"], text, stale):
                     skipped.append({"id": m, "name": self.name(m), "reason": "already told"})
                     continue
-                self._notify([m], p, "notice", text)
-                told.append({"id": m, "name": self.name(m), "role": role, "text": text})
+                notice = self._notify([m], p, "notice", text)[0]
+                told.append({"id": m, "name": self.name(m), "role": role, "text": text, "notice_id": notice})
             if not told and not skipped:
                 raise DomainError("NOT_FOUND", "Nobody else matches that in this plan, so nobody was told.")
             names = [t["name"] for t in told]
@@ -298,7 +298,8 @@ class Notices:
         try:
             return self.db.tx(run)
         except DomainError as err:
-            self._clarify_plan(actor_id, err, "notify_people", {"plan": plan, "about": about, "audience": audience, "note": note or None})
+            if ASSISTANT.get():
+                self._clarify_plan(actor_id, err, "notify_people", {"plan": plan, "about": about, "audience": audience, "note": note or None})
             raise
 
     # ================================================================ "should I tell the others?" after a decision
@@ -309,7 +310,8 @@ class Notices:
     def _offer_to_tell(self, actor_id: str, result: Any, marker: int) -> Any:
         """After a decision that took effect, offer to tell the people in the plan who did not hear about it. One offer per plan stays
         pending: a second decision soon after widens it (same id), so a single yes tells everyone about both."""
-        if result is None or getattr(result, "outcome", None) not in ("confirmed", "accepted", "amended") or not getattr(result, "item", None):
+        if not ASSISTANT.get() or result is None or getattr(result, "outcome", None) not in ("confirmed", "accepted", "amended") \
+                or not getattr(result, "item", None):
             return result
         item = self._item(result.item)
         if item is None or item["shape"] != "detail":
@@ -491,11 +493,12 @@ class Notices:
         return [r for r in rows if not r["plan_id"] or scope.sees_plan(r["plan_id"])]
 
     def _open_questions(self, scope: Scope) -> list[dict[str, Any]]:
-        """Questions waiting for the speaker, newest first: ones the assistant asked, and offers the server made (which it may not have)."""
+        """Questions the assistant asked the speaker that still wait for an answer, newest first. A server offer it may never have asked is
+        not listed (answer_followup still finds it by id, or by matching a reply like "yeah"), so a briefing never claims a question nobody
+        heard."""
         return [{"id": r["id"], "question": r["question"], "options": [o["label"] for o in json.loads(r["options_json"])],
-                 "plan": scope.plans[r["plan_id"]]["title"] if r["plan_id"] else None, "kind": r["kind"], "asked": r["status"] == "open",
-                 "since": r["created_at"]}
-                for r in self._followup_rows(scope)]
+                 "plan": scope.plans[r["plan_id"]]["title"] if r["plan_id"] else None, "since": r["created_at"]}
+                for r in self._followup_rows(scope, ("open",))]
 
     @staticmethod
     def _match_option(options: list[dict[str, Any]], choice: str) -> dict[str, Any] | None:
@@ -612,4 +615,6 @@ class Notices:
             return dump(self.report_observation(actor_id, a.get("kind", ""), **keep("place", "plan", "day", "start", "end", "price", "note")))
         if tool == "set_my_conditions":
             return dump(self.set_my_conditions(actor_id, list(a.get("conditions") or []), **keep("plan", "quote")))
+        if tool == "set_reminder":
+            return self.set_reminder(actor_id, **keep("when", "plan", "about", "audience", "note"))  # type: ignore[attr-defined]
         raise DomainError("INVALID_ARGUMENT", f"{tool} cannot be run from a follow-up.")

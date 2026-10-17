@@ -50,6 +50,10 @@ UNSET: Any = object()
 LISTENERS: contextvars.ContextVar[tuple[str, frozenset[str]] | None] = contextvars.ContextVar("groupflow_listeners", default=None)
 """(speaker, everyone who will hear the reply) for the current MCP call, set by the server from the host's declaration."""
 
+ASSISTANT: contextvars.ContextVar[bool] = contextvars.ContextVar("groupflow_assistant", default=False)
+"""True while the engine serves an assistant's MCP tool call. Server offers and clarifying questions are made only then: a change made
+while seeding a world, on a person's own page or by a fixture has no conversation to ask the question in."""
+
 STATUS_WORDS = {"todo": "not started", "in_progress": "in progress", "done": "done"}
 POLICY_WORDS = {"owner": "owner", "open": "anyone", "participants": "everyone taking part"}
 Row = dict[str, Any]
@@ -396,10 +400,13 @@ class Core:
             json.dumps(payload or {}),
         )
 
-    def _notify(self, member_ids: list[str], plan: Row | None, kind: str, text: str, space_id: str | None = None) -> None:
+    def _notify(self, member_ids: list[str], plan: Row | None, kind: str, text: str, space_id: str | None = None) -> list[str]:
+        ids = []
         for m in dict.fromkeys(member_ids):
+            ids.append(self.new_id("n"))
             self.db.run("INSERT INTO notifications (id, member_id, plan_id, space_id, kind, text, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                        self.new_id("n"), m, plan["id"] if plan else None, space_id or (plan["space_id"] if plan else None), kind, text, self.ts())
+                        ids[-1], m, plan["id"] if plan else None, space_id or (plan["space_id"] if plan else None), kind, text, self.ts())
+        return ids
 
     def _insert_fact(self, item: Row, value: str, certainty: str, status: str, by: str, utterance_id: str | None, decided: bool) -> Row:
         fid = self.new_id("f")
@@ -1369,7 +1376,7 @@ class Core:
         details = [self._detail_view(scope, i) for i in items if i["shape"] == "detail"]
         tasks = [self._task_view(scope, i) for i in items if i["shape"] == "task"]
         view = PlanView(
-            id=plan["id"], title=plan["title"], kind=t.name, group=group["name"] if group else plan["group_id"],
+            id=plan["id"], title=plan["title"], kind=t.name, group=group["name"] if group else plan["group_id"], group_id=plan["group_id"],
             visible_to=[self.name(m) for m in self.plan_audience(plan)], organizer=self.name(plan["organizer_id"]),
             you_organize=self.is_organizer(plan, scope.member_id), dates=dates_text(plan["start_date"], plan["days"]),
             status=plan["status"], status_reason=plan["status_reason"], version=plan["aggregate_version"], details=details, tasks=tasks,

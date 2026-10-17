@@ -206,7 +206,20 @@ async def capture() -> str:
             "change itself flags it for them, and there is nobody left to offer to tell.",
             show_body=_result_view)
 
-        rec.parts += ["## 6. Refusals", ""]
+        rec.parts += ["## 6. Reminders and checking progress", ""]
+        await rec.post("tools/call set_reminder with a vague time", {"jsonrpc": "2.0", "id": 17, "method": "tools/call", "params": {
+            "name": "set_reminder", "arguments": {"when": "later", "about": "cake.order"}}}, h,
+            "\"Later\" names no time, so nothing is scheduled. The server keeps a question with concrete times, each carrying the same reminder "
+            "at that time.", show_body=_result_view)
+        await rec.post("tools/call answer_followup picks a time", {"jsonrpc": "2.0", "id": 18, "method": "tools/call", "params": {
+            "name": "answer_followup", "arguments": {"choice": "tomorrow at 9am"}}}, h,
+            "The reminder is set for the time Alice picked. Who receives a reminder addressed by role is worked out when it goes off, and its "
+            "facts are read from the plan then.", show_body=_result_view)
+        await rec.post("tools/call review_plan", {"jsonrpc": "2.0", "id": 19, "method": "tools/call", "params": {
+            "name": "review_plan", "arguments": {"plan": "friday_dinner"}}}, h,
+            "What the plan is waiting on, from whom and for how long: the same report the server's automatic check-ins use.", show_body=_result_view)
+
+        rec.parts += ["## 7. Refusals", ""]
         await rec.post("No bearer token", init, {}, "Identity comes only from the token. Without one the server answers 401 with a WWW-Authenticate challenge.")
         await rec.post("Browser request from an unknown origin", init, {**alice, "origin": "https://evil.example"}, "Origin validation (DNS-rebinding and cross-site protection).")
         await rec.post("Another member reusing Alice's session", {"jsonrpc": "2.0", "id": 9, "method": "tools/list"},
@@ -215,7 +228,7 @@ async def capture() -> str:
         await rec.post("A tool that does not exist", {"jsonrpc": "2.0", "id": 10, "method": "tools/call", "params": {"name": "approve_plan", "arguments": {"member": "dana"}}}, h,
                        "There is no tool that approves, declines or withdraws for anyone.")
 
-        rec.parts += ["## 7. Version negotiation with the official SDK client", ""]
+        rec.parts += ["## 8. Version negotiation with the official SDK client", ""]
         from mcp import Client
         from mcp.client.streamable_http import streamable_http_client
 

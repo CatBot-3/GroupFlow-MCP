@@ -129,6 +129,8 @@
   .chat-body.own-open .chat-own { display: flex; order: -1; }
 }
 
-.chat-notice-tag { margin-left: 6px; padding: 0 6px; border-radius: var(--r-pill); background: var(--highlight-soft); color: var(--highlight-ink); font-size: 0.75rem; }
+.chat-notice-tag { margin-left: 6px; padding: 0 6px; border-radius: var(--r-pill); background: var(--highlight-soft); color: var(--highlight-ink); font-size: 0.75rem;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-meta strong { flex-shrink: 0; }
 .chat-quick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .chat-quick button { padding: 4px 12px; border-radius: var(--r-pill); font-size: 0.85rem; }

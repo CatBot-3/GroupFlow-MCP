@@ -27,7 +27,10 @@ def memory_map(context: dict, member: str) -> dict[str, Any]:
         node('group:' + g['id'], 'group', g['name'], g, root, 'member of', 'get_context.groups')
 
     def parent_group(plan: dict) -> str:
-        match = next((g for g in context.get('groups', []) if g['id'] == plan.get('group_id') or g['name'] == plan.get('group')), None)
+        # By id: two groups can share a name ("Flatmates"), and a plan must hang under its own.
+        groups = context.get('groups', [])
+        match = next((g for g in groups if g['id'] == plan.get('group_id')), None) if plan.get('group_id') else \
+            next((g for g in groups if g['name'] == plan.get('group')), None)
         return 'group:' + match['id'] if match else root
 
     for p in context.get('plan_index', []):

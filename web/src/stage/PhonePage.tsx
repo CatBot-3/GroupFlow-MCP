@@ -26,6 +26,7 @@ interface Props {
 
 const DECISION_WORDS: Record<string, string> = { approved: 'Confirmed', rejected: 'Declined', conditional: 'Confirmed with a condition' };
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const NOTE_KIND: Record<string, string> = { reminder: 'Reminder', nudge: 'Check-in', notice: 'Update' };
 
 type Spec = InboxPlan['conditions'][number];
 
@@ -145,6 +146,8 @@ export function PhonePage({ member, signedIn, inbox, groupPlanIds, busy, error, 
   const active = conds.filter((c) => c.status === 'active');
   const titles = new Set(plans.map((p) => p.title));
   const receipts = (inbox?.receipts ?? []).filter((r) => titles.has(r.plan));
+  const currentReceipts = receipts.filter((r) => r.current !== false);
+  const oldReceipts = receipts.filter((r) => r.current === false);
   const budgetOf = (planId: string) => plans.find((p) => p.id === planId)?.conditions.find((c) => c.check === 'max_total_cost') ?? null;
   const busyPlans = plans.filter((p) => p.status !== 'ACTIVE');
   const notes = (inbox?.notifications ?? []).filter((n) => inGroup(n.plan_id));
@@ -219,7 +222,7 @@ export function PhonePage({ member, signedIn, inbox, groupPlanIds, busy, error, 
         <>
           <h3 className="phone-h">My answers</h3>
           <ul className="phone-list compact">
-            {receipts.slice(0, 4).map((r) => (
+            {currentReceipts.slice(0, 4).map((r) => (
               <li key={r.receipt_id} className={r.status !== 'valid' ? 'muted' : ''}>
                 <span className="rev">{r.revision}</span> {DECISION_WORDS[r.decision] ?? r.decision}: {r.text.split(' on ')[0]}
                 {r.status !== 'valid' ? <span className="tag">{r.status}</span> : (
@@ -227,7 +230,16 @@ export function PhonePage({ member, signedIn, inbox, groupPlanIds, busy, error, 
                 )}
               </li>
             ))}
+            {currentReceipts.length === 0 && <li className="phone-empty">None that count right now.</li>}
           </ul>
+          {oldReceipts.length > 0 && (
+            <details className="phone-older">
+              <summary>{oldReceipts.length} earlier {oldReceipts.length === 1 ? 'answer' : 'answers'} for replaced versions</summary>
+              <ul className="phone-list compact">
+                {oldReceipts.slice(0, 6).map((r) => <li key={r.receipt_id} className="muted"><span className="rev">{r.revision}</span> {DECISION_WORDS[r.decision] ?? r.decision}: {r.text.split(' on ')[0]}</li>)}
+              </ul>
+            </details>
+          )}
         </>
       )}
 
@@ -235,7 +247,7 @@ export function PhonePage({ member, signedIn, inbox, groupPlanIds, busy, error, 
         <>
           <h3 className="phone-h">Notifications</h3>
           <ul className="phone-list compact">
-            {notes.slice(-3).map((n) => <li key={n.id}>{n.text}</li>)}
+            {notes.slice(-3).map((n) => <li key={n.id}>{NOTE_KIND[n.kind ?? ''] && <span className="note-kind">{NOTE_KIND[n.kind ?? '']}</span>}{n.text}</li>)}
           </ul>
         </>
       )}

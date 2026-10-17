@@ -63,7 +63,19 @@
 .memory-heading h2 { font-size: 20px; margin: 0 0 5px; }
 .memory-heading p, .memory-note { font-size: 12px; color: var(--ink-2); margin: 6px 0 12px; }
 .memory-canvas { overflow-x: auto; }
-.memory-graph { display: block; width: 100%; min-width: 1055px; max-height: 335px; margin: 8px auto; }
+.memory-graph { display: block; width: 100%; max-width: 860px; margin: 8px auto; }
+.memory-bucket.empty rect { fill: #fafbf9; stroke-dasharray: 4 4; }
+.memory-bucket-list { display: none; }
+.memory-bucket-list button { display: flex; justify-content: space-between; gap: 10px; width: 100%; text-align: left; border: 1px solid #c7d5ce; border-radius: 9px; background: #f5f7f3; padding: 9px 12px; font-size: 13px; }
+.memory-bucket-list button.selected { background: #e6f2e8; border-color: #2f7a4e; }
+.memory-bucket-list span { color: var(--ink-2); font-size: 12px; }
+.memory-absent { margin: 0 0 10px; padding: 10px 12px; border-left: 3px solid var(--ink); background: #f4f6f2; font-size: 13px; }
+.memory-links { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 3px; color: var(--ink-2); }
+.memory-links span { display: inline-block; margin: 0 4px; padding: 0 6px; border-radius: var(--r-pill); background: #eef1ec; font-size: 11px; }
+@media (max-width: 640px) {
+  .memory-canvas { display: none; }
+  .memory-bucket-list { display: grid; gap: 6px; margin: 4px 0 12px; }
+}
 .memory-edge { fill: none; stroke: #829695; stroke-width: 1.5; color: #829695; }
 .memory-bucket { cursor: pointer; }
 .memory-bucket rect { fill: #f5f7f3; stroke: #c7d5ce; stroke-width: 1.5; }
@@ -87,7 +99,7 @@
 @media (max-width: 900px) {
   .main.group.focused-stage { grid-template-columns: minmax(0, 1fr); height: auto; }
   .focused-stage .echoes { height: 440px; }
-  .focused-stage > .board { min-height: 400px; max-height: 620px; }
+  .focused-stage > .board { min-height: 400px; max-height: none; }
   .outcome-strip { gap: 16px; }
   .outcome-title { flex-basis: 100%; }
   .memory-records { grid-template-columns: minmax(0, 1fr); }
@@ -350,7 +362,11 @@ a.ghost { color: var(--ink); text-decoration: none; display: inline-flex; align-
 .blocker-line { margin: -2px 0 8px; font-size: 13.5px; padding: 5px 10px; background: var(--highlight-soft); border-radius: 4px; }
 
 /* Task graph */
-.graph { position: relative; }
+.graph { position: relative; overflow-x: auto; padding-bottom: 4px; }
+.graph.narrow { overflow-x: visible; }
+.graph-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.graph-step { margin: 0 0 6px; font-size: 12px; font-weight: 720; color: var(--ink-2); text-transform: uppercase; letter-spacing: .04em; }
+.task-after { margin-top: 4px; font-size: 12px; color: var(--ink-2); }
 .graph-hint { margin: 0 0 8px; font-size: 12.5px; color: var(--ink-3); }
 .graph-edges { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
 .graph-edges path { fill: none; stroke-width: 1.6; }
@@ -449,6 +465,11 @@ a.ghost { color: var(--ink); text-decoration: none; display: inline-flex; align-
 .phone-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13px; }
 .phone-list.compact { gap: 3px; font-size: 12.5px; color: var(--ink-2); }
 .phone-list li.muted { color: var(--ink-3); }
+.phone-older { margin: 6px 0 0; font-size: 12px; color: var(--ink-3); }
+.phone-older summary { cursor: pointer; }
+.bookings li.cancelled { color: var(--ink-3); text-decoration: line-through; }
+.plan-updates { margin: 10px 0 0; font-size: 13px; color: var(--ink-2); }
+.plan-updates summary { cursor: pointer; }
 .phone-item { padding: 7px 9px; border-radius: 8px; background: #f6f8f6; }
 .phone-item.pending { background: var(--highlight-soft); box-shadow: inset 3px 0 0 var(--highlight); }
 .phone-text { margin: 0 0 6px; line-height: 1.4; }
@@ -576,6 +597,14 @@ a.ghost { color: var(--ink); text-decoration: none; display: inline-flex; align-
 
 /* One timeline per day for plans over several days */
 .timelines { display: grid; gap: 12px; margin: 4px 0 6px; }
+.agenda { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.agenda li { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 8px; padding: 6px 8px; border-radius: 6px; background: var(--plaster); font-size: 13px; }
+.agenda-when { font-variation-settings: var(--mono); font-size: 12px; color: var(--ink-2); }
+.agenda li.changed { background: var(--highlight-soft); }
+.agenda li.broken .agenda-what { text-decoration: line-through; color: var(--bad); }
+.agenda small { color: var(--ink-2); }
+.agenda li.agenda-key { display: block; background: none; padding: 2px 0; font-size: 12px; color: var(--ink-2); }
+.agenda-key span { font-weight: 720; color: var(--ink); }
 .timeline-day { margin: 0; font-size: 12.5px; font-weight: 720; color: var(--ink-2); }
 .timelines .timeline { margin: 0; }
 .task-open { margin-top: 5px; font-size: 12px; color: var(--ink-3); }
@@ -603,7 +632,6 @@ a.ghost { color: var(--ink); text-decoration: none; display: inline-flex; align-
   .echoes { grid-template-columns: minmax(0, 1fr); grid-auto-rows: 380px; }
   .tline { grid-template-columns: 4.6em 1.4em minmax(0, 1fr); padding: 2px 16px; }
   .lane { grid-template-columns: 52px minmax(0, 1fr); }
-  .tick-mark.half { display: none; }
   .block-venue { display: none; }
   .t-time, .t-method, .t-ms { display: none; }
   .traffic-body.with-detail { grid-template-columns: minmax(0, 1fr); grid-template-rows: 1fr 1fr; height: 300px; }
@@ -636,3 +664,7 @@ a.ghost { color: var(--ink); text-decoration: none; display: inline-flex; align-
 .project-human { border-top: 1px solid #b9d3c5; padding-top: .6rem; margin-top: .6rem; }
 .project-human-schedule { padding-left: 1rem; max-height: 250px; overflow: auto; font-size: .77rem; overflow-wrap: anywhere; }
 .project-human-schedule li { margin-bottom: .65rem; }
+
+/* Reminders and check-ins on a person's page, and the console's skip-ahead result. */
+.note-kind { display: inline-block; margin-right: 6px; padding: 0 6px; border-radius: 999px; border: 1px solid var(--rule); color: var(--ink-2); font-size: 11px; font-weight: 600; }
+.console-note { color: var(--ink-2); font-size: 12.5px; flex: 1 1 240px; min-width: 0; overflow-wrap: anywhere; }

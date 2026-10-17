@@ -34,13 +34,14 @@ INSTRUCTIONS = (
     "those people also read the reply and only plans all of them can see are included. "
     "To tell others about a decision use notify_people; it reaches only people who can see the plan. If a result has suggested_followup, "
     "offer it at the end of your reply and pass their answer to answer_followup. Never guess a vague time, amount or plan: ask with "
-    "ask_followup (concrete options, each with the exact call), then send their reply to answer_followup. get_context lists open_questions."
+    "ask_followup (concrete options, each with the exact call), then send their reply to answer_followup. get_context lists open_questions. "
+    "set_reminder schedules a reminder for a stated time; review_plan says what a plan waits on and sets automatic check-ins."
 )
 
 NAMES = ["get_context", "search_plan", "create_plan", "propose_change", "decide_change", "link_items", "set_my_conditions", "report_observation",
          "request_confirmations", "find_alternatives", "get_alternatives", "commit_plan", "explain", "get_history", "list_templates", "get_template",
          "get_project", "configure_project", "upsert_work", "manage_recurrence", "repair_project", "create_group", "invite_to_group",
-         "notify_people", "ask_followup", "answer_followup"]
+         "notify_people", "ask_followup", "answer_followup", "set_reminder", "review_plan"]
 
 PLAN_ARG = Field(description='Plan id/title; pass it when more than one plan could match.')
 
@@ -432,6 +433,34 @@ def register(mcp: MCPServer, engine: GroupFlow, runner: ToolRunner) -> None:
         followup: Annotated[str | None, Field(description="Question id. Default: the newest question you asked.")] = None,
     ) -> dict[str, Any]:
         return runner.run(ctx, "answer_followup", lambda m: engine.answer_followup(m.id, choice, followup=followup))
+
+    @mcp.tool(title="Set a reminder", description=(
+        'A reminder at a time the speaker states: exact ("tomorrow at 9", "in 2 hours", "Friday 6pm") or relative to the plan ("1 day before", '
+        '"the morning of"). audience as in notify_people, default the speaker; roles are resolved when it goes off, so "whoever hasn\'t '
+        'answered" reaches only those still missing then. A vague time ("later") is refused: ask. cancel=<id> drops one of theirs.'),
+              annotations=annotations(read_only=False))
+    async def set_reminder(
+        ctx: Context,
+        when: Annotated[str | None, Field(max_length=120, description="When, in the speaker's words.")] = None,
+        plan: Annotated[str | None, PLAN_ARG] = None,
+        about: Annotated[list[str] | str | None, Field(description="Item ids or names it is about (one plan).")] = None,
+        audience: Annotated[list[str] | None, Field(description='Default ["me"]; roles and/or names, e.g. ["needs_answer"].')] = None,
+        note: Annotated[str | None, Field(max_length=280, description="Short message in the speaker's words.")] = None,
+        cancel: Annotated[str | None, Field(description="Reminder id to cancel (get_context your_reminders).")] = None,
+    ) -> dict[str, Any]:
+        return runner.run(ctx, "set_reminder", lambda m: engine.set_reminder(m.id, when=when, plan=plan, about=about, audience=audience,
+                                                                              note=note, cancel=cancel))
+
+    @mcp.tool(title="Check what a plan is waiting on", description=(
+        '"Where are we with X?", "is anything holding it up?": what the plan waits on, from whom, and for how long. The organizer can set '
+        "check_ins: after 24h or 48h without progress the server reminds the people it waits on, or off."),
+              annotations=annotations(read_only=False))
+    async def review_plan(
+        ctx: Context,
+        plan: Annotated[str | None, PLAN_ARG] = None,
+        check_ins: Annotated[Literal["off", "24h", "48h"] | None, Field(description="Organizer only: change automatic check-ins.")] = None,
+    ) -> dict[str, Any]:
+        return runner.run(ctx, "review_plan", lambda m: engine.review_plan(m.id, plan=plan, check_ins=check_ins))
 
 
 __all__ = ["register", "INSTRUCTIONS", "NAMES"]

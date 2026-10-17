@@ -51,6 +51,11 @@ class ForgetBody(BaseModel):
     member: str | None = None
 
 
+class SkipBody(BaseModel):
+    hours: float = 48
+    group: str | None = None
+
+
 class EventBody(BaseModel):
     group: str
     place_id: str
@@ -234,6 +239,12 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
             args['plan'] = plan
         try:
             result = await sessions.get(member, 'panel').call_tool('get_context', args)
+            hidden_plan = None
+            if not result.ok and plan and (result.error or {}).get('code') == 'NOT_FOUND':
+                # The selected plan does not exist for this person (a surprise kept from them). Show what their session does return,
+                # without it: that absence is the point, so it is not an error.
+                hidden_plan = plan
+                result = await sessions.get(member, 'panel').call_tool('get_context', {k: v for k, v in args.items() if k != 'plan'})
         except Exception:  # a failed read must never fall back to admin data
             return JSONResponse({"error": "Could not read authorized MCP memory."}, status_code=502)
         if not result.ok:
@@ -249,7 +260,7 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
                          'model_content': (compact(c['result']) if c['ok'] else {'error': c['result']}) if c.get('sent_to_model') else None}
                         for c in previous['calls']]}
         return JSONResponse({"source": "mcp", "member": member, "at": _now(), "graph": memory_map(context, member),
-                             "context": context, "last_turn": previous,
+                             "context": context, "last_turn": previous, "plan_not_visible": hidden_plan,
                              "trace_note": "Recorded tool messages sent to the model, not hidden reasoning. The fresh panel snapshot may be newer than that turn."})
 
     @app.post("/api/project/{member}/tools")
@@ -336,6 +347,20 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
         data = r.json()
         if r.status_code == 200:
             broadcast("event", {"group": body.group, "place_id": body.place_id, "result": data})
+        return JSONResponse(data, status_code=r.status_code)
+
+    @app.post("/api/demo/skip-ahead")
+    async def demo_skip_ahead(body: SkipBody) -> JSONResponse:
+        """Demo console: what the server's worker does after this many quiet hours (reminders due by then, check-ins on stuck plans)."""
+        try:
+            r = await admin("POST", "/debug/skip-ahead", json={"hours": body.hours, "group": body.group})
+        except httpx.HTTPError:
+            return unreachable()
+        data = r.json()
+        if r.status_code == 200:
+            broadcast("event", {"group": body.group, "skip_ahead": True})
+            if chat is not None:
+                await chat.relay_all()
         return JSONResponse(data, status_code=r.status_code)
 
     @app.post("/api/notify")

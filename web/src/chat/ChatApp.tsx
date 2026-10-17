@@ -5,6 +5,14 @@ import {
 } from './chatApi';
 import './chat.css';
 
+// Messages the server queued for this person (nobody was talking to Alexa when they were made).
+const NOTICE_WORD: Record<string, string> = { notice: 'update', reminder: 'reminder', nudge: 'check-in' };
+const NOTICE_TITLE: Record<string, string> = {
+  notice: 'Someone asked Alexa to let you know',
+  reminder: 'A reminder someone set, sent when its time came',
+  nudge: 'The plan has been quiet while waiting on you; GroupFlow checked in',
+};
+
 /* The group chat: people talk in a room per group and privately with Alexa. Messages that start with @Alexa (or "Alexa,")
    ask the assistant, which acts as the person who wrote them. Answers that need a person's consent never come from a message:
    each person taps them on their own cards, which talk to their own GroupFlow page. */
@@ -132,7 +140,7 @@ function Message({ m, mine, colors, onQuick }: {
         <p className="chat-meta">
           <strong>{alexa ? 'Alexa' : mine ? 'You' : m.author_name}</strong>
           {alexa && m.meta.for && <span> answering {colors[`name:${m.meta.for}`] ?? 'someone'}</span>}
-          {alexa && m.meta.notice && <span className="chat-notice-tag" title="Someone asked Alexa to let you know">update{m.meta.plan ? ` · ${m.meta.plan}` : ''}</span>}
+          {alexa && m.meta.notice && <span className="chat-notice-tag" title={NOTICE_TITLE[m.meta.kind ?? 'notice']}>{NOTICE_WORD[m.meta.kind ?? 'notice'] ?? 'update'}{m.meta.plan ? ` · ${m.meta.plan}` : ''}</span>}
           <time dateTime={m.at}>{time(m.at)}</time>
         </p>
         <p className={alexa ? 'spoken' : undefined}>{m.text}</p>

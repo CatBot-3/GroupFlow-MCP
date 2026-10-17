@@ -78,8 +78,10 @@ async def test_memory_read_is_scoped_non_consuming_and_never_uses_inspector(sim)
     assert all(n['source'].startswith('get_context.') for n in data['graph']['nodes'])
     panel_calls = [e for e in sim.h.traffic.entries if e['source'] == 'panel' and e['kind'] == 'request' and e['method'] == 'tools/call']
     assert panel_calls[-1]['payload']['params']['arguments']['mark_read'] is False
-    refused = await sim.get('/api/memory/linda', params={'group': 'family', 'plan': 'party'})
-    assert refused.status_code == 400 and 'surprise party' not in refused.text.lower()
+    # A plan kept from her is absent, not an error: the map shows what her session does return, with no trace of the party.
+    absent = await sim.get('/api/memory/linda', params={'group': 'family', 'plan': 'party'})
+    assert absent.status_code == 200 and absent.json()['plan_not_visible'] == 'party'
+    assert 'surprise' not in absent.text.lower() and [n['label'] for n in absent.json()['graph']['nodes'] if n['kind'] == 'plan'] == ['Home']
     assert (await sim.get('/api/memory/nobody')).status_code == 400
 
 

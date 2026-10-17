@@ -26,3 +26,22 @@ def test_empty_or_paged_context_does_not_invent_hidden_nodes():
     mapped = memory_map({'you': 'Someone', 'next_offset': 20, 'truncated': {'plans': 40}}, 'someone')
     assert len(mapped['nodes']) == 1 and mapped['edges'] == []
     assert mapped['pagination'] == {'next_offset': 20, 'truncated': {'plans': 40}}
+
+
+def test_a_plan_hangs_under_its_own_group_when_two_groups_share_a_name():
+    context = {'you': 'Maya', 'groups': [{'id': 'g1', 'name': 'Flatmates'}, {'id': 'g2', 'name': 'Flatmates'}],
+               'plan_index': [{'id': 'p2', 'title': 'Rent', 'group': 'Flatmates', 'group_id': 'g2'}],
+               'plans': [{'id': 'p2', 'title': 'Rent', 'group': 'Flatmates', 'group_id': 'g2', 'details': [], 'tasks': []}]}
+    mapped = memory_map(context, 'maya')
+    assert [e['from'] for e in mapped['edges'] if e['to'] == 'plan:p2'] == ['group:g2']
+
+
+def test_versions_schedule_activities_and_no_edge_joins_a_kind_to_itself(gf):
+    context = gf.context('alice', plan='friday_dinner', detail='summary', mark_read=False).model_dump(mode='json')
+    mapped = memory_map(context, 'alice')
+    kinds = {n['id']: n['kind'] for n in mapped['nodes']}
+    pairs = {(kinds[e['from']], kinds[e['to']]) for e in mapped['edges']}
+    # The explorer lays these out so every edge runs between neighbouring columns or straight up between versions and activities.
+    assert pairs <= {('person', 'group'), ('person', 'condition'), ('person', 'plan'), ('group', 'plan'), ('plan', 'item'), ('plan', 'version'),
+                     ('plan', 'confirmation'), ('version', 'item')}
+    assert ('version', 'item') in pairs

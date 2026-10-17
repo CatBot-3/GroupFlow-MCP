@@ -14,7 +14,7 @@ from pydantic import BaseModel
 
 from groupflow.core.errors import DomainError
 from groupflow.core.identity import Member
-from groupflow.engine.core import LISTENERS
+from groupflow.engine.core import ASSISTANT, LISTENERS
 
 log = logging.getLogger("groupflow.mcp")
 T = TypeVar("T", bound=BaseModel)
@@ -70,6 +70,7 @@ class ToolRunner:
         started = time.perf_counter()
         member_id = "?"
         token = None
+        assistant = ASSISTANT.set(True)
         try:
             member = caller(ctx)
             member_id = member.id
@@ -88,6 +89,7 @@ class ToolRunner:
         finally:
             if token is not None:
                 LISTENERS.reset(token)
+            ASSISTANT.reset(assistant)
 
     def _log(self, member: str, tool: str, ok: bool, summary: str, started: float) -> None:
         if self.on_call:

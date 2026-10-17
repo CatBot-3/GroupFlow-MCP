@@ -44,6 +44,10 @@ HOST_NAME = "GroupFlow chat"
 RECENT = 12  # earlier room messages given to the model as context
 MAX_TEXT = 2000
 ME_TTL_S = 15.0
+# What the server queues for a person with nobody in a conversation, posted into their private thread. Other kinds (a version to
+# confirm, a plan committed) already reach them as updates and to-dos.
+RELAYED_KINDS = ("reminder", "nudge", "notice")
+RELAY_EVERY_S = 10.0
 
 # "@Alexa ...", "Alexa, ...", "hey Alexa: ..." at the start; or "@alexa" anywhere in the message.
 _LEADING = re.compile(r"^\s*(?:@alexa\b[\s,:]*|(?:hey\s+|ok\s+)?alexa\s*[,:]\s*)", re.I)
@@ -65,6 +69,11 @@ CREATE TABLE IF NOT EXISTS chat_links (
   token TEXT NOT NULL,
   link_id TEXT NOT NULL,
   created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS chat_relayed (
+  member_id TEXT NOT NULL,
+  notification_id TEXT NOT NULL,
+  PRIMARY KEY (member_id, notification_id)
 );
 """
 
@@ -175,6 +184,16 @@ class ChatStore:
         with self.lock:
             return {r["member_id"]: r["token"] for r in self.raw.execute("SELECT * FROM chat_links").fetchall()}
 
+    def claim(self, member_id: str, notification_ids: list[str]) -> list[str]:
+        """The notifications not yet posted to this person's private thread, now marked as posted (several tabs never post twice)."""
+        fresh = []
+        with self.lock:
+            for nid in dict.fromkeys(notification_ids):
+                cur = self.raw.execute("INSERT OR IGNORE INTO chat_relayed (member_id, notification_id) VALUES (?, ?)", (member_id, nid))
+                if cur.rowcount:
+                    fresh.append(nid)
+        return fresh
+
     def close(self) -> None:
         with self.lock:
             self.raw.close()
@@ -201,6 +220,7 @@ class Me:
 class Stream:
     member: str
     rooms: set[str]
+    token: str = ""
     queue: asyncio.Queue[str] = field(default_factory=asyncio.Queue)
 
 
@@ -406,11 +426,38 @@ class ChatService:
         sent = 0
         for result in notices_sent(calls):
             for r in result.get("recipients") or []:
+                if r.get("notice_id") and not self.store.claim(r["id"], [r["notice_id"]]):
+                    continue
                 room = f"dm:{r['id']}"
                 msg = self.store.add(room, ASSISTANT, self.assistant_name, r["text"], {"notice": True, "from": me.id, "plan": result.get("plan")})
                 self.broadcast(room, "message", msg)
                 sent += 1
         return sent
+
+    async def relay_inbox(self, member_id: str, token: str) -> int:
+        """Reminders, check-ins and notices the server queued for this person (the worker sends them with nobody in a conversation),
+        read with the person's own session and posted into their private thread once. The chat's stand-in for Alexa announcing them."""
+        try:
+            r = await self.server().get("/human/inbox", headers={"authorization": f"Bearer {token}"})
+        except httpx.HTTPError:
+            return 0
+        if r.status_code != 200:
+            return 0
+        inbox = r.json()
+        titles = {p["id"]: p["title"] for p in inbox.get("plans", [])}
+        notes = [n for n in inbox.get("notifications", []) if n.get("kind") in RELAYED_KINDS]
+        fresh = set(self.store.claim(member_id, [n["id"] for n in notes]))
+        room = f"dm:{member_id}"
+        for n in notes:
+            if n["id"] in fresh:
+                msg = self.store.add(room, ASSISTANT, self.assistant_name, n["text"], {"notice": True, "kind": n["kind"], "plan": titles.get(n.get("plan_id"))})
+                self.broadcast(room, "message", msg)
+        return len(fresh)
+
+    async def relay_all(self) -> int:
+        """Relay for everyone with the chat open now (after a demo skip-ahead, without waiting for their next poll)."""
+        seen: dict[str, str] = {s.member: s.token for s in list(self.streams) if s.token}
+        return sum([await self.relay_inbox(m, t) for m, t in seen.items()])
 
     async def updates(self, me: Me) -> dict[str, Any]:
         """The person's own unheard news and to-dos, read over their private session (no listeners), without marking anything heard."""
@@ -559,18 +606,20 @@ def register_chat_routes(app: FastAPI, chat: ChatService) -> None:
             me = await chat.me(token)
         except ChatError as err:
             return fail(err)
-        stream = Stream(member=me.id, rooms=me.rooms)
+        stream = Stream(member=me.id, rooms=me.rooms, token=token)
         chat.streams.add(stream)
 
         async def events() -> AsyncIterator[str]:
             try:
                 yield ": connected\n\n"
+                await chat.relay_inbox(me.id, token)
                 while True:
                     if await request.is_disconnected():
                         break
                     try:
-                        yield await asyncio.wait_for(stream.queue.get(), timeout=15)
+                        yield await asyncio.wait_for(stream.queue.get(), timeout=RELAY_EVERY_S)
                     except asyncio.TimeoutError:
+                        await chat.relay_inbox(me.id, token)
                         yield ": ping\n\n"
             finally:
                 chat.streams.discard(stream)

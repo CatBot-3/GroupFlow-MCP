@@ -1,4 +1,4 @@
-"""Background worker: runs any queued searches for alternatives.
+"""Background worker: runs any queued searches for alternatives, sends reminders when their time comes, and runs check-ins on quiet plans.
 
 Runs inside the server process as an asyncio task (scope plan 7.4 allows API and
 worker to share code with separate entry points). Solves run in a thread so the
@@ -9,20 +9,28 @@ from __future__ import annotations
 import asyncio
 import logging
 import sqlite3
+import time
 from typing import Any
 
 log = logging.getLogger("groupflow.worker")
 
 
 class Worker:
-    def __init__(self, service: Any, interval_s: float = 0.15):
+    def __init__(self, service: Any, interval_s: float = 0.15, checkins: Any = None, reminders_every_s: float = 1.0, checkins_every_s: float = 60.0):
         self.service = service
         self.interval_s = interval_s
+        self.checkins = checkins
+        self.reminders_every_s = reminders_every_s
+        self.checkins_every_s = checkins_every_s
+        self._reminders_at = 0.0
+        self._checkins_at = 0.0
         self._task: asyncio.Task[None] | None = None
         self._stop = asyncio.Event()
 
     async def start(self) -> None:
         self._stop = asyncio.Event()
+        # The first check-in pass waits one interval: a server that just started has not been watching anything go quiet.
+        self._checkins_at = time.monotonic()
         self._task = asyncio.create_task(self._loop(), name="groupflow-worker")
 
     async def stop(self) -> None:
@@ -52,3 +60,10 @@ class Worker:
         jobs = self.service.db.all("SELECT id FROM repair_jobs WHERE status = 'queued' ORDER BY created_at")
         for job in jobs:
             await asyncio.to_thread(self.service.run_job, job["id"])
+        now = time.monotonic()
+        if now - self._reminders_at >= self.reminders_every_s and hasattr(self.service, "deliver_due_reminders"):
+            self._reminders_at = now
+            await asyncio.to_thread(self.service.deliver_due_reminders)
+        if self.checkins is not None and now - self._checkins_at >= self.checkins_every_s:
+            self._checkins_at = now
+            await self.checkins.run_pass()

@@ -3,13 +3,38 @@ from __future__ import annotations
 
 import pytest
 
-from groupflow.engine import LISTENERS, fixed_clock
+from groupflow.engine import ASSISTANT, LISTENERS, fixed_clock
 from tests.conftest import code, seeded
 
 
 @pytest.fixture
 def gf():
-    return seeded()
+    """The demo world, then engine calls made as an assistant's MCP tool calls are (offers and clarifying questions happen only there)."""
+    engine = seeded()
+    token = ASSISTANT.set(True)
+    yield engine
+    ASSISTANT.reset(token)
+
+
+def test_offers_and_questions_exist_only_in_an_assistant_conversation():
+    # Seeding the world, a person's own page or a fixture changes values with no conversation to ask in: no offers, no ghost questions.
+    engine = seeded()
+    assert engine.db.scalar("SELECT COUNT(*) FROM followups") == 0
+    res = engine.propose_change("alice", item="party.venue", value="Lucky Star karaoke", quote="karaoke instead")
+    assert res.outcome == "confirmed" and res.suggested_followup is None
+    try:
+        engine.notify_people("alice", note="running late")
+    except Exception as err:  # noqa: BLE001
+        assert err.code == "AMBIGUOUS_PLAN" and "followup" not in err.details
+    token = ASSISTANT.set(True)
+    try:
+        offered = engine.propose_change("alice", item="party.venue", value="Rosa's Trattoria, back room", quote="back to rosa's")
+    finally:
+        ASSISTANT.reset(token)
+    assert offered.suggested_followup is not None
+    # An offer the assistant may never have asked is not reported as a question waiting for the speaker.
+    view = engine.context("alice", mark_read=False)
+    assert view.open_questions == [] and "question" not in view.headline
 
 
 def unread(gf, member: str) -> list[str]:
@@ -170,7 +195,7 @@ def test_vague_times_are_asked_about_and_the_answer_runs_the_exact_change(gf):
     assert asked["outcome"] == "pending" and asked["options"] == ["7 pm", "7:30 pm"]
     # Chat memory lost: the question is still on the server, and only the person asked can answer it.
     view = gf.context("alice", mark_read=False)
-    assert [q["id"] for q in view.open_questions] == [asked["id"]] and view.open_questions[0]["asked"] and "open question" in view.headline
+    assert [q["id"] for q in view.open_questions] == [asked["id"]] and "open question" in view.headline
     assert code(lambda: gf.answer_followup("bob", "7")) == "NOT_FOUND"
     out = gf.answer_followup("alice", "7")
     assert out["choice"] == "7 pm" and out["action"]["ok"] and out["action"]["result"]["outcome"] == "confirmed"
@@ -188,7 +213,7 @@ def test_an_answer_without_an_id_goes_to_the_newest_question_it_answers(gf):
     # A decision after the question: the server's offer is now the newest, and it is listed but marked as not asked.
     gf.propose_change("linda", item="household.book_club", value="Thursday, Oct 22, 6:30 pm at Margaret's", quote="actually 6:30 this week")
     view = gf.context("linda", mark_read=False)
-    assert [(q["kind"], q["asked"]) for q in view.open_questions] == [("offer", False), ("ask", True)]
+    assert [q["id"] for q in view.open_questions] == [asked["id"]]  # the offer is answerable, but not listed as a question she heard
     # "8" answers the older time question, not the yes/no offer; then "yes please" answers the offer.
     timed = gf.answer_followup("linda", "8")
     assert timed["id"] == asked["id"] and timed["choice"] == "8:00"

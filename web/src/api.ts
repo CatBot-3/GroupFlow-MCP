@@ -112,7 +112,7 @@ export interface MemoryNode { id: string; kind: 'person' | 'group' | 'plan' | 'i
 export interface MemorySnapshot {
   source: 'mcp'; member: string; at: string; context: ContextView;
   graph: { nodes: MemoryNode[]; edges: { from: string; to: string; relation: string }[]; pagination: { next_offset: number | null; truncated: Record<string, number> }; description: string };
-  last_turn: AgentTurn | null; trace_note: string;
+  last_turn: AgentTurn | null; trace_note: string; plan_not_visible?: string | null;
 }
 
 export interface InspectorView {
@@ -162,6 +162,7 @@ export const api = {
   notify: (data: Record<string, unknown>) => post('/api/notify', data).catch(() => undefined),
   demoEvent: (group: string, place_id: string, start = '00:00', end = '23:59', day?: number) =>
     post('/api/demo/event', { group, place_id, start, end, day }).then((r) => json<{ outcome: string; affected_plans?: string[] }>(r)),
+  skipAhead: (hours: number, group: string) => post('/api/demo/skip-ahead', { hours, group }).then((r) => json<SkipAhead>(r)),
 
   inspector: async (group: string): Promise<BoardModel> => {
     const r = await json<InspectorView>(await fetch(`/api/inspector?scenario=${encodeURIComponent(group)}`));
@@ -179,14 +180,20 @@ export const api = {
   },
 };
 
+/** The demo console's "skip ahead": what the server's worker did as if that many quiet hours had passed. */
+export interface SkipAhead {
+  hours: number; reminders_sent: number; reviewer: string;
+  checkins: { plan: string; quiet_for: string; reviewer: string; reviewed?: string; reason?: string | null; sent: { name: string; text: string; source: string }[] }[];
+}
+
 // ------------------------------------------------------------------ human-only API (each person's own page)
 
 export interface InboxItem { scope_id: string; plan: string; plan_id: string; revision: string; activity_id: string | null; text: string; status: ScopeStatus; via: string | null; scope_digest: string }
-export interface Receipt { receipt_id: string; plan: string; revision: string; decision: 'approved' | 'rejected' | 'conditional'; status: string; condition: Record<string, unknown> | null; text: string; created_at: string }
+export interface Receipt { receipt_id: string; plan: string; revision: string; decision: 'approved' | 'rejected' | 'conditional'; status: string; condition: Record<string, unknown> | null; text: string; created_at: string; current?: boolean }
 export interface InboxPlan { id: string; title: string; status: PlanStatus; conditions: { name: string; label: string; check: string; hint: string; tags: string[] }[] }
 export interface Inbox {
   member: { id: string; name: string }; plans: InboxPlan[]; pending: InboxItem[]; answered: InboxItem[]; receipts: Receipt[];
-  conditions: (ConditionView & { plan_id: string | null; value: Record<string, unknown>; verify_digest: string })[]; notifications: { id: string; text: string; created_at: string; plan_id: string | null }[];
+  conditions: (ConditionView & { plan_id: string | null; value: Record<string, unknown>; verify_digest: string })[]; notifications: { id: string; kind?: string; text: string; created_at: string; plan_id: string | null }[];
   project_items?: ProjectHumanItem[];
   project_plans?: ProjectHumanPlan[];
 }

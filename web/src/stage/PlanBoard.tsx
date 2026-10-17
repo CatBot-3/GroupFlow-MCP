@@ -230,6 +230,8 @@ export function PlanBoard({ model, planId, plans, onPlan, viewAs, onViewAs, memb
   const conditions = viewer ? ctx?.your_conditions ?? [] : plan?.conditions ?? [];
   const showGate = !viewer && plan?.gate && plan.working && plan.working.kind === 'candidate';
   const guidance = (text: string) => memberOnly ? text.replace(/ with (find_alternatives|request_confirmations|commit_plan)\b/g, '') : text;
+  const nextIsTodo = !!ctx && !!plan && ctx.your_todos.some((t) => t.plan === plan.title && ['send', 'commit', 'repair', 'confirm'].includes(t.kind));
+  const attention = !!ctx && (ctx.decisions_for_you.length > 0 || ctx.your_todos.length > 0 || ctx.affected.length > 0);
   // While the agreed version no longer works, mark the activities a verified outside fact hit.
   const broken = new Set<string>();
   if (plan?.agreed && plan.status !== 'COMMITTED') {
@@ -285,7 +287,7 @@ export function PlanBoard({ model, planId, plans, onPlan, viewAs, onViewAs, memb
             <span className="status-chip">{STATUS_WORDS[plan.status] ?? plan.status}</span>
             <span className="status-meta">{plan.dates} · {plan.kind} · organizer {plan.organizer} · {memberOnly ? plan.working?.label ?? plan.agreed?.label : `version ${plan.version}`}</span>
             {plan.status_reason && <p className="status-reason">{plan.status_reason}</p>}
-            {plan.next_step && <p className="status-next">{plan.project ? 'Review work and resource availability, prepare a schedule, then request individual commitments and stage authorization.' : guidance(plan.next_step)}</p>}
+            {plan.next_step && !nextIsTodo && <p className="status-next">{plan.project ? 'Review work and resource availability, prepare a schedule, then request individual commitments and stage authorization.' : guidance(plan.next_step)}</p>}
           </div>
           <p className={`audience edge-${edge}`}>
             <span className={`swatch ${edge}`} aria-hidden="true" />
@@ -294,7 +296,7 @@ export function PlanBoard({ model, planId, plans, onPlan, viewAs, onViewAs, memb
             {plan.space && !viewer && <span className="section-sub">Space: {plan.space}</span>}
           </p>
 
-          {ctx && (ctx.decisions_for_you.length > 0 || ctx.your_todos.length > 0 || ctx.updates.length > 0 || ctx.affected.length > 0) && (
+          {ctx && (attention || (!memberOnly && ctx.updates.length > 0)) && (
             <div className="for-you">
               <h3 className="plan-section">For {viewer?.name}</h3>
               <ul className="todo-list">
@@ -306,6 +308,11 @@ export function PlanBoard({ model, planId, plans, onPlan, viewAs, onViewAs, memb
                 {memberOnly && ctx.updates.length > 0 ? <li className="update"><details><summary>Recent updates</summary><ul>{ctx.updates.map((u, i) => <li key={`u${i}`}>{u}</li>)}</ul></details></li> : ctx.updates.map((u, i) => <li key={`u${i}`} className="update">{u}</li>)}
               </ul>
             </div>
+          )}
+          {/* News alone is not something to act on: in the member view it stays a quiet line, not a highlighted box. */}
+          {ctx && memberOnly && !attention && ctx.updates.length > 0 && (
+            <details className="plan-updates"><summary>{ctx.updates.length} recent {ctx.updates.length === 1 ? 'update' : 'updates'} for {viewer?.name}</summary>
+              <ul>{ctx.updates.map((u, i) => <li key={i}>{u}</li>)}</ul></details>
           )}
 
           <Details plan={plan} colorOf={colorOf} edge={edge} />
@@ -358,7 +365,8 @@ export function PlanBoard({ model, planId, plans, onPlan, viewAs, onViewAs, memb
           {plan.bookings.length > 0 && (
             <>
               <h3 className="plan-section">Bookings <span className="section-sub">simulated, after commit only</span></h3>
-              <ul className="bookings">{plan.bookings.map((b, i) => <li key={i}>{b}</li>)}</ul>
+              <ul className="bookings">{[...plan.bookings].sort((a, b) => Number(a.includes('(cancelled')) - Number(b.includes('(cancelled')))
+                .map((b, i) => <li key={i} className={b.includes('(cancelled') ? 'cancelled' : ''}>{b}</li>)}</ul>
             </>
           )}
 

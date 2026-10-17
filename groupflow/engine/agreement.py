@@ -1672,11 +1672,20 @@ class Agreement(Core):
                                 "scope_digest": scope_row["scope_digest"]}
                         (pending if status == "pending" else answered).append(item)
             receipts = []
-            for r in self.db.all("SELECT r.*, rev.label, p.title FROM approval_receipts r JOIN plan_revisions rev ON rev.id = r.revision_id "
-                                 "JOIN plans p ON p.id = r.plan_id WHERE r.member_id = ? ORDER BY r.created_at DESC LIMIT 20", member.id):
+            for r in self.db.all("SELECT r.*, rev.label, p.title, p.active_revision_id, p.candidate_revision_id FROM approval_receipts r "
+                                 "JOIN plan_revisions rev ON rev.id = r.revision_id JOIN plans p ON p.id = r.plan_id "
+                                 "WHERE r.member_id = ? ORDER BY r.created_at DESC LIMIT 20", member.id):
                 scope_row = self.db.get("SELECT * FROM approval_scopes WHERE id = ?", r["scope_id"])
+                # An answer still counts if it is for the agreed or the open version, or was carried into one of them; an answer to a
+                # replaced version (the dinner at the restaurant that closed) is history, and withdrawing it would change nothing.
+                live = {x for x in (r["active_revision_id"], r["candidate_revision_id"]) if x}
+                current = r["revision_id"] in live or bool(live and self.db.get(
+                    f"SELECT 1 AS x FROM approval_carry_forwards WHERE receipt_id = ? AND target_revision_id IN ({','.join('?' for _ in live)})",
+                    r["id"], *live))
                 receipts.append({"receipt_id": r["id"], "plan": r["title"], "revision": r["label"], "decision": r["decision"], "status": r["status"],
-                                 "condition": json.loads(r["condition_json"] or "null"), "text": self._scope_text(scope_row), "created_at": r["created_at"]})
+                                 "condition": json.loads(r["condition_json"] or "null"), "text": self._scope_text(scope_row), "created_at": r["created_at"],
+                                 "current": current})
+            receipts.sort(key=lambda x: not x["current"])
             conditions, seen = [], set()
             for p in scope.plans.values():
                 for c in self._condition_rows(p, member.id, ("unverified", "active")):
@@ -1685,7 +1694,7 @@ class Agreement(Core):
                     seen.add(c["id"])
                     conditions.append(dict(self._condition_view(c).model_dump(), plan_id=c["plan_id"], value=json.loads(c["value_json"]),
                                            verify_digest=digest({"id": c["id"], "version": c["version"], "value": json.loads(c["value_json"])})))
-            notes = [{"id": n["id"], "text": n["text"], "created_at": n["created_at"], "plan_id": n["plan_id"]} for n in self.db.all(
+            notes = [{"id": n["id"], "kind": n["kind"], "text": n["text"], "created_at": n["created_at"], "plan_id": n["plan_id"]} for n in self.db.all(
                 "SELECT * FROM notifications WHERE member_id = ? AND read_at IS NULL ORDER BY created_at, id", member.id)
                 if n["space_id"] is None or n["space_id"] in scope.spaces]
             return {"member": {"id": member.id, "name": member.name}, "plans": plans, "pending": pending, "answered": answered, "receipts": receipts,

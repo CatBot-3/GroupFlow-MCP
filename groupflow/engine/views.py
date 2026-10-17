@@ -126,6 +126,7 @@ class PlanView(BaseModel):
     title: str
     kind: str = Field(description="Template name.")
     group: str
+    group_id: str | None = None
     visible_to: list[str]
     organizer: str
     you_organize: bool
@@ -226,6 +227,8 @@ class ContextView(BaseModel):
     shared_note: str | None = None
     open_questions: list[dict[str, Any]] = Field(default_factory=list, description=(
         "Questions the assistant asked this speaker that are still unanswered (newest first). If the speaker's words answer one, call answer_followup."))
+    your_reminders: list[dict[str, Any]] = Field(default_factory=list, description=(
+        "Reminders this speaker set that have not gone off yet (soonest first). To drop one, call set_reminder with cancel=<id>."))
 
 
 # ---------------------------------------------------------------- search

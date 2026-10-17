@@ -7,7 +7,7 @@ GroupFlow is a hackathon build. These are the boundaries we know about, so nobod
 1. **The Echo devices are simulated.** The page drives a real LLM (DeepSeek by default, Amazon Bedrock or any OpenAI-compatible endpoint as options) through real MCP sessions, but it is not Alexa+ itself. The server is built to be added to Alexa+ as a remote MCP server; that connection was not available to us for testing.
 2. **Bookings are simulated.** After a commit, GroupFlow records booking receipts with idempotency keys and a `SIM-` reference for the activity kinds a template marks as bookable. No restaurant, room or ride service is contacted.
 3. **Verified outside facts come from the demo console.** In a product, a trusted connector (a venue's booking system, a room calendar) would report that a place became unavailable. A member telling Alexa is stored as an unverified report and does not change the plan.
-4. **Notifications are pulled, not pushed.** People hear news the next time they talk to Alexa or open their page.
+4. **Notifications are pulled, not pushed.** People hear news, reminders and check-ins the next time they talk to Alexa or open their page (the group chat shows them at once in their private thread).
 5. **Templates are written by hand.** A new plan type within the generic item and policy model needs a YAML template (item types, policies, conditions, an optional catalog of places). New semantics such as structured project scheduling also require implementation and dedicated tools. The short directory and `get_template` discover new YAML without changing tool descriptions; restart after editing templates because the registry is cached. Alexa can create plans from those templates, but cannot invent new template definitions.
 
 ## Security
@@ -50,6 +50,15 @@ GroupFlow is a hackathon build. These are the boundaries we know about, so nobod
 26. **Elicitation is opt-in and untested on Alexa+.** It needs `GROUPFLOW_MCP_RESPONSES=sse` and a host that declares form elicitation; it is tested over real MCP with the official SDK client only. It is never used for consent.
 27. **Offers and answers are heuristics.** The server offers to tell the others only after decisions on details. An answer without a question id is matched against the newest pending questions by label, time, position, yes or no, and shared words; an answer that matches nothing is refused rather than guessed. The vague-time guard covers time changes whose words name no time, day, date or amount; vagueness about other things is left to the assistant.
 28. **The follow-up suite has not been scored with a paid model.** Its ten scenarios are validated like the realistic suite, and they were written in the same change as the feature.
+
+## Reminders and check-ins (v0.8)
+
+29. **Reminders and check-ins are pulled too.** They wait on the server as notifications and reach the person on their next turn with Alexa, on their GroupFlow page, or in their private thread in the group chat. A real deployment would hand them to a push channel (Alexa notifications, if an add-on is allowed to send them, or SMS/email); we found no documented way for an Alexa+ MCP add-on to do that.
+30. **Times are read by rules, in English.** `set_reminder` understands exact times, delays and times relative to the plan's date; anything else is refused and asked about rather than guessed. "Next Friday" means the coming Friday, which some people would not; the reply reads the resolved date back. A plan's own date is its first activity or a date detail whose name says so (date, time, when, day); a household plan has none.
+31. **Quiet hours belong to the group, not the person.** Check-ins go out between 8 am and 10 pm in the group's time zone. Reminders go out at the time they were set for, whatever the hour.
+32. **What counts as stuck is a fixed list.** Pending answers, open suggestions, the organizer's next step, overdue tasks with a due date the server can read, and unset details or unstarted tasks close to the date. A plan can be stuck in ways this list does not see (an unanswered question in a group chat, say). Tasks without a readable due date are never overdue.
+33. **The model reviewer is untested with a real model.** Its guardrails are tested with scripted, including hostile, answers; whether a given model judges "stuck" well, or words nudges that people actually answer, has not been measured. The text check on its messages is the same phrase check as for notes, now against every plan member's view, so a paraphrase can still pass; the model is only given the plan's own facts, which every recipient may see.
+34. **The demo's skip-ahead does not move the clock.** It runs the worker's pass as if the time had passed and records rounds at the real time, so it shows the sequence of messages, not the exact wording of elapsed times across several presses.
 
 ## Visualization and final validation boundaries (v0.5)
 

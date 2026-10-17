@@ -1,17 +1,34 @@
 import { useEffect, useState } from 'react';
 import { api, type MemoryNode, type MemorySnapshot } from '../api';
 
+// Four columns, three rows. Every relation the map can contain runs left to right between neighbouring columns, or straight up inside
+// the last one (a version schedules its activities), so no edge passes behind a box: speaker -> groups and private limits -> plans
+// (plans sit in the middle row, so a plan whose group was not returned still links straight from the speaker) -> items, versions and
+// confirmations.
+const W = 180, H = 74;
 const GROUPS: { kind: MemoryNode['kind']; title: string; x: number; y: number }[] = [
-  { kind: 'person', title: 'Speaker', x: 10, y: 85 },
-  { kind: 'group', title: 'Your groups', x: 220, y: 85 },
-  { kind: 'plan', title: 'Visible plans', x: 440, y: 85 },
-  { kind: 'item', title: 'Items & activities', x: 650, y: 10 },
-  { kind: 'version', title: 'Plan versions', x: 650, y: 165 },
-  { kind: 'confirmation', title: 'Human confirmations', x: 865, y: 165 },
-  { kind: 'condition', title: 'Your private limits', x: 220, y: 245 },
+  { kind: 'person', title: 'Speaker', x: 10, y: 128 },
+  { kind: 'group', title: 'Your groups', x: 230, y: 10 },
+  { kind: 'condition', title: 'Your private limits', x: 230, y: 246 },
+  { kind: 'plan', title: 'Visible plans', x: 450, y: 128 },
+  { kind: 'item', title: 'Items & activities', x: 670, y: 10 },
+  { kind: 'version', title: 'Plan versions', x: 670, y: 128 },
+  { kind: 'confirmation', title: 'Human confirmations', x: 670, y: 246 },
 ];
 
-export function MemoryExplorer({ member, group, plan, tick }: { member: string; group: string; plan: string; tick: number }) {
+function edgePath(from: { x: number; y: number }, to: { x: number; y: number }): string {
+  if (from.x === to.x) {
+    // Same column: a straight vertical arrow between the facing edges.
+    const up = to.y < from.y;
+    const x = from.x + W / 2;
+    return up ? `M ${x} ${from.y} L ${x} ${to.y + H}` : `M ${x} ${from.y + H} L ${x} ${to.y}`;
+  }
+  const x1 = from.x + W, y1 = from.y + H / 2, x2 = to.x, y2 = to.y + H / 2;
+  const bend = Math.max(14, (x2 - x1) / 2);
+  return `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`;
+}
+
+export function MemoryExplorer({ member, group, plan, planTitle, tick }: { member: string; group: string; plan: string; planTitle?: string; tick: number }) {
   const [data, setData] = useState<MemorySnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [kind, setKind] = useState<MemoryNode['kind']>('plan');
@@ -39,8 +56,10 @@ export function MemoryExplorer({ member, group, plan, tick }: { member: string; 
   const relations = [...new Set(data.graph.edges.map((e) => {
     const a = nodes.find((n) => n.id === e.from)?.kind;
     const b = nodes.find((n) => n.id === e.to)?.kind;
-    return a && b ? `${a}:${b}` : '';
+    return a && b && a !== b ? `${a}:${b}` : '';
   }).filter(Boolean))];
+  const pick = (k: MemoryNode['kind']) => { setKind(k); setNodeId(null); };
+  const links = chosen ? data.graph.edges.filter((e) => e.from === chosen.id || e.to === chosen.id) : [];
   return (
     <section className="memory-explorer" aria-label="How AI uses MCP memory">
       <header className="memory-heading">
@@ -52,25 +71,36 @@ export function MemoryExplorer({ member, group, plan, tick }: { member: string; 
       </header>
       {tab === 'memory' ? <>
         <p className="memory-note">Fresh MCP snapshot · {data.context.you} · {new Date(data.at).toLocaleTimeString()}. Select a category, then a record. This is a map of returned information, not the raw database.</p>
-        <div className="memory-canvas"><svg className="memory-graph" viewBox="0 0 1055 335" role="group" aria-label="Authorized memory relationships">
+        {data.plan_not_visible && <p className="memory-absent" role="status"><strong>{planTitle ?? 'The selected plan'} is not in {data.context.you}'s memory at all.</strong> The server returns nothing about it to this session, so the map below has no trace of it.</p>}
+        <div className="memory-canvas"><svg className="memory-graph" viewBox="0 0 860 330" role="group" aria-label="Authorized memory relationships">
           <defs><marker id={`arrow-${member}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" /></marker></defs>
           {relations.map((edge) => {
             const [a, b] = edge.split(':');
-            const from = GROUPS.find((g) => g.kind === a)!; const to = GROUPS.find((g) => g.kind === b)!;
-            const x1 = from.x + 180, y1 = from.y + 37, x2 = to.x, y2 = to.y + 37;
-            return <path key={edge} d={`M ${x1} ${y1} C ${x1 + 35} ${y1}, ${x2 - 35} ${y2}, ${x2} ${y2}`} className="memory-edge" markerEnd={`url(#arrow-${member})`} />;
+            const from = GROUPS.find((g) => g.kind === a); const to = GROUPS.find((g) => g.kind === b);
+            return from && to ? <path key={edge} d={edgePath(from, to)} className="memory-edge" markerEnd={`url(#arrow-${member})`} /> : null;
           })}
           {GROUPS.map((g) => {
             const count = nodes.filter((n) => n.kind === g.kind).length;
             return <g key={g.kind} transform={`translate(${g.x} ${g.y})`} role="button" tabIndex={0} aria-label={`${g.title}: ${count} returned records`} aria-pressed={kind === g.kind}
-              onClick={() => { setKind(g.kind); setNodeId(null); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setKind(g.kind); setNodeId(null); } }} className={`memory-bucket ${kind === g.kind ? 'selected' : ''}`}>
-              <rect width="180" height="74" rx="12" /><text x="14" y="26">{g.title}</text><text x="14" y="52" className="memory-count">{count ? `${count} returned record${count === 1 ? '' : 's'}` : 'Not returned in this snapshot'}</text>
+              onClick={() => pick(g.kind)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(g.kind); } }} className={`memory-bucket ${kind === g.kind ? 'selected' : ''} ${count ? '' : 'empty'}`}>
+              <rect width={W} height={H} rx="12" /><text x="14" y="26">{g.title}</text><text x="14" y="52" className="memory-count">{count ? `${count} returned record${count === 1 ? '' : 's'}` : 'Not returned in this snapshot'}</text>
             </g>;
           })}
         </svg></div>
+        {/* Phones: the same categories as a list, in reading order, instead of a graph too wide to read. */}
+        <div className="memory-bucket-list" role="group" aria-label="Memory categories">
+          {GROUPS.map((g) => {
+            const count = nodes.filter((n) => n.kind === g.kind).length;
+            return <button key={g.kind} type="button" aria-pressed={kind === g.kind} className={kind === g.kind ? 'selected' : ''} onClick={() => pick(g.kind)}>
+              <strong>{g.title}</strong><span>{count ? `${count} returned` : 'not returned'}</span>
+            </button>;
+          })}
+        </div>
         <div className="memory-records">
           <div className="memory-record-list" aria-label="Memory records">{listed.length ? listed.map((n) => <button key={n.id} className={n.id === chosen?.id ? 'selected' : ''} onClick={() => setNodeId(n.id)}>{recordLabel(n)}</button>) : <p>This category was not returned. That does not prove no such records exist.</p>}</div>
-          <div className="memory-record-detail">{chosen && <><strong>{chosen.label}</strong><p>Source: {chosen.source}</p><p>{data.graph.edges.filter((e) => e.from === chosen.id || e.to === chosen.id).map((e) => `${nodes.find((n) => n.id === e.from)?.label} → ${e.relation} → ${nodes.find((n) => n.id === e.to)?.label}`).join(' · ')}</p><details><summary>Returned fields</summary><pre>{JSON.stringify(chosen.data, null, 2)}</pre></details></>}</div>
+          <div className="memory-record-detail">{chosen && <><strong>{chosen.label}</strong><p>Source: {chosen.source}</p>
+            {links.length > 0 && <ul className="memory-links">{links.map((e, i) => <li key={i}>{nodes.find((n) => n.id === e.from)?.label} <span>{e.relation}</span> {nodes.find((n) => n.id === e.to)?.label}</li>)}</ul>}
+            <details><summary>Returned fields</summary><pre>{JSON.stringify(chosen.data, null, 2)}</pre></details></>}</div>
         </div>
         <p className="memory-note">{data.graph.description} Pages and summaries can omit records; zero here means zero returned. No panel data is added to the model's conversation.</p>
       </> : <>
