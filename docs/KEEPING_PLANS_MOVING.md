@@ -1,6 +1,6 @@
-# Reminders and keeping plans moving (v0.8)
+# Reminders and keeping plans moving
 
-Two more things go wrong in group plans after every decision is recorded correctly. People forget at the moment it matters: the cake is agreed, and nobody remembers to pick it up. And plans stall: three of five people never answer, a suggestion waits for a decision nobody wants to make, the organizer never sends the draft. Usually nobody is refusing anything; answering just feels like committing, and reminding a friend twice feels pushy. Version 0.8 gives the MCP server `set_reminder` and `review_plan`, and a check-in that the server runs by itself on plans that went quiet while something waits. As in the rest of GroupFlow, the decisions that matter (who is reminded, about what, how often) are made in code on the server, not by the model.
+Two more things go wrong in group plans after every decision is recorded correctly. People forget at the moment it matters: the cake is agreed, and nobody remembers to pick it up. And plans stall: three of five people never answer, a suggestion waits for a decision nobody wants to make, the organizer never sends the draft. Usually nobody is refusing anything; answering just feels like committing, and reminding a friend twice feels pushy. GroupFlow gives the MCP server `set_reminder` and `review_plan` (in the voice profile, `tell_people` with a time and `catch_up` with a plan), and a check-in that the server runs by itself on plans that went quiet while something waits. As in the rest of GroupFlow, the decisions that matter (who is reminded, about what, how often) are made in code on the server, not by the model.
 
 ## Reminders: `set_reminder`
 

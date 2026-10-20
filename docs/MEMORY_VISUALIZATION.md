@@ -1,6 +1,6 @@
 # Information that helps the assistant act
 
-GroupFlow v0.5 focuses its product demonstration on four friends repairing a Friday dinner. The family, trip, study, household and project worlds remain tests of shared MCP structures: ownership, visibility, typed items, conditions, revisions, confirmation scopes and persistent state.
+GroupFlow focuses its product demonstration on four friends repairing a Friday dinner. The family, trip, study, household and project worlds remain tests of shared MCP structures: ownership, visibility, typed items, conditions, revisions, confirmation scopes and persistent state.
 
 ## Why a semantic memory map
 

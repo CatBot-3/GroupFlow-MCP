@@ -17,7 +17,7 @@ Most planning between friends already happens in group chats, which is why this 
 | Talk to Alexa privately | The "Alexa (private)" thread | Private limits, private notes and plans hidden from someone in a room belong here |
 | Confirm or decline a plan, verify a private condition | Cards in the chat that call the person's own page | Consent never comes from a message; the tap goes to the human-only API with the person's own session, a one-time challenge and the scope digest |
 | Leave a group | Their own page (`/human/groups/leave`) | Visibility of the group's shared plans ends at once; organizing passes to another member |
-| Hear what someone asked Alexa to tell them | Their private thread, marked as an update from that plan (v0.7) | The server wrote it for them from a plan they can see; the chat posts it the moment `notify_people` runs |
+| Hear what someone asked Alexa to tell them | Their private thread, marked as an update from that plan | The server wrote it for them from a plan they can see; the chat posts it the moment `notify_people` runs |
 | Answer Alexa's question with one tap | Quick-answer buttons under the question, for the person who was asked | Tapping says the answer in the conversation, so the model and the server treat it exactly like a typed reply |
 
 The demo world's thirteen people are pre-linked, so judges can open two browser tabs, sign in as Alice and Linda, and watch the family room.

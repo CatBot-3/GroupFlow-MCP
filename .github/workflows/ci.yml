@@ -1,0 +1,42 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: python scripts/check_links.py
+      - run: python -m pytest -q
+
+  model-gate:
+    # Paid model runs only where the repository has a key; the gate fails on any safety counter above zero
+    # or a consistency drop below eval/baseline.json.
+    needs: tests
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    env:
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+        if: env.DEEPSEEK_API_KEY != ''
+      - run: python -m groupflow eval --suite realistic --suite adversarial --host minimal --runs 3 --json minimal.json --out minimal.md || true
+        if: env.DEEPSEEK_API_KEY != ''
+      - run: python scripts/eval_gate.py minimal.json --baseline eval/baseline.json
+        if: env.DEEPSEEK_API_KEY != ''
+      - uses: actions/upload-artifact@v4
+        if: always() && env.DEEPSEEK_API_KEY != ''
+        with:
+          name: model-eval
+          path: minimal.*

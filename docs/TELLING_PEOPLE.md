@@ -1,6 +1,6 @@
-# Telling people and asking first (v0.7)
+# Telling people and asking first
 
-Two things go wrong in group plans even when every decision is recorded correctly. The news does not reach the people it affects: the organizer moves the party to 9 and two of the four people still turn up at 8. And an assistant fills a gap with a guess: "can we push it back a bit" becomes 8:30 because the model had to pick something. Version 0.7 gives the MCP server three tools for this, `notify_people`, `ask_followup` and `answer_followup`, and keeps the important decisions on the server rather than in the prompt, for the same reason as the rest of GroupFlow: a model can be talked into things, and a rule in code cannot.
+Two things go wrong in group plans even when every decision is recorded correctly. The news does not reach the people it affects: the organizer moves the party to 9 and two of the four people still turn up at 8. And an assistant fills a gap with a guess: "can we push it back a bit" becomes 8:30 because the model had to pick something. GroupFlow gives the MCP server three tools for this, `notify_people`, `ask_followup` and `answer_followup` (in the voice profile they are `tell_people` and `answer`), and keeps the important decisions on the server rather than in the prompt, for the same reason as the rest of GroupFlow: a model can be talked into things, and a rule in code cannot.
 
 ## Telling people: `notify_people`
 

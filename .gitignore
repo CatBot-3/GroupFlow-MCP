@@ -16,8 +16,10 @@ build/
 # web
 web/node_modules/
 
-# evaluation runs and local logs
-eval/runs/*.log
-eval/runs/*.err
+# evaluation runs (summarized in docs/EVALUATION.md) and local logs
+eval/runs/
 *.log
 *.err
+
+# test and screenshot outputs
+output/

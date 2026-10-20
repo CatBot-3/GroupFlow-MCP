@@ -1,40 +1,124 @@
 # Friction log
 
-Problems we hit while building GroupFlow, in the order we hit them, with what fixed each one. We kept it because several of these will bite anyone building an MCP add-on with an LLM in front of it.
+Two parts. First, friction with the Alexa+ add-on platform and its documentation, written in the format the rules ask for (task, steps, expected, actual, severity, workaround, suggestion); these are the entries we would most like Amazon to see. Second, the engineering notes we kept while building, most of them our own bugs, because several will bite anyone building an MCP add-on with a language model in front of it.
 
-## MCP server and client (official Python SDK 2.3.0)
+## Part 1. Alexa+ add-on friction
 
-1. **The v2 SDK renamed the server.** `FastMCP` examples from v1 do not apply; v2 has `MCPServer` in `mcp.server.mcpserver`, a middleware chain with the signature `async (ctx, call_next)`, and raw dict results for `initialize` and `tools/list`. Filtering tools per member meant editing `result["tools"]` as a dict inside middleware. Most search results still show v1 code.
-2. **Pinning the protocol version.** The v2 client in `auto` mode first tries the newer per-request envelope (2026-07-28) before falling back to the 2025-11-25 handshake. To serve only 2025-11-25, our middleware answers modern-envelope requests with JSON-RPC error -32601, which makes the client fall back. It works, but there is no documented server switch for "handshake only".
-3. **Mounting under a path.** Mounting the SDK's Starlette app at `/mcp` inside FastAPI turned `POST /mcp` into a redirect to `/mcp/`, which MCP clients do not follow. We replaced the mount with a tiny ASGI dispatcher that sends `/mcp` to the SDK app and everything else to FastAPI.
-4. **Async context ownership.** An SDK client session entered in one asyncio task and closed in another fails with an anyio cancel-scope error. A web backend handles each request in a different task, so each member's session now lives inside its own long-lived task, and requests talk to it.
-5. **Async event hooks.** The SDK uses `httpx2`; on an async client a response hook must be an `async def`, otherwise every request fails with "object NoneType can't be used in 'await' expression".
-6. **Identity per request.** Bearer identity has to reach tool code. We put the member on the ASGI scope in an auth wrapper and read it in tools through the request context, and bound each `mcp-session-id` to the member who opened it so a session cannot be borrowed with another token.
-7. **Elicitation needs a streamed response.** With `json_response=True` (one JSON body per request, which is simpler behind proxies) a tool cannot send `elicitation/create` in the middle of a call: the request's channel has no way to carry a server request, and `ctx.elicit` raises. We made the response mode a setting (`GROUPFLOW_MCP_RESPONSES=sse`) and check both `session.client_capabilities.elicitation` and `session.can_send_request` before asking; otherwise `ask_followup` hands the question back for the model to ask in words. The Alexa+ documentation describes elicitation only at the level of "Alexa+ gathers context first, then elicits", so we could not tell which response mode or form shapes it expects.
+### F1. The documented client initializes with an older protocol version than the rules require
 
-## LLM behaviour (DeepSeek, OpenAI-compatible API)
+* **Task:** Serve the MCP version the hackathon requires (2025-11-25) to the client Alexa+ actually runs.
+* **Steps:** Read the MCP toolkit client lifecycle page; compare its initialize example with the rules.
+* **Expected:** The documented Alexa+ client sends `protocolVersion: "2025-11-25"`, or the docs say which versions it negotiates.
+* **Actual:** The example initializes with `2025-03-26`. A server that accepted only 2025-11-25 would fail the handshake.
+* **Severity:** High (a strict server cannot connect).
+* **Workaround:** GroupFlow prefers 2025-11-25 and also accepts 2025-06-18 and 2025-03-26; a test negotiates all three.
+* **Suggestion:** State the supported protocol versions in one place and keep the client example current.
 
-7. **Thinking mode is on by default** on DeepSeek, which adds seconds per turn. We send it disabled; in thinking mode the reasoning text must be sent back on assistant messages that carry tool calls, or the next call fails.
-8. **Hedges confirmed as decisions.** "How about 30 guests?" was recorded as a firm change. Listing hedge words in the tool description and the server's initialize instructions fixed it.
-9. **Negations stored as values.** "We're not getting an ice cream cake" became the cake value "not ice cream cake". The tool description now says a negative statement is never a value.
-10. **The model judged permissions itself.** It refused to mark a task done because it guessed the speaker was not the owner. The prompt now says to make the call and let the server decide, then explain its answer.
-11. **"Noted" without a tool call.** The model sometimes said it had recorded something it never sent. The prompt forbids claiming a change unless a tool call in that turn made it; the evaluation counts these.
+### F2. WWW-Authenticate is listed as unsupported, but MCP authorization uses it for discovery
 
-## Data and platform
+* **Task:** Let Alexa+ find GroupFlow's authorization server.
+* **Steps:** Implement MCP 2025-11-25 authorization (protected resource metadata, RFC 9728), then read the Alexa+ authentication page.
+* **Expected:** Alexa+ reads `WWW-Authenticate: Bearer resource_metadata=...` on a 401, as the MCP spec describes, or the docs say where else it learns the endpoints.
+* **Actual:** The header is listed as unsupported, and the docs do not say how the authorization server is discovered instead.
+* **Severity:** Medium (account linking may need manual configuration we cannot see).
+* **Workaround:** GroupFlow sends the header and also serves `/.well-known/oauth-protected-resource` and `/.well-known/oauth-authorization-server`, so either path works.
+* **Suggestion:** Document the discovery path Alexa+ uses (console fields or metadata URLs).
 
-12. **A worker race on Windows.** Notifications go through an outbox that a background worker delivers. On a slower Windows run, Bob read his state before the worker delivered "P2 is now the agreed plan". Reading a member's notifications now first delivers that member's queue.
-13. **OR-Tools crashed the process on Windows.** CP-SAT raised an access violation inside `solve`. The venv was built from Anaconda's Python, which ships msvcp140.dll 14.29 next to `python.exe`; OR-Tools wheels need 14.40 or newer, and Windows loads the copy next to the executable first. GroupFlow now loads the system copy of the runtime before importing OR-Tools, and falls back to exact enumeration if no new enough copy exists.
-14. **A stale Python registration.** The Windows `py` launcher listed Python 3.14 at a path that no longer existed, so `py -3.14 -m venv` failed with an unreadable message. Using an installed interpreter by full path worked.
-15. **SQLite and concurrency.** Python's `sqlite3` defaults to implicit transactions. We use autocommit mode with explicit `BEGIN IMMEDIATE`, WAL, and nested transactions that join the outer one, so a commit and a decision racing on the same plan version cannot both win.
+### F3. Two spellings of the person-level scope
 
-## Turning two demo engines into one generic core
+* **Task:** Accept the scope Alexa+ requests for a linked person.
+* **Steps:** Search the authentication and account-linking pages for the scope name.
+* **Expected:** One scope name.
+* **Actual:** Both `mcp:resource` and `mcp:resources` appear.
+* **Severity:** Low (a strict server refuses one of them).
+* **Workaround:** GroupFlow accepts both for person tokens, and only `mcp:service` for client credentials.
+* **Suggestion:** Pick one spelling and list the exact scopes per tier.
 
-The first Python build had a household engine for the surprise party and a separate agreement engine for the dinner, each with its own tools. Merging them into one core with templates surfaced problems that neither engine had on its own.
+### F4. No signal says who is speaking or who will hear the reply on a shared device
 
-16. **Loose matching across plans.** With several plans per person, a fuzzy match on item names turned "party.venue" into the party date (both start with "party"). Fuzzy matching is now skipped for dotted references, and every word must hit before a fuzzy match counts.
-17. **History that remembered too much.** When the party date changed, the Home plan's cover story was flagged, and the history entry for that flag was filed under the Home plan, which Linda can see; it named "Party date & time". Our own leak test caught it. History entries caused by another plan now live with the more private of the two plans.
-18. **Error messages that echo guesses.** A "no such plan" error repeated the title the model had guessed, which could confirm a hidden plan's name to someone who guessed right. Errors for plans the speaker cannot see now read exactly like errors for plans that do not exist.
-19. **A guess that became a new item.** Asked to mark "the decorations task" done with a made-up id, the server created a new task called that id. An unknown item with nothing but a status is now refused; only an explicit new type, title or value adds an item.
-20. **Evaluation state leaking between scenarios.** Each scenario reset only its own group, so a scenario in the family group could start with Bob's open confirmations for Friday dinner left over from an earlier dinner scenario, and the model talked about those instead. Every scenario now starts from the whole world as seeded.
-21. **Repairing and sending in one breath.** Asked to "send the cottage plan out", the model found that the draft broke a condition, ran the search for alternatives itself and sent the repaired version, so the organizer never heard what changed before everyone was asked to confirm it. The refusal message and the prompt now say that the organizer decides whether to send a repaired version.
-22. **The Windows event loop closed its own listening socket.** When the screenshot browser was killed while the page held an open event stream, accept() failed with WinError 64, and asyncio's proactor loop responds to that by closing the listening socket: the simulator kept running but refused every new connection. The servers now run on the selector event loop on Windows, and the same abrupt disconnects no longer matter.
+* **Task:** Keep a surprise party out of a family kitchen.
+* **Steps:** Look for any request field, header or token claim that identifies the speaker on a household Echo, or who else is present.
+* **Expected:** A recognized-speaker or shared-device indication, so a server can choose what is safe to say aloud.
+* **Actual:** One OAuth token per linked account and nothing about the room.
+* **Severity:** High for any add-on with private data.
+* **Workaround:** Room mode: when a host does not declare listeners, GroupFlow leaves plans kept from someone out of summaries and serves them only when named; a host can declare a personal device with `X-GroupFlow-Listeners: me`. Measured cost: in the minimal-host evaluation several failures were requests about a plan the summary had left out (see EVALUATION.md).
+* **Suggestion:** Pass a shared-device flag (and, when known, the recognized speaker) to add-ons.
+
+### F5. Device testing needs Private Preview access
+
+* **Task:** Test GroupFlow on a real Echo before submission.
+* **Steps:** Follow the development stages page.
+* **Expected:** A self-serve test path for hackathon entrants.
+* **Actual:** Add-on testing on devices sits behind Private Preview access.
+* **Severity:** High for the production track (the rules ask to show the server running on the device).
+* **Workaround:** We entered on the simulation path, and built a minimal host that adds nothing GroupFlow-specific so the measured numbers describe what a plain client gets.
+* **Suggestion:** Give hackathon participants preview access or a hosted test client.
+
+### F6. The 500 ms requirement does not say what is measured
+
+* **Task:** Prove GroupFlow meets the latency requirement.
+* **Steps:** Read supported capabilities; time every tool locally.
+* **Expected:** A definition: server processing or network round trip, cold or warm session, which percentile.
+* **Actual:** "Under 500 ms" with no method.
+* **Severity:** Low.
+* **Workaround:** We report local server time per call (44 to 128 ms, repair search included).
+* **Suggestion:** Define the measurement and the percentile.
+
+### F7. "A tool returns 401/403" is ambiguous for account linking
+
+* **Task:** Make the service tier (client credentials) trigger linking when a person is needed.
+* **Steps:** Read account linking; implement the service tier.
+* **Expected:** It is clear whether Alexa+ wants an HTTP status on `tools/call` or an MCP tool result with an error.
+* **Actual:** The wording allows both.
+* **Severity:** Medium.
+* **Workaround:** With a service-only token GroupFlow answers `tools/call` with HTTP 403 and `WWW-Authenticate: Bearer error="insufficient_scope"`, while `initialize` and `tools/list` work.
+* **Suggestion:** Show one request and response that triggers linking.
+
+### F8. It is not documented what the model sees of a server
+
+* **Task:** Decide where to put guidance: server instructions, tool descriptions or both.
+* **Steps:** Search the design guide for `instructions`, `annotations`, `outputSchema`.
+* **Expected:** Whether initialize instructions reach the model, and whether readOnlyHint and destructiveHint change confirmation behaviour.
+* **Actual:** Not stated.
+* **Severity:** Medium (it decides how much an add-on can rely on).
+* **Workaround:** The voice profile keeps all essential rules on the server and in short tool descriptions; server instructions are under 1,600 characters, and every write is guarded server-side regardless of hints.
+* **Suggestion:** Document which server fields Alexa+ passes to its model and how it uses tool annotations.
+
+## Part 2. Engineering notes from the build
+
+These are in the order we hit them, with what fixed each one.
+
+### MCP server and client (official Python SDK 2.3.0)
+
+1. **The v2 SDK renamed the server.** `FastMCP` examples from v1 do not apply; v2 has `MCPServer` in `mcp.server.mcpserver`, a middleware chain with the signature `async (ctx, call_next)`, and raw dict results for `initialize` and `tools/list`. Most search results still show v1 code.
+2. **Pinning the protocol era.** The v2 client in `auto` mode first tries the newer per-request envelope (2026-07-28) before falling back to the handshake. Our middleware answers modern-envelope requests with JSON-RPC error -32601, which makes the client fall back. There is no documented server switch for "handshake only".
+3. **Mounting under a path.** Mounting the SDK's Starlette app at `/mcp` inside FastAPI turned `POST /mcp` into a redirect to `/mcp/`, which MCP clients do not follow. A tiny ASGI dispatcher now routes `/mcp` and `/mcp/lab` itself.
+4. **Async context ownership.** An SDK client session entered in one asyncio task and closed in another fails with an anyio cancel-scope error, so each member's session lives inside its own long-lived task.
+5. **Async event hooks.** The SDK uses `httpx2`; on an async client a response hook must be an `async def`.
+6. **Identity per request.** The member goes on the ASGI scope in an auth wrapper and tools read it through the request context; each `mcp-session-id` is bound to the member who opened it.
+7. **Elicitation needs a streamed response.** With one JSON body per request a tool cannot send `elicitation/create` mid-call, so the response mode is a setting and `ask_followup` falls back to a spoken question.
+8. **Advertised schemas are verbose.** Pydantic schemas carry titles, `anyOf` with null and `default: null` for every optional field; for the voice profile we simplify the advertised schema (validation still uses the full signature), which with lean descriptions brought 13 tools to 12.8 KB.
+
+### LLM behaviour (DeepSeek, OpenAI-compatible API)
+
+9. **Thinking mode is on by default** on DeepSeek, which adds seconds per turn; we send it disabled.
+10. **Hedges confirmed as decisions; negations stored as values; permissions guessed by the model; "noted" without a tool call.** Each was fixed in tool descriptions and server rules, and the evaluation counts the last one.
+11. **Host help hides weaknesses.** The simulator's long prompt, forced state read and reply re-check raised scores that a plain host would not get. The minimal host and pass^3 now measure that gap (EVALUATION.md).
+
+### Data and platform
+
+12. **A worker race on Windows,** fixed by delivering a member's outbox before reading their notifications.
+13. **OR-Tools crashed on Windows** because Anaconda's Python ships an older msvcp140.dll; GroupFlow loads the system runtime first and falls back to exact enumeration.
+14. **A stale Python registration** in the Windows `py` launcher; using an interpreter by full path worked.
+15. **SQLite and concurrency:** autocommit with explicit `BEGIN IMMEDIATE`, WAL and nested transactions that join the outer one.
+16. **The Windows event loop closed its own listening socket** after an abrupt disconnect (WinError 64); servers run on the selector loop on Windows.
+17. **Tests that needed local files.** One test read a frozen case file from the ignored `eval/runs/` folder, so a fresh clone failed it; the file is now a tracked fixture and tests write evidence to a temporary folder unless `GROUPFLOW_KEEP_EVIDENCE=1`.
+
+### Turning two demo engines into one generic core
+
+18. **Loose matching across plans** turned "party.venue" into the party date; dotted references skip fuzzy matching.
+19. **History that remembered too much:** a flag caused by a hidden plan was filed where the guest of honour could read it; such entries now live with the more private plan.
+20. **Error messages that echo guesses** could confirm a hidden plan's name; they now read like errors for plans that do not exist.
+21. **A guess that became a new item;** an unknown item with only a status is refused.
+22. **Evaluation state leaking between scenarios;** every scenario starts from the whole world as seeded.
+23. **Repairing and sending in one breath;** the organizer decides whether to send a repaired version.
