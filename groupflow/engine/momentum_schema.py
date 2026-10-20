@@ -1,4 +1,4 @@
-"""Additive v0.8 tables: reminders at a chosen time, per-plan check-in settings, and the record of check-in reminders already sent."""
+"""Additive tables: reminders at a chosen time, per-plan check-in settings, and the record of check-in reminders already sent."""
 from groupflow.core.db import register_schema
 
 register_schema("momentum_v1", """

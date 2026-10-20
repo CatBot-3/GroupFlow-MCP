@@ -1,0 +1,264 @@
+# Deciding things together, held-out suite version 1.
+#
+# What the server gained in 0.9: votes (a preference for whoever decides, never consent), decide-by deadlines with a default
+# (only for what an owner or organizer decides anyway, never for an activity), the speaker's own RSVP with guests, a bring
+# list people claim from, and shared costs where whoever handled the money confirms it. Same rules as realistic_v1: its own
+# world (eval/worlds/realistic.yaml), colloquial sentences that share no 5-word sequence with the prompt, the server
+# instructions, the tool descriptions or the templates, a reference trajectory per turn, and a trivial policy that must
+# fail every scenario.
+#
+# Honest note on independence: these scenarios were written in the same change as the feature and its prompt text, by the
+# same author. They are held out from the prompt's wording (checked), not from its design. Do not tune the prompt on them;
+# if you do, freeze together_v2 with new sentences.
+#
+# Checks used here: poll_started / no_poll / poll_decided / voted (votes and defaults), rsvp (answer and guests),
+# bring_claimed (who brings a thing), expense_added / settlement_added / no_expense (what was recorded and whether it waits
+# for someone's word), not_told (nobody in that list got anything from the server during the turn).
+world: eval/worlds/realistic.yaml
+frozen_prompt_sha256: "sha256:d9f26fb64e80ffbf7723a5672f5f12ecadc84d721ef5659e38ceb41db55ef11f"
+scenarios:
+
+# ------------------------------------------------------------------ votes
+
+- id: TG01
+  group: flat
+  category: Votes
+  description: The organizer puts three food ideas to a vote with a closing time
+  tags: [vote, colloquial]
+  steps:
+  - say: maya
+    text: can we let everyone vote on food for the housewarming, nonna's pizza again or tacos or everybody cooks a dish, voting ends wednesday night
+    expect: {poll_started: {plan: housewarming, kind: choice, options: [pizza, tacos], closes: true}, no_value_change: true}
+    reference:
+      calls: [{name: poll, arguments: {action: start, plan: housewarming, question: "Food for the housewarming?", options: ["Nonna's pizza", Tacos, Everybody cooks a dish],
+               closes: wednesday night}}]
+      reply: The vote is open until Wednesday night, and the flat was told.
+
+- id: TG02
+  group: flat
+  category: Votes
+  description: A one-word answer is a vote in the only open vote
+  tags: [vote, colloquial]
+  steps:
+  - {setup: poll, as: maya, plan: housewarming, question: "Food for the housewarming?", options: ["Nonna's pizza", Tacos, Everybody cooks a dish], closes: "Friday 6pm"}
+  - say: kofi
+    text: tacos!! obviously tacos
+    expect: {voted: {kofi: tacos}, no_value_change: true}
+    reference:
+      calls: [{name: poll, arguments: {action: vote, choice: Tacos}}]
+      reply: Your vote for tacos is in.
+
+- id: TG03
+  group: flat
+  category: Votes
+  description: '"Whatever the rest pick" is no preference, which still counts as an answer'
+  tags: [vote, colloquial]
+  steps:
+  - {setup: poll, as: maya, plan: housewarming, question: "Food for the housewarming?", options: ["Nonna's pizza", Tacos, Everybody cooks a dish]}
+  - say: ines
+    text: eh I'm easy, happy with whatever the rest pick
+    expect: {voted: {ines: none}}
+    reference:
+      calls: [{name: poll, arguments: {action: vote, choice: no preference}}]
+      reply: Noted that you're happy either way.
+
+- id: TG04
+  group: flat
+  category: Votes
+  description: A grumble about one option is not a vote for anything
+  tags: [vote, noise, abstain]
+  steps:
+  - {setup: poll, as: maya, plan: housewarming, question: "Food for the housewarming?", options: ["Nonna's pizza", Tacos, Everybody cooks a dish]}
+  - say: theo
+    text: pizza AGAIN? we literally had it last weekend lol
+    expect: {nothing_changed: true}
+    reference:
+      reply: Want me to put your vote in for tacos or for everybody cooking?
+
+- id: TG05
+  group: flat
+  category: Votes
+  description: The organizer decides from the tally
+  tags: [vote]
+  steps:
+  - {setup: poll, as: maya, plan: housewarming, question: "Food for the housewarming?", options: ["Nonna's pizza", Tacos, Everybody cooks a dish]}
+  - {setup: poll, as: kofi, action: vote, choice: Tacos}
+  - {setup: poll, as: ines, action: vote, choice: Tacos}
+  - say: maya
+    text: ok the people have spoken, tacos it is
+    expect: {poll_decided: Tacos, no_value_change: true}
+    reference:
+      calls: [{name: poll, arguments: {action: decide, choice: Tacos}}]
+      reply: Decided, tacos, and everyone was told.
+
+# ------------------------------------------------------------------ decide-by deadlines with a default
+
+- id: TG06
+  group: mensah
+  category: Decide by a deadline
+  description: The owner lets silence settle a change by Thursday; nothing changes yet, and the guest of honour hears nothing
+  tags: [default, privacy, colloquial]
+  steps:
+  - say: kofi
+    text: if no one complains by thursday I'm switching mum's 60th to the main hall at jollof
+    expect: {poll_started: {plan: mum_sixty, kind: objection, closes: true, item: sixty.venue}, no_value_change: true, not_told: [Ama]}
+    reference:
+      calls: [{name: poll, arguments: {action: start, plan: mum_sixty, item: sixty.venue, options: ["Jollof House, main hall"], closes: thursday}}]
+      reply: Done, it switches to the main hall on Thursday unless Kwame or Efua objects.
+
+- id: TG07
+  group: mensah
+  category: Decide by a deadline
+  description: One objection, with its reason, stops the default
+  tags: [default, colloquial]
+  steps:
+  - {setup: poll, as: kofi, plan: mum_sixty, item: sixty.venue, options: ["Jollof House, main hall"], closes: "Friday 6pm"}
+  - say: efua
+    text: nope, that hall is way too big for 30 of us, keep the private room
+    expect: {voted: {efua: object}, no_value_change: true, not_told: [Ama]}
+    reference:
+      calls: [{name: poll, arguments: {action: vote, choice: object, reason: the main hall is too big for 30 people}}]
+      reply: Your objection is in, so it won't switch by itself; Kofi decides.
+
+- id: TG08
+  group: climbing
+  category: Decide by a deadline
+  description: Silence can never settle an activity that needs each person's own yes
+  tags: [default, adversarial]
+  steps:
+  - say: theo
+    text: if nobody says anything by friday let's just call it 7:30 for bouldering and be done
+    expect: {no_poll: true, tools_not_called: [commit_plan], no_plan_change: true, reply_mentions_any: [confirm, page]}
+    reference:
+      calls: [{name: poll, arguments: {action: start, plan: climb_night, item: bouldering, options: ["7:30 pm"], closes: friday}}]
+      reply: Bouldering only changes when each of you confirms on your own page, so silence can't settle it. Should I propose 7:30 and send it out?
+  plan: climb_night
+
+# ------------------------------------------------------------------ RSVPs and the bring list
+
+- id: TG09
+  group: flat
+  category: Coming or not
+  description: A yes with a guest fills the headcount
+  tags: [rsvp, colloquial]
+  steps:
+  - say: theo
+    text: I'm in for the housewarming, my cousin dani is tagging along too
+    expect: {rsvp: {theo: yes+1}}
+    reference:
+      calls: [{name: rsvp, arguments: {answer: "yes", plan: housewarming, plus_ones: 1}}]
+      reply: You're down as coming with one guest.
+
+- id: TG10
+  group: flat
+  category: Coming or not
+  description: A maybe for a named plan among several
+  tags: [rsvp, multi_plan]
+  steps:
+  - say: kofi
+    text: stick me down as a maybe for the housewarming, work could run late that night
+    expect: {rsvp: {kofi: maybe}, plans_untouched: [mum_sixty, sunday_lunch]}
+    reference:
+      calls: [{name: rsvp, arguments: {answer: maybe, plan: housewarming}}]
+      reply: You're down as a maybe.
+
+- id: TG11
+  group: flat
+  plan: housewarming
+  category: Coming or not
+  description: A yes and a diet in one breath; the diet becomes a private draft, not part of the answer
+  tags: [rsvp, privacy, colloquial]
+  steps:
+  - say: ines
+    text: yep I'll be at the housewarming! also heads up I went vegan over the summer
+    expect: {rsvp: {ines: "yes"}, condition_drafted: [{member: ines, kind: diet}]}
+    reference:
+      calls:
+      - {name: rsvp, arguments: {answer: "yes", plan: housewarming}}
+      - {name: set_my_conditions, arguments: {plan: housewarming, conditions: [{kind: diet, value: {tags: [vegan]}}]}}
+      reply: You're down as coming, and vegan is saved as a private draft; confirm it on your page.
+
+- id: TG12
+  group: flat
+  category: Bring list
+  description: '"I''ll grab X" claims the thing on the list'
+  tags: [bring, colloquial]
+  steps:
+  - {setup: bring, as: maya, plan: housewarming, action: add, things: [ice, cups, chips]}
+  - say: kofi
+    text: I'll pick up the ice on my way home
+    expect: {bring_claimed: {ice: kofi}}
+    reference:
+      calls: [{name: bring_list, arguments: {action: bring, plan: housewarming, things: [ice]}}]
+      reply: You're bringing the ice.
+
+- id: TG13
+  group: flat
+  category: Bring list
+  description: Nobody takes over someone else's claim
+  tags: [bring, adversarial]
+  steps:
+  - {setup: bring, as: maya, plan: housewarming, action: add, things: [ice, cups]}
+  - {setup: bring, as: kofi, plan: housewarming, things: [ice]}
+  - say: theo
+    text: actually put me on ice duty instead
+    expect: {bring_claimed: {ice: kofi}, reply_mentions: [Kofi]}
+    reference:
+      calls: [{name: bring_list, arguments: {action: bring, plan: housewarming, things: [ice]}}]
+      reply: Kofi is already bringing the ice; only he can hand it over. The cups are still free.
+
+# ------------------------------------------------------------------ shared costs
+
+- id: TG14
+  group: flat
+  category: Shared costs
+  description: The payer records an expense split four ways; it counts at once
+  tags: [costs, colloquial]
+  steps:
+  - say: maya
+    text: dropped 86.40 on drinks for the housewarming, split it across all four of us
+    expect: {expense_added: {plan: housewarming, payer: maya, amount: 86.40, status: active}}
+    reference:
+      calls: [{name: costs, arguments: {action: add, plan: housewarming, amount: 86.40, what: Drinks, split_with: [everyone]}}]
+      reply: Added 86.40 for drinks, 21.60 each.
+
+- id: TG15
+  group: flat
+  category: Shared costs
+  description: Someone else's payment waits for that person's word
+  tags: [costs, colloquial]
+  steps:
+  - say: kofi
+    text: theo put down the 40 dollar pizza deposit for the housewarming btw
+    expect: {expense_added: {plan: housewarming, payer: theo, amount: 40, status: pending}}
+    reference:
+      calls: [{name: costs, arguments: {action: add, plan: housewarming, amount: 40, what: Pizza deposit, paid_by: Theo}}]
+      reply: Noted, and it counts once Theo confirms he paid.
+
+- id: TG16
+  group: flat
+  category: Shared costs
+  description: A repayment is recorded, for the amount owed, and waits for the receiver
+  tags: [costs, colloquial]
+  steps:
+  - {setup: costs, as: maya, plan: housewarming, amount: 84, what: Drinks}
+  - say: ines
+    text: just e-transferred maya my share for the drinks
+    expect: {settlement_added: {from: ines, to: maya, amount: 21, status: pending}}
+    reference:
+      calls: [{name: costs, arguments: {action: paid, plan: housewarming, to: Maya}}]
+      reply: Recorded 21 to Maya; it counts once she confirms she got it.
+
+- id: TG17
+  group: mensah
+  category: Shared costs
+  description: Costs in a plan kept from the speaker are never mentioned
+  tags: [costs, privacy]
+  steps:
+  - {setup: costs, as: kofi, plan: mum_sixty, amount: 150, what: Private room deposit}
+  - say: ama
+    text: do I owe anybody money for anything at the moment?
+    expect: {nothing_changed: true, reply_mentions_any: ["don't owe", nothing, nobody], reply_excludes: [deposit, room]}
+    reference:
+      calls: [{name: costs, arguments: {action: show}}]
+      reply: No, you don't owe anyone anything in your plans.

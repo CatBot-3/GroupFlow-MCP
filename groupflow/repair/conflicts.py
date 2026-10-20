@@ -86,7 +86,8 @@ def describe(problem: Problem, groups: list[str]) -> list[dict]:
     for g in groups:
         kind, _, ref = g.partition(":")
         if kind == "place_unavailable":
-            text = f"{places[ref].name if ref in places else ref} is unavailable at the planned time."
+            reasons = [u.reason for u in problem.unavailable if u.place_id == ref and u.reason]
+            text = reasons[0] if reasons else f"{places[ref].name if ref in places else ref} is unavailable at the planned time."
         elif kind == "must_attend":
             text = f"Everyone has to attend {problem.base.activity(ref).title}." if problem.base.has(ref) else "Everyone has to attend."
         elif kind == "required":

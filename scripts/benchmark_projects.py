@@ -12,7 +12,7 @@ from groupflow.projects.scheduler import solve
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--out',type=Path,default=Path('docs/project_benchmark.json'))
+    p.add_argument('--out',type=Path,default=Path('eval/runs/project_benchmark.json'))
     p.add_argument('--budget',type=float,default=3)
     args=p.parse_args()
     results=[]
@@ -25,6 +25,7 @@ def main():
         print(size,result['status'],result.get('optimal'),result.get('ms'),flush=True)
     data={'python':platform.python_version(),'machine':platform.machine(),'budget_s':args.budget,'fixture':'10 owners, lab capacity3, chains of length N/10, 42 calendar days',
           'purpose':'scaling smoke check; NOT an enumeration crossover measurement','results':results}
+    args.out.parent.mkdir(parents=True,exist_ok=True)
     args.out.write_text(json.dumps(data,indent=2),encoding='utf-8')
 
 

@@ -1,4 +1,4 @@
-"""Additive v0.6 tables: assistant links (account linking) and group invitations. Earlier tables stay byte-stable."""
+"""Additive tables: assistant links (account linking) and group invitations. Earlier tables stay byte-stable."""
 from groupflow.core.db import register_schema
 
 register_schema("accounts_v1", """

@@ -668,3 +668,26 @@ a.ghost { color: var(--ink); text-decoration: none; display: inline-flex; align-
 /* Reminders and check-ins on a person's page, and the console's skip-ahead result. */
 .note-kind { display: inline-block; margin-right: 6px; padding: 0 6px; border-radius: 999px; border: 1px solid var(--rule); color: var(--ink-2); font-size: 11px; font-weight: 600; }
 .console-note { color: var(--ink-2); font-size: 12.5px; flex: 1 1 240px; min-width: 0; overflow-wrap: anywhere; }
+
+/* Votes, who's coming, the bring list and shared costs */
+.tally { list-style: none; margin: 4px 0 2px; padding: 0; display: grid; gap: 3px; font-size: 12.5px; }
+.tally li { display: grid; grid-template-columns: minmax(70px, max-content) minmax(40px, 1fr) minmax(0, 2fr); gap: 8px; align-items: center; }
+.tally-option { font-weight: 600; }
+.tally-bar { height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--ink) var(--share), var(--rule) var(--share)); }
+.tally-who { color: var(--ink-2); overflow-wrap: anywhere; }
+.slot.poll.status-closed { background: var(--highlight-soft); }
+.events.bring li.open { color: var(--ink); }
+.events li.muted { color: var(--ink-3); }
+.together + .together { margin-top: 8px; }
+/* Current decisions, canonical actions and private publication controls. */
+.decision-hub { margin: 1rem 0; }
+.decision-card { border: 1px solid var(--border, #d8dce2); border-radius: 12px; padding: .8rem; margin: .7rem 0; overflow-wrap: anywhere; }
+.decision-card h4 { margin: 0 0 .4rem; }
+.decision-card summary { cursor: pointer; font-weight: 600; }
+.decision-card form { display: grid; gap: .55rem; margin-top: .7rem; }
+.decision-card label { display: grid; gap: .25rem; }
+.decision-card label:has(input[type="checkbox"]) { display: flex; align-items: center; }
+.decision-card input:not([type="checkbox"]), .decision-card select { width: 100%; min-width: 0; box-sizing: border-box; padding: .45rem; }
+.decision-action { padding: .6rem 0; border-top: 1px solid var(--border, #d8dce2); }
+.decision-action p, .decision-update { font-size: .85rem; margin: .4rem 0; line-height: 1.45; }
+.decision-card .pbtn { margin: .25rem .25rem .25rem 0; }

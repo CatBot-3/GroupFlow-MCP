@@ -126,6 +126,14 @@ class MemberSession:
     def protocol_version(self) -> str | None:
         return self.client.session.protocol_version if self.client else None
 
+    async def server_instructions(self) -> str:
+        """The server's initialize instructions, which a spec-following host may give its model."""
+        client = await self.ensure()
+        try:
+            return client.instructions or ""
+        except Exception:  # noqa: BLE001 - older clients
+            return ""
+
     async def call_tool(self, name: str, args: dict[str, Any]) -> ToolResult:
         for attempt in range(2):
             try:
@@ -158,24 +166,36 @@ class MemberSession:
 def _client_info(member: str):
     from mcp_types import Implementation
 
-    return Implementation(name=f"groupflow-echo-{member}", version="0.7.0")
+    return Implementation(name=f"groupflow-echo-{member}", version="0.9.0")
+
+
+def profile_urls(url: str) -> dict[str, str]:
+    """The server's two tool surfaces: /mcp (the deployed profile, voice by default) and /mcp/lab (always the full set)."""
+    base = url.rstrip("/")
+    if base.endswith("/mcp/lab"):
+        return {"lab": base, "voice": base[: -len("/lab")]}
+    if base.endswith("/mcp"):
+        return {"lab": base + "/lab", "voice": base}
+    return {"lab": base, "voice": base}
 
 
 class SessionPool:
     def __init__(self, tokens: dict[str, str], url: str, traffic: TrafficLog):
         self.tokens = tokens
         self.url = url
+        self.urls = profile_urls(url)
         self.traffic = traffic
         self.pools: dict[str, MemberSession] = {}
 
-    def get(self, member_id: str, source: str = "alexa", headers: dict[str, str] | None = None) -> MemberSession:
-        """One MCP session per (person, source). A source with headers (a group chat room declaring its listeners) is its own session."""
+    def get(self, member_id: str, source: str = "alexa", headers: dict[str, str] | None = None, profile: str = "lab") -> MemberSession:
+        """One MCP session per (person, source). A source with headers (a group chat room declaring its listeners) is its own session.
+        The simulator's own host and panels use the lab tools; an Alexa+-like minimal host uses the deployed (voice) profile."""
         key = f"{member_id}:{source}"
         s = self.pools.get(key)
         if s is None:
             if member_id not in self.tokens:
                 raise KeyError(f"Unknown member {member_id}")
-            s = MemberSession(member_id, self.tokens[member_id], self.url, source, self.traffic, headers)
+            s = MemberSession(member_id, self.tokens[member_id], self.urls.get(profile, self.url), source, self.traffic, headers)
             self.pools[key] = s
         return s
 

@@ -6,11 +6,15 @@ import {
 import './chat.css';
 
 // Messages the server queued for this person (nobody was talking to Alexa when they were made).
-const NOTICE_WORD: Record<string, string> = { notice: 'update', reminder: 'reminder', nudge: 'check-in' };
+const NOTICE_WORD: Record<string, string> = { notice: 'update', reminder: 'reminder', nudge: 'check-in', poll: 'vote', rsvp: 'coming', bring: 'bring list', costs: 'costs' };
 const NOTICE_TITLE: Record<string, string> = {
   notice: 'Someone asked Alexa to let you know',
   reminder: 'A reminder someone set, sent when its time came',
   nudge: 'The plan has been quiet while waiting on you; GroupFlow checked in',
+  poll: 'A vote in one of your plans: started, closed or decided',
+  rsvp: 'Someone answered whether they are coming',
+  bring: 'The bring list changed',
+  costs: 'A shared cost or repayment that involves you',
 };
 
 /* The group chat: people talk in a room per group and privately with Alexa. Messages that start with @Alexa (or "Alexa,")

@@ -14,6 +14,7 @@ conditions:
   - {name: latest_end, check: latest_end, label: latest finish}
   - {name: busy, check: unavailable_window, label: busy time}
   - {name: budget, check: max_total_cost, label: budget}
+  - {name: diet, check: needs, label: dietary needs, applies_to: [meal], tags: [vegetarian, vegan, nut_free, gluten_free, dairy_free, halal, kosher]}
 starter:
   details:
     - {key: event.date, label: Date and time, value_kind: datetime, aliases: [date, time, when]}

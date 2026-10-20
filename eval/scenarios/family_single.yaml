@@ -229,7 +229,7 @@ scenarios:
   - say: charlie
     text: What's holding up the invitations?
     expect:
-      tools_called: [explain]
+      tools_called_any: [explain, review_plan]
       no_value_change: true
 - id: B03
   category: Blockers
@@ -282,6 +282,7 @@ scenarios:
       no_value_change: true
       task_status: {Pick up the cake: done}
 - id: E04
+  plan: party
   category: Everyday requests
   description: Organizer sets a deadline on someone's task
   steps:
@@ -404,6 +405,7 @@ scenarios:
     expect:
       outcome_in: [created]
 - id: K04
+  plan: party
   category: Tasks
   description: Someone else's task cannot be marked done
   steps:

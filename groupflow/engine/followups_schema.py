@@ -1,4 +1,4 @@
-"""Additive v0.7 table: follow-up questions, held by the server with the exact action behind each answer.
+"""Additive table: follow-up questions, held by the server with the exact action behind each answer.
 
 suggested: the server offered it in a tool result (e.g. "want me to tell the others?"); the assistant may or may not ask it.
 open: the assistant asked it (ask_followup), so a bare "yes" from the speaker answers it.

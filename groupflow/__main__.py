@@ -5,6 +5,7 @@
     python -m groupflow sim         only the simulator (connects to GROUPFLOW_MCP_URL)
     python -m groupflow reset       reset the demo data (a group such as family or friends, friends:<stage>, or all)
     python -m groupflow check       show the configuration (never prints secrets)
+    python -m groupflow oauth       register assistant hosts that may sign people in (Alexa+ account linking)
     python -m groupflow eval        run the LLM evaluation scenarios
     python -m groupflow evidence    capture the MCP handshake for docs/PROTOCOL_EVIDENCE.md
 """
@@ -39,10 +40,30 @@ def _server_settings(args: argparse.Namespace):
     return s
 
 
-def _build_runtime(args: argparse.Namespace):
+def _demo_admin_key(settings):
+    """The demo runs its own simulator, which needs the inspector: use the configured key or make a random one for this run."""
+    import secrets
+
+    from groupflow.core.settings import demo_key_file
+
+    key = settings.admin_key or secrets.token_urlsafe(24)
+    path = demo_key_file()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(key, encoding="utf-8")
+        if os.name != "nt":
+            path.chmod(0o600)
+    except OSError:
+        pass  # reset and a separate sim then need GROUPFLOW_ADMIN_KEY
+    return replace(settings, admin_key=key, demo_admin=True)
+
+
+def _build_runtime(args: argparse.Namespace, demo: bool = False):
     from groupflow.runtime import build_runtime, log_call
 
     settings = _server_settings(args)
+    if demo:
+        settings = _demo_admin_key(settings)
     if getattr(args, "fresh", False) and settings.db_path != ":memory:":
         for suffix in ("", "-wal", "-shm"):
             Path(settings.db_path + suffix).unlink(missing_ok=True)
@@ -61,9 +82,12 @@ def cmd_server(args: argparse.Namespace) -> int:
     from groupflow.core.serve import run_app
 
     settings, rt = _build_runtime(args)
-    print(f"[groupflow] MCP server on http://{settings.host}:{settings.port}/mcp (protocol 2025-11-25, Streamable HTTP)", flush=True)
+    print(f"[groupflow] MCP server on http://{settings.host}:{settings.port}/mcp (protocol 2025-11-25, Streamable HTTP, "
+          f"{settings.tool_profile} tools; full set on /mcp/lab)", flush=True)
     print(f"[groupflow] human confirmation API on http://{settings.host}:{settings.port}/human", flush=True)
     print(f"[groupflow] database {settings.db_path}", flush=True)
+    print(f"[groupflow] demo inspector {'on (admin key configured)' if settings.admin_key and settings.demo_admin else 'off'}; "
+          f"accepted Host headers: {', '.join(h for h in settings.allowed_hosts if not h.endswith(':*'))}", flush=True)
     run_app(rt.app, host=settings.host, port=settings.port)
     return 0
 
@@ -103,7 +127,7 @@ def cmd_demo(args: argparse.Namespace) -> int:
     from groupflow.core.settings import SimSettings
     from groupflow.sim.app import build_sim_app
 
-    settings, rt = _build_runtime(args)
+    settings, rt = _build_runtime(args, demo=True)
     try:
         bg = serve_in_background(rt.app, host=settings.host, port=settings.port)
     except OSError as err:
@@ -113,7 +137,8 @@ def cmd_demo(args: argparse.Namespace) -> int:
     from groupflow.core.settings import chat_db_for, env
 
     sim = SimSettings()
-    sim = replace(sim, mcp_url=f"{bg.base}/mcp", port=args.sim_port or sim.port, chat_db=env("GROUPFLOW_CHAT_DB") or chat_db_for(settings.db_path))
+    sim = replace(sim, mcp_url=f"{bg.base}/mcp", port=args.sim_port or sim.port, chat_db=env("GROUPFLOW_CHAT_DB") or chat_db_for(settings.db_path),
+                  admin_key=settings.admin_key)
     app = build_sim_app(sim, world_path=settings.world_path)
     _sim_banner(sim, _provider_info(app))
     try:
@@ -131,16 +156,27 @@ def cmd_reset(args: argparse.Namespace) -> int:
 
     scenario = None if args.scenario in (None, "all") else args.scenario
     sim = SimSettings()
+    key = ServerSettings().admin_key
     try:
-        r = httpx.post(f"{sim.server_base}/debug/reset", params={"scenario": scenario} if scenario else None,
-                       headers={"x-groupflow-admin": ServerSettings().admin_key}, timeout=10)
+        running = httpx.get(f"{sim.server_base}/healthz", timeout=3).status_code == 200
+    except httpx.HTTPError:
+        running = False
+    if running:
+        if not key:
+            print("[groupflow] a server is running but no admin key is known: set GROUPFLOW_ADMIN_KEY, or start it with "
+                  "`python -m groupflow demo`, which shares its key with reset", file=sys.stderr)
+            return 1
+        try:
+            r = httpx.post(f"{sim.server_base}/debug/reset", params={"scenario": scenario} if scenario else None,
+                           headers={"x-groupflow-admin": key}, timeout=10)
+        except httpx.HTTPError as err:
+            print(f"[groupflow] the running server did not answer the reset: {err}", file=sys.stderr)
+            return 1
         if r.status_code == 200:
             print(f"[groupflow] reset {args.scenario or 'all'} on the running server")
             return 0
         print(f"[groupflow] the running server refused the reset ({r.status_code})", file=sys.stderr)
         return 1
-    except httpx.HTTPError:
-        pass
     # Not running: rebuild the database file directly.
     args.fresh = scenario is None
     _settings, rt = _build_runtime(args)
@@ -175,6 +211,39 @@ def cmd_check(_args: argparse.Namespace) -> int:
     from groupflow.repair.msvc import describe
 
     print(f"solver        exact enumeration; CP-SAT {'available' if available() else 'not available'}" + (f" ({describe()})" if os.name == "nt" else ""))
+    return 0
+
+
+def cmd_oauth(args: argparse.Namespace) -> int:
+    """Register the assistant hosts that may sign people in (Alexa+ and others). The secret is shown once."""
+    from groupflow.core.db import Db
+    from groupflow.core.identity import Identity
+    from groupflow.engine import GroupFlow
+
+    settings = _server_settings(args)
+    db = Db(settings.db_path)
+    engine = GroupFlow(db, Identity(db))
+    try:
+        if args.action == "add":
+            if not args.name or not args.redirect_uri:
+                print("[groupflow] oauth add needs --name and at least one --redirect-uri", file=sys.stderr)
+                return 2
+            made = engine.oauth_register_client(args.name, args.redirect_uri, confidential=not args.public)
+            print(f"client_id      {made['client_id']}")
+            if made["client_secret"]:
+                print(f"client_secret  {made['client_secret']}   (shown once; store it in the host's configuration)")
+            print(f"redirect URIs  {', '.join(made['redirect_uris'])}")
+            base = settings.public_url or f"http://{settings.host}:{settings.port}"
+            print(f"metadata       {base}/.well-known/oauth-authorization-server")
+            print(f"resource       {base}/mcp")
+        elif args.action == "list":
+            for c in engine.oauth_clients():
+                print(f"{c['client_id']:<22} {c['name']:<20} {'revoked' if c['revoked'] else 'active':<8} {', '.join(c['redirect_uris'])}")
+        elif args.action == "revoke":
+            engine.oauth_revoke_client(args.client_id or "")
+            print(f"[groupflow] revoked {args.client_id} and every token it holds")
+    finally:
+        db.close()
     return 0
 
 
@@ -226,6 +295,14 @@ def main(argv: list[str] | None = None) -> int:
     server_opts(p_reset)
     p_reset.set_defaults(fn=cmd_reset)
     sub.add_parser("check", help="show configuration").set_defaults(fn=cmd_check)
+    p_oauth = sub.add_parser("oauth", help="register assistant hosts that may sign people in (OAuth clients)")
+    p_oauth.add_argument("action", choices=["add", "list", "revoke"])
+    p_oauth.add_argument("client_id", nargs="?", help="for revoke")
+    p_oauth.add_argument("--name", help='display name shown on the sign-in page, e.g. "Alexa+"')
+    p_oauth.add_argument("--redirect-uri", action="append", help="allowed redirect URI (repeatable)")
+    p_oauth.add_argument("--public", action="store_true", help="a public client (no secret; authorization code with PKCE only)")
+    p_oauth.add_argument("--db", help="SQLite file (default data/groupflow.db or GROUPFLOW_DB)")
+    p_oauth.set_defaults(fn=cmd_oauth)
     sub.add_parser("eval", help="LLM evaluation (python -m groupflow eval --help)", add_help=False).set_defaults(fn=cmd_eval)
     sub.add_parser("evidence", help="protocol evidence (python -m groupflow evidence --help)", add_help=False).set_defaults(fn=cmd_evidence)
 

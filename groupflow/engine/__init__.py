@@ -8,20 +8,31 @@ from groupflow.core.db import Db
 from groupflow.core.identity import Identity
 
 from .agreement import Agreement
+from .attendance import Attendance
 from .collaboration import Collaboration
 from .core import ASSISTANT, LISTENERS, UNSET, Scope, fixed_clock
+from .costs import Costs
 from .membership import Membership
 from .momentum import Momentum
 from .notices import Notices
+from .polls import Polls
+from .together import Together
+from .product import Product
+from .calendar import Calendar
+from .reliability import Reliability
+from .coordination import Coordination
+from .oauth import OAuth
+from .outside import OutsidePlaces
 
 
-class GroupFlow(Momentum, Notices, Membership, Collaboration, Agreement):
+class GroupFlow(OAuth, OutsidePlaces, Coordination, Reliability, Product, Calendar, Together, Costs, Attendance, Polls, Momentum, Notices, Membership, Collaboration, Agreement):
     """Everything the MCP tools, the human-only API and the demo console call."""
 
     def __init__(self, db: Db, identity: Identity | None = None, solver_budget_s: float = 3.0, method: str = "auto"):
         super().__init__(db, identity)
         self.solver_budget_s = solver_budget_s
         self.method = method
+        self.retire_local_weather()
 
     # ------------------------------------------------------------ demo inspector (never reachable through MCP)
 

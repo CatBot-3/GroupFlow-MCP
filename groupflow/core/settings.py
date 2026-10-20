@@ -46,6 +46,45 @@ def env_list(key: str, default: str) -> list[str]:
     return [p.strip() for p in (env(key, default) or "").split(",") if p.strip()]
 
 
+PUBLISHED_ADMIN_KEY = "gf_demo_admin"  # an old default that was published in the docs: never accepted
+LOCAL_HOSTS = ["127.0.0.1:*", "localhost:*", "[::1]:*", "127.0.0.1", "localhost", "[::1]"]
+
+
+def demo_key_file() -> Path:
+    """Where `python -m groupflow demo` leaves its random admin key for `reset` and a separate `sim` (inside the ignored data/)."""
+    return REPO_ROOT / "data" / "demo_admin.key"
+
+
+def admin_key_from_env() -> str | None:
+    key = env("GROUPFLOW_ADMIN_KEY")
+    if key == PUBLISHED_ADMIN_KEY:
+        return None
+    if key:
+        return key
+    try:
+        saved = demo_key_file().read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return saved or None
+
+
+def allowed_hosts_from_env() -> list[str]:
+    from urllib.parse import urlsplit
+
+    hosts = list(LOCAL_HOSTS)
+    for part in env_list("GROUPFLOW_ALLOWED_HOSTS", ""):
+        if part not in hosts:
+            hosts.append(part)
+    public = env("GROUPFLOW_PUBLIC_URL")
+    if public:
+        netloc = urlsplit(public).netloc
+        if netloc and netloc not in hosts:
+            hosts.append(netloc)
+            if ":" not in netloc:
+                hosts.append(netloc + ":*")
+    return hosts
+
+
 def chat_db_for(db_path: str) -> str:
     """The group chat's own store sits next to the GroupFlow database it belongs to, so a fresh demo database gets a fresh chat."""
     if db_path == ":memory:":
@@ -59,8 +98,21 @@ class ServerSettings:
     host: str = field(default_factory=lambda: env("GROUPFLOW_HOST", "127.0.0.1"))
     port: int = field(default_factory=lambda: env_int("GROUPFLOW_PORT", 8787))
     db_path: str = field(default_factory=lambda: env("GROUPFLOW_DB", str(REPO_ROOT / "data" / "groupflow.db")))
+    # The demo inspector (/debug) exists only when an admin key is configured, and never with the old published default.
+    # `python -m groupflow demo` makes a random key for its own simulator; set GROUPFLOW_DEMO_ADMIN=0 to turn it off entirely.
     demo_admin: bool = field(default_factory=lambda: env("GROUPFLOW_DEMO_ADMIN", "1") != "0")
-    admin_key: str = field(default_factory=lambda: env("GROUPFLOW_ADMIN_KEY", "gf_demo_admin"))
+    admin_key: str | None = field(default_factory=lambda: admin_key_from_env())
+    # Host header values accepted on /mcp (DNS-rebinding protection). Localhost always; add public names when deployed, or
+    # derive one from GROUPFLOW_PUBLIC_URL. "*" turns the check off (only behind a proxy that validates Host itself).
+    allowed_hosts: list[str] = field(default_factory=lambda: allowed_hosts_from_env())
+    # The server's public base URL, e.g. https://groupflow.example.com. OAuth metadata and token audiences use it.
+    public_url: str | None = field(default_factory=lambda: (env("GROUPFLOW_PUBLIC_URL") or "").rstrip("/") or None)
+    # Which tools /mcp offers: voice (about a dozen intent-shaped tools, the Alexa+ surface) or lab (the full set the
+    # simulator and evaluation use). /mcp/lab always serves the full set.
+    tool_profile: str = field(default_factory=lambda: env("GROUPFLOW_TOOL_PROFILE", "voice"))
+    # When a host does not say who will hear the reply: room (assume a shared device, keep plans that are kept from someone
+    # out of summaries) or private (assume only the speaker hears it).
+    undeclared_audience: str = field(default_factory=lambda: env("GROUPFLOW_UNDECLARED_AUDIENCE", "room"))
     allowed_origins: list[str] = field(default_factory=lambda: env_list(
         "GROUPFLOW_ALLOWED_ORIGINS",
         "http://localhost:8788,http://127.0.0.1:8788,http://localhost:5173,http://127.0.0.1:5173",
@@ -97,7 +149,7 @@ class SimSettings:
     host: str = field(default_factory=lambda: env("SIMULATOR_HOST", "127.0.0.1"))
     port: int = field(default_factory=lambda: env_int("SIMULATOR_PORT", 8788))
     mcp_url: str = field(default_factory=lambda: env("GROUPFLOW_MCP_URL", "http://127.0.0.1:8787/mcp"))
-    admin_key: str = field(default_factory=lambda: env("GROUPFLOW_ADMIN_KEY", "gf_demo_admin"))
+    admin_key: str | None = field(default_factory=lambda: admin_key_from_env())
     web_dist: str = field(default_factory=lambda: str(REPO_ROOT / "web" / "dist"))
     timezone: str = field(default_factory=lambda: env("GROUPFLOW_TIMEZONE", "America/Toronto"))
     chat_db: str = field(default_factory=lambda: env("GROUPFLOW_CHAT_DB") or chat_db_for(env("GROUPFLOW_DB", str(REPO_ROOT / "data" / "groupflow.db"))))

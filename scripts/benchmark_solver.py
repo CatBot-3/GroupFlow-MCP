@@ -2,7 +2,7 @@
 
 No model calls, credentials or saved application data are used. Timing includes
 domain construction, modelling, lexicographic optimisation and validation, but
-excludes conflict narration. Run from the project root; see SOLVER_BENCHMARK.md.
+excludes conflict narration. Run from the project root; the last result is summarized in docs/EVALUATION.md.
 """
 from __future__ import annotations
 
@@ -114,7 +114,7 @@ def main():
     p.add_argument('--seeds', type=int, default=3)
     p.add_argument('--repetitions', type=int, default=3)
     p.add_argument('--budget', type=float, default=2.0)
-    p.add_argument('--out', type=Path, default=Path('docs/solver_benchmark.json'))
+    p.add_argument('--out', type=Path, default=Path('eval/runs/solver_benchmark.json'))
     args = p.parse_args()
     if not available():
         raise SystemExit('Real CP-SAT unavailable: benchmark refused instead of timing fallback enumeration.')

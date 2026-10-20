@@ -1,0 +1,5 @@
+{
+  "_note": "Accepted consistency per host, measured on the realistic suite (57 scenarios, 3 runs, DeepSeek deepseek-flash, 2026-10-20). The CI gate also runs the injection suite, which passed every run, so gate runs should sit at or above these. Raise only after reviewing a run.",
+  "minimal": {"pass_1": 0.819, "pass_k": 41, "k": 3},
+  "lab": {"pass_1": 0.988, "pass_k": 55, "k": 3}
+}

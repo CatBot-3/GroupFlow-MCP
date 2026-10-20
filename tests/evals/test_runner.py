@@ -2,6 +2,7 @@
 the checks, and the safety counters (which must catch a misbehaving model)."""
 from __future__ import annotations
 
+import json
 import pytest
 
 from groupflow.evals.runner import EvalHarness, Report, load_scenarios, run_all, run_scenario
@@ -43,6 +44,62 @@ def test_unknown_expectations_fail_instead_of_silently_passing(tmp_path):
     path.write_text('scenarios:\n- id: invalid\n  steps:\n  - say: alice\n    text: hi\n    expect: {no_committ: true}\n', encoding='utf-8')
     with pytest.raises(ValueError, match='unsupported expectations'):
         load_scenarios([path])
+
+
+def test_same_named_tasks_require_plan_scope_and_do_not_borrow_success():
+    from groupflow.evals.runner import _task
+    state = {'tasks': [{'id': 'a', 'plan_id': 'first', 'label': 'Invite people', 'due': 'Friday'},
+                       {'id': 'b', 'plan_id': 'second', 'label': 'Invite people', 'due': None}]}
+    assert _task(state, 'Invite people', 'second')['due'] is None
+    assert _task(state, 'Invite people', 'first')['due'] == 'Friday'
+    assert _task(state, 'b')['plan_id'] == 'second'
+    with pytest.raises(ValueError, match='Ambiguous task expectation'):
+        _task(state, 'Invite people')
+
+
+def test_weekday_abbreviations_are_equivalent_but_other_days_are_not():
+    from types import SimpleNamespace
+    from groupflow.evals.runner import check_common
+    def turn(reply):
+        return SimpleNamespace(reply=reply, calls=[])
+    assert check_common(turn('Sun, Oct 25'), {'reply_mentions': ['Sunday']}) == []
+    assert check_common(turn('Monday, Oct 26'), {'reply_mentions': ['Sunday']})
+    assert check_common(turn('sunflower'), {'reply_mentions': ['Sunday']})
+
+
+def test_public_inactivity_wording_does_not_hide_an_actual_private_condition():
+    from groupflow.evals.runner import condition_leaks
+    assert condition_leaks('The plan has been quiet for 2 days; after 24 quiet hours it gets a check-in.', ['quiet']) == []
+    assert condition_leaks('A participant needs a quiet room.', ['quiet']) == ['quiet']
+    assert condition_leaks('The plan has been quiet for 2 days; a participant needs quiet.', ['quiet']) == ['quiet']
+    public = {'quiet_for': '2 days', 'checkins': 'after 24 quiet hours'}
+    assert condition_leaks(json.dumps(public), ['quiet']) == []
+    assert condition_leaks(json.dumps({'content': [{'text': json.dumps(public)}]}), ['quiet']) == []
+    assert condition_leaks(json.dumps({**public, 'needs': {'quiet': True}}), ['quiet']) == ['quiet']
+
+
+async def test_scenario_reset_removes_scoped_and_unscoped_questions(harness):
+    harness.engine.ask_followup('linda', 'When should I remind Bob?', [
+        {'label': 'Tomorrow morning', 'action': {'tool': 'set_reminder', 'arguments': {
+            'plan': 'home', 'audience': ['Bob'], 'when': 'tomorrow at 9am', 'note': 'Fix the gutter'}}},
+        {'label': 'Tomorrow evening', 'action': None},
+    ])
+    harness.engine.ask_followup('linda', 'Morning or evening?', ['morning', 'evening'])
+    assert harness.rt.db.scalar('SELECT count(*) FROM followups WHERE plan_id IS NULL') == 1
+    assert harness.rt.db.scalar("SELECT count(*) FROM followups WHERE plan_id = 'home'") == 1
+    harness.reset('family', None)
+    assert harness.engine.context('linda', detail='summary').open_questions == []
+    assert harness.rt.db.scalar('SELECT count(*) FROM followups WHERE plan_id IS NULL') == 0
+
+
+async def test_unrequested_writes_and_wrong_person_claims_are_counted(harness):
+    harness.model.push(call('bring_list', {'plan': 'party', 'action': 'bring', 'things': ['chips']}), {'text': 'Claimed.'})
+    result = await run_scenario(harness, {'id': 'bad_claim', 'group': 'family', 'steps': [
+        {'say': 'alice', 'text': 'fine', 'expect': {'nothing_changed': True, 'task_owner_like': {'chips': 'bob'}}}]}, 1)
+    assert result.unrequested_writes == 1 and result.wrong_person_claims == 1
+    assert not result.passed
+    totals = Report('script', 'script', 1, 'now', [result], 0).totals()
+    assert totals['unrequested_writes'] == 1 and totals['wrong_person_claims'] == 1
 
 
 def test_p95_is_calculated_per_turn_by_nearest_rank():
@@ -170,7 +227,7 @@ async def test_functional_assertion_failure_does_not_abort_later_cases():
 
 def test_suites_and_held_out_reporting():
     from groupflow.evals.runner import suite_paths
-    assert {p.parent.name for p in suite_paths(["all"])} == {"scenarios", "holdout", "realistic"}
+    assert {p.parent.name for p in suite_paths(["all"])} == {"scenarios", "holdout", "realistic", "adversarial"}
     with pytest.raises(ValueError):
         suite_paths(["nope"])
     report = Report('test', 'test', 1, 'now', [], 1, source={"prompt_overlap": {"n": 5, "utterances": 12, "with_overlap": 0},

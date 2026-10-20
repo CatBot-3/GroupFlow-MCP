@@ -227,6 +227,12 @@ def test_loose_ends_near_the_day_go_to_the_organizer_not_to_each_owner(gf):
 def test_a_finished_plan_is_never_chased(gf):
     gf.propose_change("charlie", item="party.date", value="Sunday, Oct 25, 6:00 pm", quote="can we do sunday instead")
     assert gf.progress_report("party", as_of="2026-10-20T15:00:00Z")["blockers"][0]["kind"] == "decide"
+    # After the day only settling the shared costs is still asked for (Charlie owes for the cake and the room); once that is
+    # settled, nothing is.
+    after = gf.progress_report("party", as_of="2026-10-26T15:00:00Z")["blockers"]
+    assert [b["kind"] for b in after] == ["settle"] and after[0]["waiting_on"] == ["charlie"]
+    for to, amount in (("Alice", 45.32), ("Bob", 9.34)):
+        gf.costs(to.lower(), "paid", plan="party", paid_by="Charlie", to="me", amount=amount)
     assert gf.progress_report("party", as_of="2026-10-26T15:00:00Z")["blockers"] == []
     assert "party" not in gf.plans_due_for_review("2026-10-26T15:00:00Z")
 

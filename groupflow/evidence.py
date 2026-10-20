@@ -68,7 +68,7 @@ class Recorder:
         return r
 
     async def session(self, member: str) -> dict[str, str]:
-        token = {"authorization": f"Bearer {self.tokens[member]}"}
+        token = {"authorization": f"Bearer {self.tokens[member]}", "x-groupflow-listeners": "me"}  # a personal device
         init = {"jsonrpc": "2.0", "id": 1, "method": "initialize",
                 "params": {"protocolVersion": "2025-11-25", "capabilities": {}, "clientInfo": {"name": "evidence", "version": "1"}}}
         r = await self.http.post("/mcp", json=init, headers={"content-type": "application/json", "accept": ACCEPT, **token})
@@ -113,31 +113,34 @@ def _result_view(payload: dict[str, Any]) -> dict[str, Any]:
 async def capture() -> str:
     tmp = Path(tempfile.mkdtemp(prefix="gf-evidence-"))
     settings = ServerSettings(db_path=str(tmp / "evidence.db"), admin_key="evidence", allowed_origins=["http://localhost:8788"],
-                              world_path=str(REPO_ROOT / "demo" / "world.yaml"))
+                              world_path=str(REPO_ROOT / "demo" / "world.yaml"), tool_profile="lab")
     rt = build_runtime(settings, stages={"friday_dinner": "awaiting"})
     bg = serve_in_background(rt.app)
     tokens = {p.id: p.token for p in rt.world.people}
     rec = Recorder(bg.base, tokens)
     try:
-        alice = {"authorization": f"Bearer {tokens['alice']}"}
+        alice = {"authorization": f"Bearer {tokens['alice']}", "x-groupflow-listeners": "me"}  # Alice's personal device
         init = {"jsonrpc": "2.0", "id": 1, "method": "initialize",
                 "params": {"protocolVersion": "2025-11-25", "capabilities": {}, "clientInfo": {"name": "evidence-client", "version": "1.0"}}}
         rec.parts += ["## 1. Handshake, discovery and a tool call (Alice, who has three plans in two groups)", ""]
-        r = await rec.post("initialize", init, alice, "The client offers 2025-11-25; the server answers with the same version, its capabilities and its instructions.")
+        r = await rec.post("initialize", init, alice, "The client offers 2025-11-25; the server answers with the same version, its capabilities and its instructions. Alice's own device "
+                           "declares that only she will hear the replies (`X-GroupFlow-Listeners: me`); without it GroupFlow assumes a shared room.")
         sid = r.headers["mcp-session-id"]
         h = {**alice, "mcp-session-id": sid, "mcp-protocol-version": "2025-11-25"}
         await rec.post("notifications/initialized", {"jsonrpc": "2.0", "method": "notifications/initialized"}, h, "A notification: no id, answered with 202 and no body.")
         await rec.post("tools/list", {"jsonrpc": "2.0", "id": 2, "method": "tools/list"}, h,
-                       "Everyone gets the same 26 generic tools (14 core, 2 template discovery, 5 structured-project, 2 group tools, 3 for telling people and "
-                       "asking first); none can approve an activity, accept an invite or link an account. Each has an input schema, an output schema and "
-                       "annotations.", show_body=_tool_list_view)
-        await rec.post("tools/call get_context", {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "get_context", "arguments": {"mark_read": False}}}, h,
+                       "Everyone gets the same 35 lab tools (14 core, 3 for exact targets, guarded writes and planning options, 2 template discovery, "
+                       "5 structured-project, 2 group tools, 3 for telling people and asking first, 2 for reminders and progress, 4 for deciding "
+                       "together); none can approve an activity, accept an invite or link an "
+                       "account, and none of them acts for anyone but the speaker. Each has an input schema, an output schema and annotations.",
+                       show_body=_tool_list_view)
+        await rec.post("tools/call get_context", {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "get_context", "arguments": {"detail": "full", "mark_read": False}}}, h,
                        "Results come back as structuredContent (validated against the output schema) plus a text copy for older clients. Alice sees the "
                        "surprise party, the family's Home plan and the Friday dinner.", show_body=_context_view)
 
         rec.parts += ["## 2. The same endpoint, the guest of honour (Linda)", ""]
         linda = await rec.session("linda")
-        await rec.post("tools/call get_context as Linda", {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "get_context", "arguments": {"mark_read": False}}},
+        await rec.post("tools/call get_context as Linda", {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "get_context", "arguments": {"detail": "full", "mark_read": False}}},
                        linda, "Linda's view comes from the same tool: the party plan lives in a space without her, so it is simply not there.",
                        show_body=_context_view)
         await rec.post("tools/call get_context for the hidden plan", {"jsonrpc": "2.0", "id": 4, "method": "tools/call",
@@ -152,7 +155,7 @@ async def capture() -> str:
         rh = {**room, "mcp-session-id": r.headers["mcp-session-id"], "mcp-protocol-version": "2025-11-25"}
         await rec.http.post("/mcp", json={"jsonrpc": "2.0", "method": "notifications/initialized"}, headers={"content-type": "application/json", "accept": ACCEPT, **rh})
         await rec.post("tools/call get_context in the family chat", {"jsonrpc": "2.0", "id": 5, "method": "tools/call",
-                                                                   "params": {"name": "get_context", "arguments": {"mark_read": False}}}, rh,
+                                                                   "params": {"name": "get_context", "arguments": {"detail": "full", "mark_read": False}}}, rh,
                        "Same tool, same speaker: Linda is listening, so the party is not in this conversation at all, and Alice's own private "
                        "conditions are left out too.", show_body=_context_view)
         await rec.post("tools/call create_plan private in the family chat", {"jsonrpc": "2.0", "id": 6, "method": "tools/call",
@@ -253,6 +256,8 @@ async def capture() -> str:
             f"Captured {datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')} by `python -m groupflow evidence` "
             f"(Python {platform.python_version()}, MCP Python SDK {getattr(mcp, '__version__', '2.3.0')}, {platform.system()}).", "",
             "GroupFlow is a remote MCP server: Streamable HTTP on `/mcp`, JSON-RPC 2.0, protocol version **2025-11-25**, bearer-token identity. "
+            "This capture serves the full lab tool set on `/mcp` (`GROUPFLOW_TOOL_PROFILE=lab`); by default `/mcp` serves the 13 voice tools "
+            "and the lab set is on `/mcp/lab`, with the same engine and rules behind both. "
             "Everything below is the real traffic of one run against a throwaway database; only the tokens are redacted.", ""]
     return "\n".join(head + rec.parts) + "\n"
 

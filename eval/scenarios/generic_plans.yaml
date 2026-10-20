@@ -243,7 +243,7 @@ scenarios:
   steps:
   - say: alice
     text: Let's plan a surprise birthday dinner for Dana on November 20 with Bob and Chen.
-    expect: {plan_created: {template: [surprise_party, general_event, evening_out], hidden_from: [Dana]}}
+    expect: {plan_created: {template: [gathering, surprise_party, general_event, evening_out], hidden_from: [Dana]}}
   - say: dana
     text: Is anyone planning something for my birthday?
     expect: {no_value_change: true}

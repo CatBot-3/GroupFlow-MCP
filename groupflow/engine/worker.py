@@ -1,4 +1,5 @@
-"""Background worker: runs any queued searches for alternatives, sends reminders when their time comes, and runs check-ins on quiet plans.
+"""Background worker: runs any queued searches for alternatives, sends reminders and closes votes when their time comes, and runs check-ins
+on quiet plans.
 
 Runs inside the server process as an asyncio task (scope plan 7.4 allows API and
 worker to share code with separate entry points). Solves run in a thread so the
@@ -24,11 +25,21 @@ class Worker:
         self.checkins_every_s = checkins_every_s
         self._reminders_at = 0.0
         self._checkins_at = 0.0
+        self._coordination_at = 0.0
         self._task: asyncio.Task[None] | None = None
         self._stop = asyncio.Event()
 
     async def start(self) -> None:
+        if self._task is not None and not self._task.done():
+            return
         self._stop = asyncio.Event()
+        # A database is owned by one server/worker. Claims from the previous
+        # process cannot still be executing after startup. Retry the persisted
+        # input; run_job's version checks preserve any intervening edit.
+        recovered = self.service.db.tx(lambda: self.service.db.run(
+            "UPDATE repair_jobs SET status='queued', started_at=NULL WHERE status='running'"))
+        if recovered:
+            log.info("requeued %s interrupted repair job(s)", recovered)
         # The first check-in pass waits one interval: a server that just started has not been watching anything go quiet.
         self._checkins_at = time.monotonic()
         self._task = asyncio.create_task(self._loop(), name="groupflow-worker")
@@ -61,9 +72,14 @@ class Worker:
         for job in jobs:
             await asyncio.to_thread(self.service.run_job, job["id"])
         now = time.monotonic()
+        if now - self._coordination_at >= 60 and hasattr(self.service, 'reassess_coordination'):
+            self._coordination_at = now
+            await asyncio.to_thread(self.service.reassess_coordination)
         if now - self._reminders_at >= self.reminders_every_s and hasattr(self.service, "deliver_due_reminders"):
             self._reminders_at = now
             await asyncio.to_thread(self.service.deliver_due_reminders)
+            if hasattr(self.service, "close_due_polls"):
+                await asyncio.to_thread(self.service.close_due_polls)
         if self.checkins is not None and now - self._checkins_at >= self.checkins_every_s:
             self._checkins_at = now
             await self.checkins.run_pass()

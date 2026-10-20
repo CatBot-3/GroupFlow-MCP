@@ -82,7 +82,7 @@ async def evaluate():
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--out',type=Path,default=Path('eval/runs/projects_v04.json'))
+    p.add_argument('--out',type=Path,default=Path('eval/runs/projects.json'))
     args=p.parse_args()
     logging.getLogger('groupflow').setLevel(logging.WARNING)
     for name in ('httpx','httpx2','mcp','mcp.server','mcp.client'):

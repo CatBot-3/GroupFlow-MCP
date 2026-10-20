@@ -266,3 +266,26 @@ def test_a_shared_conversation_only_shows_questions_about_plans_everyone_there_c
     finally:
         LISTENERS.reset(token)
     assert shown == ["Add coffee to the list?"]
+
+
+def test_group_reset_removes_its_questions_without_removing_other_plans_or_general_questions(gf):
+    from groupflow.world import wipe_group
+    party = gf.ask_followup('alice', 'Cake or fruit?', ['cake', 'fruit'], plan='party')['id']
+    dinner = gf.ask_followup('alice', 'Early or late?', ['early', 'late'], plan='friday_dinner')['id']
+    general = gf.ask_followup('alice', 'Morning or evening?', ['morning', 'evening'])['id']
+    wipe_group(gf.db, 'family')
+    assert gf.db.get('SELECT id FROM followups WHERE id = ?', party) is None
+    assert gf.db.get('SELECT id FROM followups WHERE id = ?', dinner) is not None
+    assert gf.db.get('SELECT id FROM followups WHERE id = ?', general) is not None
+
+
+@pytest.mark.parametrize('words, expected', [('half 7 should do it', '7:30 pm'), ('half past 7', '7:30 pm'),
+    ("the 7 o'clock one", '7:00 pm'), ('7 oclock', '7:00 pm'), ('Remind Bob to fix the gutter.', None)])
+def test_spoken_time_choices_match_only_the_stated_option(words, expected):
+    from groupflow.engine.notices import Notices
+    options = [{'label': '7:00 pm'}, {'label': '7:30 pm'}, {'label': '8:00 pm'}]
+    picked = Notices._match_option(options, words)
+    assert (picked['label'] if picked else None) == expected
+    options[0] = {'label': '7pm'}
+    picked = Notices._match_option(options, words)
+    assert (picked['label'] if picked else None) == ('7pm' if expected == '7:00 pm' else expected)

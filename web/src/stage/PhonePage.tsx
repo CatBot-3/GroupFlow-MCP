@@ -2,13 +2,19 @@ import { useMemo, useState } from 'react';
 import type { DecisionExtra, Inbox, InboxPlan, Member, ProjectHumanPlan } from '../api';
 import { STATUS_WORDS } from './PlanBoard';
 import { ProjectHumanPanel } from './ProjectHumanPanel';
+import { TogetherPage } from './Together';
+import { DecisionHub } from './DecisionHub';
+import type { HumanClient } from '../api';
 
 interface Props {
+  client?: HumanClient;
+  onInbox?: (inbox: Inbox) => void;
   simple?: boolean;
   member: Member;
   signedIn: boolean;
   inbox: Inbox | null;
   groupPlanIds: Set<string>;
+  groupId?: string;
   busy: boolean;
   error: string | null;
   message: string | null;
@@ -22,11 +28,16 @@ interface Props {
   onProjectRevoke: (id: string) => void;
   onProjectCalendar: (plan: string, calendar: ProjectHumanPlan['calendar']) => void;
   onWorkspaceRole: (group: string, target: string, role: string, grant: boolean) => void;
+  onVote?: (poll: string, choice: string, decide?: boolean, reason?: string) => void;
+  onRsvp?: (plan: string, answer: 'yes' | 'no' | 'maybe', plusOnes?: number) => void;
+  onBring?: (plan: string, action: 'add' | 'bring' | 'unclaim', things: string[]) => void;
+  onConfirmCost?: (plan: string, id: string, answer: 'yes' | 'no') => void;
 }
 
 const DECISION_WORDS: Record<string, string> = { approved: 'Confirmed', rejected: 'Declined', conditional: 'Confirmed with a condition' };
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const NOTE_KIND: Record<string, string> = { reminder: 'Reminder', nudge: 'Check-in', notice: 'Update' };
+const NOTE_KIND: Record<string, string> = { reminder: 'Reminder', nudge: 'Check-in', notice: 'Update', poll: 'Vote', rsvp: 'Coming', bring: 'Bring list', costs: 'Costs' };
+const noop = () => undefined;
 
 type Spec = InboxPlan['conditions'][number];
 
@@ -111,10 +122,12 @@ function ConditionForm({ id, plans, busy, onSet }: { id: string; plans: InboxPla
   );
 }
 
-export function PhonePage({ member, signedIn, inbox, groupPlanIds, busy, error, message, onLogin, onLogout, onDecide, onVerify, onRevoke, onSetCondition, onProjectAnswer, onProjectRevoke, onProjectCalendar, onWorkspaceRole, simple = false }: Props) {
+export function PhonePage({ client, onInbox, member, signedIn, inbox, groupPlanIds: shownPlanIds, groupId, busy, error, message, onLogin, onLogout, onDecide, onVerify, onRevoke, onSetCondition, onProjectAnswer, onProjectRevoke, onProjectCalendar, onWorkspaceRole, onVote = noop, onRsvp = noop, onBring = noop, onConfirmCost = noop, simple = false }: Props) {
   const [passcode, setPasscode] = useState(member.demoPasscode ?? '');
   const [limit, setLimit] = useState<Record<string, string>>({});
   const [openItem, setOpenItem] = useState<string | null>(null);
+  const groupPlanIds = useMemo(() => new Set([...shownPlanIds,
+    ...(inbox?.plans ?? []).filter(p => groupId && p.group_id === groupId).map(p => p.id)]), [shownPlanIds, inbox, groupId]);
 
   const head = (
     <p className="phone-head"><Lock /> {member.name}'s own page <span className="phone-sub">{simple ? 'Review your part and give your own answer' : 'human-only API, not reachable by Alexa'}</span></p>
@@ -151,11 +164,13 @@ export function PhonePage({ member, signedIn, inbox, groupPlanIds, busy, error, 
   const budgetOf = (planId: string) => plans.find((p) => p.id === planId)?.conditions.find((c) => c.check === 'max_total_cost') ?? null;
   const busyPlans = plans.filter((p) => p.status !== 'ACTIVE');
   const notes = (inbox?.notifications ?? []).filter((n) => inGroup(n.plan_id));
+  const together = (inbox?.together ?? []).filter((t) => groupPlanIds.has(t.plan_id));
 
   return (
     <div className={`phone ${busy ? 'busy' : ''}`}>
       {head}
       {message && <p className="phone-ok" role="status">{message}</p>}
+      {client && inbox && <DecisionHub client={client} inbox={inbox} planIds={groupPlanIds} onRefresh={onInbox} />}
       <ProjectHumanPanel items={(inbox?.project_items || []).filter((i) => groupPlanIds.has(i.plan_id))} projects={(inbox?.project_plans || []).filter((p) => groupPlanIds.has(p.id))} busy={busy} onAnswer={onProjectAnswer} onRevoke={onProjectRevoke} onCalendar={onProjectCalendar} onRole={onWorkspaceRole} />
       {busyPlans.map((p) => (
         <p key={p.id} className="phone-plan">{p.title}: <strong>{STATUS_WORDS[p.status] ?? p.status}</strong></p>
@@ -167,7 +182,7 @@ export function PhonePage({ member, signedIn, inbox, groupPlanIds, busy, error, 
         {pending.map((item) => {
           const budget = budgetOf(item.plan_id);
           return (
-            <li key={item.scope_id} className="phone-item pending">
+            <li key={item.scope_id} id={`decision-${item.scope_id}`} className="phone-item pending">
               <p className="phone-text"><span className="rev">{item.revision}</span> {item.text}{plans.length > 1 && <span className="phone-sub"> {item.plan}</span>}</p>
               <div className="phone-row">
                 <button type="button" className="pbtn primary-p" disabled={busy} onClick={() => onDecide(item.scope_id, 'approved')}>Confirm</button>
@@ -190,6 +205,8 @@ export function PhonePage({ member, signedIn, inbox, groupPlanIds, busy, error, 
           );
         })}
       </ul>
+
+      <TogetherPage plans={together} busy={busy} showPlan={together.length > 1 || plans.length > 1} onVote={onVote} onRsvp={onRsvp} onBring={onBring} onConfirmCost={onConfirmCost} />
 
       {drafts.length > 0 && (
         <>

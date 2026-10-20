@@ -61,7 +61,9 @@ def build_domain(problem: Problem) -> dict[str, list[Option]]:
 def make_activity(problem: Problem, base_a: Activity, option: Option) -> Activity:
     start, place_id = option
     common = dict(id=base_a.id, title=base_a.title, kind=base_a.kind, start=start, end=start + base_a.duration,
-                  participants=base_a.participants, required=base_a.required, locked=base_a.locked)
+                  participants=base_a.participants, required=base_a.required, locked=base_a.locked,
+                  start_fold=base_a.start_fold if start == base_a.start else None,
+                  end_fold=base_a.end_fold if start == base_a.start else None)
     if place_id == DROP:
         return Activity(**common, place_id=base_a.place_id, place_name=base_a.place_name, cancelled=True,
                         cost_shares=tuple((m, 0) for m in sorted(base_a.participants)))
@@ -80,8 +82,8 @@ def assemble(problem: Problem, choice: dict[str, Option]) -> Snapshot:
 
 
 def activity_changed(before: Activity, after: Activity) -> bool:
-    return (before.start, before.end, before.where, before.participants, before.cost_shares, before.cancelled, before.title) != (
-        after.start, after.end, after.where, after.participants, after.cost_shares, after.cancelled, after.title)
+    return (before.start, before.end, before.where, before.participants, before.cost_shares, before.cancelled, before.title, before.start_fold, before.end_fold) != (
+        after.start, after.end, after.where, after.participants, after.cost_shares, after.cancelled, after.title, after.start_fold, after.end_fold)
 
 
 def changed_activities(base: Snapshot, cand: Snapshot) -> tuple[str, ...]:

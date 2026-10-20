@@ -10,7 +10,7 @@ from .validate import violations
 
 # Calibrated on 180 fixed-order fixtures, three paired repetitions each.
 # This counts combinations after domain construction, not activities.
-# See docs/SOLVER_BENCHMARK.md and scripts/benchmark_solver.py to recalibrate.
+# The benchmark behind the threshold is summarized in docs/EVALUATION.md; scripts/benchmark_solver.py recalibrates it.
 CP_SAT_THRESHOLD = 16_384
 ENUMERATION_LIMIT = CP_SAT_THRESHOLD - 1  # compatibility: largest size routed to enumeration by size alone
 PHYSICAL = {"transfer", "place_hours", "place_unavailable", "capacity", "overlap", "place_facts"}

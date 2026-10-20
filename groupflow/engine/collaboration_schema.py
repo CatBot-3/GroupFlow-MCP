@@ -1,4 +1,4 @@
-"""Additive v0.4 tables. The original event/agreement schema stays byte-stable."""
+"""Additive project-collaboration tables. The original event/agreement schema stays byte-stable."""
 from groupflow.core.db import register_schema
 
 register_schema("collaboration_v1", """

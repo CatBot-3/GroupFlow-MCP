@@ -142,11 +142,12 @@ def test_an_unknown_place_points_at_place_details_in_other_plans(gf):
         assert err.code == "NOT_FOUND" and "party.venue" in err.message
     else:
         raise AssertionError("an unknown place must be refused")
-    # Chen cannot see the party, so his hint does not mention it.
+    # Chen cannot see Linda's party, so his hint does not mention it (the potluck he is in has a venue of its own).
     try:
         gf.propose_change("chen", plan="friday_dinner", item="dinner", place="Luigi's")
     except DomainError as err:
-        assert "party" not in err.message.lower() and "Venue" not in err.message
+        assert "party.venue" not in err.message and "surprise" not in err.message.lower() and "Rosa" not in err.message
+        assert "event.venue" in err.message
 
 
 def test_a_guessed_plan_dot_item_id_reaches_the_real_item_and_never_makes_a_copy(gf):

@@ -22,6 +22,7 @@ class ObservationBody(BaseModel):
     price: float | None = None
     source_event_id: str | None = None
     verified: bool = True
+    valid_until: str | None = None
 
 
 class SkipAheadBody(BaseModel):
@@ -43,7 +44,7 @@ def register_debug_routes(app: FastAPI, services: Any, admin_ok: Callable[[Reque
             payload = {"place_id": body.place_id, "price_minor": int(round(float(body.price or 0) * 100))}
         try:
             out = engine.inject_observation(body.group_id, body.kind, payload, source="demo_console",
-                                            source_event_id=body.source_event_id or new_id("demo"), verified=body.verified)
+                                            source_event_id=body.source_event_id or new_id("demo"), verified=body.verified,valid_until=body.valid_until)
             return JSONResponse(out)
         except DomainError as err:
             return JSONResponse({"error": err.to_json()}, status_code=400)

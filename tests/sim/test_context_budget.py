@@ -64,14 +64,14 @@ async def test_tools_remain_discoverable_with_a_bounded_description_budget():
     h = start_harness(ScriptedProvider([]))
     try:
         discovered = await h.sessions.get('alice').list_tools()
-        assert len(discovered) == 28
+        assert len(discovered) == 35
         tools = to_tool_defs(discovered, include_project=False)
-        assert len(tools) == 24
+        assert len(tools) == 31
         assert {'list_templates', 'get_template', 'create_group', 'invite_to_group', 'notify_people', 'ask_followup', 'answer_followup',
-                'set_reminder', 'review_plan'} <= {t.name for t in tools}
+                'set_reminder', 'review_plan', 'poll', 'rsvp', 'bring_list', 'costs'} <= {t.name for t in tools}
         serialized = json.dumps([{'name': t.name, 'description': t.description, 'parameters': t.parameters} for t in tools])
         # About 900 bytes per tool on average; the cap moves only when a tool is added, never to fit longer descriptions.
-        assert len(serialized) < 24000
+        assert len(serialized) < 30300  # three additional tools, same per-tool budget
         assert len(system_prompt('Alice', 'Tuesday, October 13, 2026')) < 8000
     finally:
         await h.close()

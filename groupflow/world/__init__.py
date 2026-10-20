@@ -10,6 +10,8 @@ a verified outside fact.
 """
 from __future__ import annotations
 
+import json
+
 import re
 from dataclasses import dataclass, field
 from datetime import date, timedelta
@@ -162,6 +164,16 @@ def seed_plan(engine: GroupFlow, world: World, spec: dict[str, Any], stage: str 
                     refs[step["ref"]] = res.item
             elif step["do"] == "link":
                 engine.link_items(step["as"], args["item"], args["depends_on"], plan=spec["id"])
+            elif step["do"] == "poll":
+                res = engine.poll(step["as"], args.pop("action", "start"), plan=spec["id"], **args)
+                if step.get("ref") and res.get("poll"):
+                    refs[step["ref"]] = res["poll"]["id"]
+            elif step["do"] == "rsvp":
+                engine.rsvp(step["as"], args["answer"], plan=spec["id"], plus_ones=args.get("plus_ones"))
+            elif step["do"] == "bring":
+                engine.bring_list(step["as"], args.get("action", "bring"), args["things"], plan=spec["id"])
+            elif step["do"] == "costs":
+                engine.costs(step["as"], args.pop("action", "add"), plan=spec["id"], **args)
             else:
                 raise ValueError(f"unknown script step {step['do']!r} in {spec['id']}")
         engine.set_clock(previous_clock)
@@ -229,6 +241,16 @@ def wipe_group(db: Db, group_id: str) -> None:
                 db.run(f"DELETE FROM {table} WHERE {column} IN ({','.join('?' * len(chunk))})", *chunk)
 
         delete("resource_reservations", "plan_id", plans)
+        # New coordination records refer to scopes/revisions that the reset
+        # deletes before plans. Clear children first, for this group only.
+        delete("fallback_uses", "revision_id", revs)
+        delete("fallback_authorizations", "plan_id", plans)
+        delete("fallback_challenges", "plan_id", plans)
+        delete("agreement_contests", "plan_id", plans)
+        delete("weather_watches", "plan_id", plans)  # cascades provider readings
+        delete("diagnostic_queries", "plan_id", plans)
+        db.run("DELETE FROM fairness_history WHERE group_id = ?", group_id)
+        db.run("DELETE FROM fairness_preferences WHERE group_id = ?", group_id)
         delete("project_revisions", "plan_id", plans)  # cascades scopes, challenges, receipts before task deletion
 
         delete("links", "item_id", items)
@@ -236,6 +258,11 @@ def wipe_group(db: Db, group_id: str) -> None:
         delete("flags", "target_id", items)
         delete("flags", "cause_id", items)
         delete("requests", "plan_id", plans)
+        delete("followups", "plan_id", plans)
+        delete("delivery_preferences", "plan_id", plans)
+        for receipt in db.all('SELECT id,plan_ids_json FROM action_receipts'):
+            if set(json.loads(receipt['plan_ids_json'])) & set(plans):
+                db.run('DELETE FROM action_receipts WHERE id=?', receipt['id'])
         delete("facts", "item_id", items)
         delete("items", "plan_id", plans)
         delete("notifications", "plan_id", plans)

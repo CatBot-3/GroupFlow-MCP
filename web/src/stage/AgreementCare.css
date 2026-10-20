@@ -1,0 +1,14 @@
+.agreement-care { margin: 1rem 0; min-width: 0; }
+.agreement-care h4 { font-size: 1rem; margin: .8rem 0; }
+.agreement-care h5 { font-size: .95rem; margin: .5rem 0; }
+.agreement-care label { display: block; margin: .7rem 0; }
+.agreement-care input:not([type=checkbox]), .agreement-care select, .agreement-care textarea { width: 100%; box-sizing: border-box; }
+.agreement-care textarea { min-height: 5rem; }
+.agreement-care fieldset { border: 1px solid var(--line, #d4d7d9); border-radius: .5rem; margin-top: .7rem; padding: .5rem; }
+.agreement-care label.care-check { display: flex; gap: .5rem; align-items: flex-start; }
+.agreement-care .care-check input { flex: 0 0 auto; margin-top: .25rem; }
+.agreement-care .care-preview { border: 1px solid var(--line, #d4d7d9); border-radius: .5rem; padding: .6rem; margin: .7rem 0; }
+.agreement-care table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: .8rem; }
+.agreement-care th, .agreement-care td { text-align: left; vertical-align: top; overflow-wrap: anywhere; padding: .4rem .25rem; border-bottom: 1px solid var(--line, #d4d7d9); }
+.agreement-care p { overflow-wrap: anywhere; }
+.agreement-care .pbtn { white-space: normal; margin: .2rem 0; }

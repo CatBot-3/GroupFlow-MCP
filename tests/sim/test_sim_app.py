@@ -42,6 +42,29 @@ async def test_config_lists_every_group_with_people_plans_scripts_and_provider(s
     assert cfg["provider"]["id"] == "scripted" and "token" not in str(cfg).lower()
 
 
+async def test_human_proxy_preserves_query_and_guarded_new_plan_journey(sim):
+    login = await sim.post('/human/login',json={'member_id':'alice','passcode':sim.h.rt.world.person('alice').passcode})
+    session = login.json()
+    headers = {'Authorization':'Bearer '+session['token'],'X-GF-CSRF':session['csrf']}
+    created = await sim.post('/human/actions/apply',headers=headers,json={'tool':'create_plan','request_key':'proxy-create',
+        'arguments':{'template':'general_event','title':'Proxy picnic','group':'friends','start_date':'2026-11-14','starter':False}})
+    assert created.status_code==200,created.text
+    plan = created.json()['plan']['id']
+    resolved = await sim.get('/human/resolve',headers=headers,params={'plan':plan})
+    assert resolved.status_code==200 and resolved.json()['version']
+    added = await sim.post('/human/actions/apply',headers=headers,json={'tool':'propose_change','request_key':'proxy-add',
+        'expected':resolved.json()['version'],'arguments':{'plan':plan,'new_type':'activity','title':'Picnic together',
+            'place':'Local park','start':'18:00','end':'20:00','participants':['everyone']}})
+    assert added.status_code==200 and added.json()['action_receipt']['plans']==[plan],added.text
+    options = await sim.post('/human/planning',headers=headers,json={'plan':plan})
+    assert options.status_code==200 and options.json()['alternatives'],options.text
+    issued = await sim.post('/human/calendar',headers=headers,json={})
+    assert issued.status_code==200
+    feed = await sim.get(issued.json()['url'])
+    assert feed.status_code==200 and 'BEGIN:VCALENDAR' in feed.text and 'Proxy picnic' not in feed.text
+    assert feed.headers['cache-control']=='private, no-store'
+
+
 async def test_say_runs_a_turn_records_the_transcript_and_rejects_bad_input(sim):
     sim.model.push({"tool_calls": [{"name": "get_context", "arguments": {}}]}, {"text": "You're all caught up."})
     r = await sim.post("/api/say", json={"member": "bob", "text": "What's new?", "scenario": "family"})

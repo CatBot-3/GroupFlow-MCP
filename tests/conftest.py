@@ -1,6 +1,13 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
+
+# Most tests stand for a person's own device. Without a listener declaration the server would assume a shared room and leave
+# plans kept from someone out of summaries (the product default); tests/mcp/test_room_mode.py covers that default explicitly.
+os.environ.setdefault("GROUPFLOW_UNDECLARED_AUDIENCE", "private")
+# Most MCP tests exercise the full lab tool set on /mcp; tests/mcp/test_voice.py runs the voice profile (the product default).
+os.environ.setdefault("GROUPFLOW_TOOL_PROFILE", "lab")
 
 import pytest
 

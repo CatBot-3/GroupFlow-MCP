@@ -22,7 +22,7 @@
 # prompt change was tuned on its results, and the rewrite's examples share no 4-word sequence with these sentences.
 # The same change widened four server guards to casual phrasings ("not doing X", "isn't coming", "keep this to myself",
 # "im"); RL11 uses one of them ("def not doing"), so that scenario is not fully independent of the change.
-# Re-frozen a second time (v0.7, sha256:3fbb43e6... before) after three tools were added for telling people and asking first
+# Re-frozen a second time (sha256:3fbb43e6... before) after three tools were added for telling people and asking first
 # (notify_people, ask_followup, answer_followup), with a paragraph in the host prompt and one sentence in the server instructions.
 # Still never run against a model, so nothing was tuned on these results; the new text shares no 5-word sequence with this file.
 #

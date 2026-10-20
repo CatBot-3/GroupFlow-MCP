@@ -117,6 +117,16 @@ plans:
       - {at: "2026-10-08T20:00:00Z", as: bob, do: change, item: $cake_task, status: done, quote: "Cake ordered for pickup Saturday at 4."}
       - {at: "2026-10-08T20:05:00Z", as: bob, do: change, new_type: task, title: Pick up the cake, ref: pickup}
       - {as: bob, do: link, item: $pickup, depends_on: $cake_task}
+      # Deciding things together: what the cake and the room cost, decorations to bring, and a tied vote that goes back to Alice on Thursday.
+      - {at: "2026-10-08T20:10:00Z", as: bob, do: costs, amount: 64, what: "Chocolate cake from Lucia's"}
+      - {at: "2026-10-09T14:00:00Z", as: alice, do: costs, amount: 100, what: "Deposit for Rosa's back room"}
+      - {at: "2026-10-09T14:05:00Z", as: charlie, do: bring, action: add, things: [balloons, streamers, birthday banner]}
+      - {as: charlie, do: bring, things: [balloons]}
+      - {as: bob, do: bring, things: [birthday candles]}
+      - {at: "2026-10-16T16:00:00Z", as: alice, do: poll, question: "Music for the party?", options: ["Mom's 70s playlist", "Charlie on guitar"],
+         closes: "Thursday 6pm", fallback: leading}
+      - {as: bob, do: poll, action: vote, choice: "Mom's 70s playlist"}
+      - {as: charlie, do: poll, action: vote, choice: "Charlie on guitar"}
 
   # ------------------------------------------------------------------ the household's running plan (chores, shopping, everyday facts)
   - id: home
@@ -183,6 +193,9 @@ plans:
       - {as: chen, do: change, new_type: packing, title: Sunscreen}
       - {as: omar, do: change, new_type: packing, title: Cooler and ice packs}
       - {as: priya, do: change, new_type: task, title: Bring board games, owner: priya}
+      - {as: dana, do: poll, item: trip.meeting_point, options: ["Dana's place, 4:00 pm"], closes: "in 3 days"}
+      - {as: dana, do: costs, amount: 240, what: Minivan rental}
+      - {as: omar, do: costs, amount: 86.40, what: Groceries for Friday night, paid_by: Priya}
     stages:
       default: draft
 
@@ -230,3 +243,27 @@ plans:
       default: committed
       draft: []
       committed: [send, confirm_all, commit]
+
+  # ------------------------------------------------------------------ a potluck after the midterm (RSVPs, a bring list, shared costs)
+  - id: study_potluck
+    group: study
+    template: gathering
+    title: Post-midterm potluck
+    start_date: {prefer: "2026-10-24", else: next saturday}
+    organizer: noor
+    starter: true
+    conditions:
+      - {owner: sam, name: diet, value: {tags: [vegetarian]}}
+    script:
+      - {as: noor, do: change, item: event.date, value: "{day:0}, 7:00 pm", quote: "Potluck at my place Saturday at 7, after the midterm!"}
+      - {as: noor, do: change, item: event.venue, value: "Noor's place"}
+      - {as: noor, do: rsvp, answer: "yes"}
+      - {as: chen, do: rsvp, answer: "yes"}
+      - {as: sam, do: rsvp, answer: "yes", plus_ones: 1}
+      - {as: jun, do: rsvp, answer: maybe}
+      - {as: noor, do: bring, action: add, things: [drinks, chips, dessert, paper plates]}
+      - {as: chen, do: bring, things: [dessert]}
+      - {as: sam, do: bring, things: [veggie samosas]}
+      - {as: noor, do: costs, amount: 42.50, what: Drinks and ice}
+      - {as: noor, do: poll, question: "After dinner?", options: ["A movie", "Board games"]}
+      - {as: chen, do: poll, action: vote, choice: Board games}

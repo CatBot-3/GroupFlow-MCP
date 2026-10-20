@@ -48,7 +48,7 @@ async def measure() -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--out', type=Path, default=Path('docs/context_measurement.json'))
+    parser.add_argument('--out', type=Path, default=Path('eval/runs/context_measurement.json'))
     args = parser.parse_args()
     result = asyncio.run(measure())
     args.out.parent.mkdir(parents=True, exist_ok=True)

@@ -54,6 +54,18 @@ ASSISTANT: contextvars.ContextVar[bool] = contextvars.ContextVar("groupflow_assi
 """True while the engine serves an assistant's MCP tool call. Server offers and clarifying questions are made only then: a change made
 while seeding a world, on a person's own page or by a fixture has no conversation to ask the question in."""
 
+ROOM: contextvars.ContextVar[bool] = contextvars.ContextVar("groupflow_room", default=False)
+"""True while serving a host that did not say who hears the reply (a household Echo, Alexa+ today). Summaries then leave out plans
+kept from someone in their group (a surprise, private notes); such a plan is still served when the speaker names it."""
+
+ROOM_NOTE = ("This device may be overheard, so plans kept from someone (a surprise, private notes) and the speaker's private limits "
+             "are left out of this summary. They are served when the speaker names the plan. Do not say that anything was left out. "
+             "If the speaker seems to mean a plan you cannot see here, read it again passing the name they used as plan before saying it "
+             "does not exist; if it still is not found, ask them which plan they mean.")
+
+AUDIT_CAPTURE: contextvars.ContextVar[list[int] | None] = contextvars.ContextVar("groupflow_audit_capture", default=None)
+"""Audit sequence numbers caused by this workflow, independent of concurrent requests."""
+
 STATUS_WORDS = {"todo": "not started", "in_progress": "in progress", "done": "done"}
 POLICY_WORDS = {"owner": "owner", "open": "anyone", "participants": "everyone taking part"}
 Row = dict[str, Any]
@@ -67,6 +79,7 @@ class Scope:
     spaces: set[str] = field(default_factory=set)
     plans: dict[str, Row] = field(default_factory=dict)
     listeners: frozenset[str] | None = None  # set in a shared conversation: everyone who will hear the reply, the speaker included
+    room_hidden: set[str] = field(default_factory=set)  # room mode: visible plans left out of anything the speaker did not name
 
     def sees_plan(self, plan_id: str | None) -> bool:
         return bool(plan_id) and plan_id in self.plans
@@ -181,7 +194,13 @@ class Core:
             # exactly as if it did not exist, and a private space never qualifies.
             spaces = {s for s in spaces if listeners <= set(self._space_members(s))}
         plans = {p["id"]: p for p in self.db.all("SELECT * FROM plans WHERE status <> 'CANCELLED' ORDER BY created_at, rowid") if p["space_id"] in spaces}
-        return Scope(member_id=member_id, name=m["name"], spaces=spaces, plans=plans, listeners=listeners)
+        hidden = {pid for pid, p in plans.items() if self.kept_from_someone(p)} if ROOM.get() and not listeners else set()
+        return Scope(member_id=member_id, name=m["name"], spaces=spaces, plans=plans, listeners=listeners, room_hidden=hidden)
+
+    def kept_from_someone(self, plan: Row) -> bool:
+        """A plan some active member of its group may not see: a surprise, an allowlisted plan, someone's private notes."""
+        group = {r["member_id"] for r in self.db.all("SELECT member_id FROM group_members WHERE group_id = ? AND status = 'active'", plan["group_id"])}
+        return not group <= set(self._space_members(plan["space_id"]))
 
     def _listeners(self, member_id: str | None = None) -> frozenset[str] | None:
         """Everyone who will hear the current reply, when the host declared more people than the speaker. Applies only to the speaker's own scope."""
@@ -201,6 +220,8 @@ class Core:
         if len(parts) > 50:
             raise ValueError("Too many listeners.")
         for part in parts:
+            if part.lower() in ("me", "self", "private"):
+                continue  # a personal device: only the speaker hears the reply
             if part.startswith("group:"):
                 gid = part[6:].strip()
                 if not self._group_role(gid, member_id):
@@ -261,16 +282,32 @@ class Core:
             raise DomainError("NOT_FOUND", "You have no plans yet.")
         if ref:
             r = ref.strip().lower()
-            hit = next((p for p in plans if p["id"] == ref.strip()), None) or next((p for p in plans if p["title"].lower() == r), None)
+            hit = next((p for p in plans if p["id"] == ref.strip()), None)
+            exact = [p for p in plans if p['title'].lower() == r]
+            candidates = exact
+            if not hit and len(exact) == 1:
+                hit = exact[0]
             if not hit:
-                words = set(topic_stems(r))
-                scored = sorted(((len(words & set(topic_stems(p["title"]))), p) for p in plans), key=lambda x: -x[0])
-                if scored and scored[0][0] and (len(scored) == 1 or scored[0][0] > scored[1][0]):
-                    hit = scored[0][1]
+                if not exact:
+                    words = set(topic_stems(r))
+                    scored = sorted(((len(words & set(topic_stems(p["title"]))), p) for p in plans), key=lambda x: -x[0])
+                    candidates = [p for score, p in scored if score and score == scored[0][0]]
+                    if len(candidates) == 1:
+                        hit = candidates[0]
+                if len(candidates) > 1:
+                    raise DomainError('AMBIGUOUS_PLAN', 'Several visible plans match. Use an exact plan id: '
+                                      + '; '.join(f"{p['title']} (id {p['id']})" for p in candidates) + '.',
+                                      {'plans': [{'id': p['id'], 'title': p['title']} for p in candidates]})
             if not hit:
-                raise DomainError("NOT_FOUND", "No such plan is available to you. Your plans: "
-                                  + "; ".join(f"{p['title']} (id {p['id']})" for p in plans) + ".")
+                listed = [p for p in plans if p["id"] not in scope.room_hidden]
+                raise DomainError("NOT_FOUND", "No such plan is available to you." + (" Your plans: "
+                                  + "; ".join(f"{p['title']} (id {p['id']})" for p in listed) + "." if listed else ""))
             return hit
+        if scope.room_hidden:
+            # Not named on a device that may be overheard: only plans everyone in their group may see qualify by default.
+            plans = [p for p in plans if p["id"] not in scope.room_hidden]
+            if not plans:
+                raise DomainError("AMBIGUOUS_PLAN", "Say which plan, by name.", {"plans": []})
         if len(plans) == 1:
             return plans[0]
         if prefer:
@@ -298,6 +335,15 @@ class Core:
         raw = ref.strip()
         lower = raw.lower()
         key = normalize_slot_key(raw)
+        # A real id is authoritative even when its record is outside the
+        # selected plan. Never reinterpret it as a local label/suffix: two
+        # plans can both contain Meet, with ids meet and trip.meet.
+        exact_record = self._item(raw) or self._item(key)
+        if exact_record is not None:
+            exact_visible = next((i for i in items if i['id'] == exact_record['id']), None)
+            if exact_visible is None:
+                raise DomainError('NOT_FOUND', 'No matching item is available in this plan. Use an item id from get_context.')
+            return exact_visible
 
         def hit(t: str, hay: list[str]) -> bool:
             return any(w == t or (min(len(w), len(t)) >= 4 and (w.startswith(t) or t.startswith(w))) for w in hay)
@@ -392,13 +438,16 @@ class Core:
     def _audit(self, actor: str | None, action: str, target_type: str, target_id: str, plan: Row | None, detail: str,
                before: str | None = None, after: str | None = None, utterance_id: str | None = None, private_to: str | None = None,
                payload: dict[str, Any] | None = None, group_id: str | None = None) -> None:
-        self.db.run(
+        seq = self.db.insert(
             """INSERT INTO audit (at, actor_id, group_id, plan_id, space_id, action, target_type, target_id, detail, before_value, after_value,
                                   utterance_id, private_to, aggregate_version, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             self.ts(), actor, plan["group_id"] if plan else group_id, plan["id"] if plan else None, plan["space_id"] if plan else None,
             action, target_type, target_id, detail, before, after, utterance_id, private_to, plan["aggregate_version"] if plan else None,
             json.dumps(payload or {}),
         )
+        captured = AUDIT_CAPTURE.get()
+        if captured is not None:
+            captured.append(seq)
 
     def _notify(self, member_ids: list[str], plan: Row | None, kind: str, text: str, space_id: str | None = None) -> list[str]:
         ids = []
@@ -548,9 +597,11 @@ class Core:
         return out
 
     def _detail_view(self, scope: Scope, item: Row) -> DetailView:
+        fact = self._fact(item["current_fact_id"])
         return DetailView(id=item["id"], label=item["label"], value=self._current_value(item), owner=self.name(item["owner_id"]),
                           decided_by=POLICY_WORDS[item["policy"]], status=self._detail_status(item),  # type: ignore[arg-type]
-                          pending=self._suggestions(scope, item), flags=self._flags_for(scope, item["id"]))
+                          pending=self._suggestions(scope, item), flags=self._flags_for(scope, item["id"]),
+                          written_by=self.name(fact["proposed_by"]) if fact else None)
 
     def _links_from(self, item_id: str, kind: str | None = None) -> list[Row]:
         if kind:
@@ -598,7 +649,7 @@ class Core:
                         decided_by=POLICY_WORDS[t["policy"]], blocked_by=blockers, pending=self._suggestions(scope, t),
                         waits_on=[x["depends_on_id"] for x in self._links_from(t["id"], "waits_on")
                                   if (u := self._item(x["depends_on_id"])) and not u["archived"] and scope.sees_plan(u["plan_id"])],
-                        flags=self._flags_for(scope, t["id"]))
+                        flags=self._flags_for(scope, t["id"]), written_by=self.name(t["created_by"]))
 
     def _roots_of(self, scope: Scope, task: Row) -> list[tuple[Row, str, list[str]]]:
         out: dict[str, tuple[Row, str, list[str]]] = {}
@@ -910,7 +961,8 @@ class Core:
                        owner: str | None = None, due: Any = UNSET, title: str | None = None, day: str | int | None = None,
                        start: str | None = None, end: str | None = None, place: str | None = None, participants: list[str] | None = None,
                        remove: bool = False, new_type: str | None = None, value_kind: str | None = None, aliases: list[str] | None = None,
-                       certainty: str = "committed", quote: str | None = None) -> ChangeResult:
+                       certainty: str = "committed", quote: str | None = None,
+                       start_fold: int | None = None, end_fold: int | None = None, end_day: str | int | None = None) -> ChangeResult:
         if certainty not in ("tentative", "committed"):
             raise DomainError("INVALID_ARGUMENT", 'certainty must be "tentative" or "committed".')
         self._rate_limit(actor_id)
@@ -922,6 +974,9 @@ class Core:
             if target is not None and plan_row is None:
                 plan_row = scope.plans[target["plan_id"]]
             words = (quote or "").lower().replace("’", "'")
+            from .intent import reaction_without_request
+            if reaction_without_request(quote):
+                raise DomainError("NO_ACTION_REQUESTED", "That is a reaction without a requested change or positive replacement. Leave the plan unchanged.")
             private_intent = re.search(r"\b(just for me|only for me|private note|keep (?:it|this) private|(?:keep (?:it|this)|note) to myself|for my eyes only|"
                                        r"don'?t tell anyone)\b|仅我|只有我|私人便签|仅自己", words)
             if private_intent and (plan_row is None or self.plan_audience(plan_row) != [actor_id]):
@@ -999,7 +1054,8 @@ class Core:
                     return self._change_task(scope, actor_id, None, plan_row, title=title or item, owner=owner, status=status, due=due, remove=False,
                                              type_name=it.name if it else None, certainty=certainty, utterance_id=utt, quote_space=plan_row["space_id"])
                 return self._change_activity(scope, actor_id, None, plan_row, title=title or item, day=day, start=start, end=end, place=place,
-                                             participants=participants, remove=False, type_name=it.name if it else None, certainty=certainty, quote=quote)
+                                             participants=participants, remove=False, type_name=it.name if it else None, certainty=certainty, quote=quote,
+                                             start_fold=start_fold, end_fold=end_fold, end_day=end_day)
 
             utt_space = plan_row["space_id"]
             if target["shape"] == "detail":
@@ -1014,7 +1070,8 @@ class Core:
                 return self._change_task(scope, actor_id, target, plan_row, title=title, owner=owner, status=status, due=due, remove=remove,
                                          type_name=None, certainty=certainty, utterance_id=utt, quote_space=utt_space)
             return self._change_activity(scope, actor_id, target, plan_row, title=title, day=day, start=start, end=end, place=place,
-                                         participants=participants, remove=remove, type_name=None, certainty=certainty, quote=quote)
+                                         participants=participants, remove=remove, type_name=None, certainty=certainty, quote=quote,
+                                         start_fold=start_fold, end_fold=end_fold, end_day=end_day)
         return self.db.tx(run)
 
     def _change_activity(self, scope: Scope, actor_id: str, item: Row | None, plan: Row, **kw: Any) -> ChangeResult:  # agreement layer
@@ -1215,15 +1272,54 @@ class Core:
 
     # ================================================================ context (the read tool, prefetched every turn)
 
+    def acknowledge_updates(self, actor_id: str, token: str) -> int:
+        """Mark the updates of an earlier briefing as heard (the assistant passes back its heard_token after telling the person)."""
+        row = self.db.get("SELECT * FROM heard_tokens WHERE token = ? AND member_id = ?", (token or "").strip(), actor_id)
+        if not row:
+            return 0
+        stamp, n = self.ts(), 0
+        for nid in json.loads(row["ids_json"]):
+            n += self.db.run("UPDATE notifications SET read_at = ? WHERE id = ? AND member_id = ? AND read_at IS NULL", stamp, nid, actor_id)
+        self.db.run("DELETE FROM heard_tokens WHERE token = ?", row["token"])
+        return n
+
+    def _deliver_updates(self, actor_id: str, notes: list[Row]) -> tuple[str | None, int]:
+        """Updates read without marking them heard: count each delivery, give a token to acknowledge them, and treat an update
+        shown twice as heard, so news is neither lost to one failed voice turn nor repeated forever by a host that never acknowledges."""
+        if not notes:
+            return None, 0
+        stamp, repeated, pending = self.ts(), 0, []
+        for n in notes:
+            row = self.db.get("SELECT deliveries FROM update_deliveries WHERE notification_id = ?", n["id"])
+            count = (row["deliveries"] if row else 0) + 1
+            self.db.run("INSERT INTO update_deliveries (notification_id, member_id, deliveries, first_at, last_at) VALUES (?, ?, ?, ?, ?) "
+                        "ON CONFLICT(notification_id) DO UPDATE SET deliveries = excluded.deliveries, last_at = excluded.last_at",
+                        n["id"], actor_id, count, stamp, stamp)
+            if count >= 2:
+                self.db.run("UPDATE notifications SET read_at = ? WHERE id = ?", stamp, n["id"])
+                repeated += 1
+            else:
+                pending.append(n["id"])
+        if not pending:
+            return None, repeated
+        token = "heard_" + secrets.token_hex(6)
+        self.db.run("DELETE FROM heard_tokens WHERE member_id = ? AND created_at < ?", actor_id, stamp[:10])
+        self.db.run("INSERT INTO heard_tokens (token, member_id, ids_json, created_at) VALUES (?, ?, ?, ?)", token, actor_id, json.dumps(pending), stamp)
+        return token, repeated
+
     def context(self, actor_id: str, plan: str | None = None, mark_read: bool = True, max_plans: int = 4,
-                detail: str = "full", limit: int = 12, offset: int = 0, group: str | None = None) -> ContextView:
+                detail: str = "full", limit: int = 12, offset: int = 0, group: str | None = None, heard: str | None = None,
+                track_delivery: bool = False) -> ContextView:
         if detail not in ("summary", "full") or not 1 <= limit <= 50 or offset < 0:
             raise DomainError("INVALID_ARGUMENT", "Use summary/full, limit 1..50 and a non-negative offset.")
 
         def run() -> ContextView:
+            if heard:
+                self.acknowledge_updates(actor_id, heard)
             scope = self.scope_for(actor_id)
             focus = self.resolve_plan(scope, plan) if plan else None
-            available = list(scope.plans.values())
+            # Room mode: a plan kept from someone appears only when named (then only that one).
+            available = [p for p in scope.plans.values() if p["id"] not in scope.room_hidden or (focus is not None and p["id"] == focus["id"])]
             if group:
                 available = [p for p in available if group.lower() in (p["group_id"].lower(), (self._group(p["group_id"]) or {}).get("name", "").lower())]
                 if focus and focus["id"] not in {p["id"] for p in available}:
@@ -1253,23 +1349,27 @@ class Core:
             # In a shared conversation a note without a space (or from a space someone listening is not in) stays unread for later.
             notes = [n for n in self.db.all("SELECT * FROM notifications WHERE member_id = ? AND read_at IS NULL ORDER BY created_at, id", actor_id)
                      if ((n["space_id"] is None and not scope.listeners) or n["space_id"] in scope.spaces) and n["plan_id"] in (None, *visible_ids)
-                     and (detail == "summary" or not focus or n["plan_id"] in (None, focus["id"]))]
+                     and (detail == "summary" or not focus or n["plan_id"] in (None, focus["id"]))
+                     and (not hasattr(self, 'notification_available') or self.notification_available(actor_id, n['plan_id'], n['kind']))]
             truncated = {}
             if detail == "summary":
                 truncated = {key: max(0, len(rows) - limit) for key, rows in (("decisions", decisions), ("updates", notes), ("affected", flags))
                              if len(rows) > limit}
                 decisions, notes, flags = decisions[:limit], notes[:limit], flags[:limit]
+            heard_token, repeated = None, 0
             if mark_read and notes:
                 stamp = self.ts()
                 for n in notes:
                     self.db.run("UPDATE notifications SET read_at = ? WHERE id = ?", stamp, n["id"])
+            elif notes and track_delivery:
+                heard_token, repeated = self._deliver_updates(actor_id, notes)
             todos = self._todos(scope, available if detail == "summary" else plans)
             tasks = [t for t in self.db.all("SELECT * FROM items WHERE shape = 'task' AND owner_id = ? AND archived = 0 AND status <> 'done' ORDER BY updated_at DESC, id", actor_id)
                      if t["plan_id"] in visible_ids]
             if detail == "summary" and len(tasks) > limit:
                 truncated["your_tasks"] = len(tasks) - limit
             # A person's private conditions are never read out to other listeners, even their own.
-            conditions = self._my_conditions(scope, plans) if (detail == "full" or focus) and not scope.listeners else []
+            conditions = self._my_conditions(scope, plans) if (detail == "full" or focus) and not scope.listeners and not (ROOM.get() and not plan) else []
             if detail == "summary" and len(todos) > limit:
                 truncated["todos"] = len(todos) - limit
                 todos = todos[:limit]
@@ -1290,7 +1390,8 @@ class Core:
                                          pending_decisions=self.db.scalar("SELECT COUNT(*) FROM requests WHERE assignee_id = ? AND plan_id = ? AND status = 'open'", actor_id, p["id"]) or 0,
                                          your_open_tasks=sum(t["plan_id"] == p["id"] for t in tasks),
                                          key_items=[{"id": i["id"], "label": i["label"], "owner": self.name(i["owner_id"]), "shape": i["shape"], "type": i["type"], "decided_by": POLICY_WORDS[i["policy"]],
-                                                     "value": (self._current_value(i) or "")[:160] if i["shape"] == "detail" else i["status"]}
+                                                     "value": (self._current_value(i) or "")[:160] if i["shape"] == "detail" else i["status"],
+                                                     **({"written_by": self.name(i["created_by"])} if i["created_by"] != actor_id and i["shape"] == "task" else {})}
                                                     for i in self._visible_items(scope, p["id"])[:8]],
                                          item_types=[{"name": it.name, "shape": it.shape, "policy": it.policy} for it in self.template(p).item_types]) for p in page]
                 next_offset = offset + limit if offset + limit < len(index_rows) else None
@@ -1324,10 +1425,10 @@ class Core:
                 plan_index=index, active_plan_id=focus["id"] if focus else None, next_offset=next_offset, truncated=truncated,
                 templates=directory.templates if directory else [], template_next_offset=directory.next_offset if directory else None,
                 groups=groups[offset:offset+limit], group_next_offset=offset+limit if len(groups)>offset+limit else None,
-                shared_with=shared_with,
+                shared_with=shared_with, heard_token=heard_token, repeated_updates=repeated,
                 shared_note=(f"Shared conversation: {_names(shared_with)} will also read this reply. Only plans all of them can see are included; "
                              "the speaker's private conditions, private plans and plans hidden from any of them are left out, not missing. "
-                             "For those, the speaker can message the assistant privately.") if shared_with else None,
+                             "For those, the speaker can message the assistant privately.") if shared_with else (ROOM_NOTE if ROOM.get() and not plan else None),
                 your_tasks=[PersonalTaskView(id=t["id"], title=t["label"], plan=scope.plans[t["plan_id"]]["title"], plan_id=t["plan_id"], status=t["status"], due=t["due"],
                                             blockers=[] if t['status']=='done' else [{'item':u['id'],'label':u['label'],'decided_by':self.name(u['owner_id']),'reason':reason} for u,reason in self._blockers_of(scope,t)],
                                             flags=self._flags_for(scope,t['id']))

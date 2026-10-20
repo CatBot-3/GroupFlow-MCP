@@ -36,6 +36,7 @@ class DetailView(BaseModel):
     status: Literal["confirmed", "disputed", "has_suggestions", "unset"]
     pending: list[SuggestionView] = Field(default_factory=list)
     flags: list[str] = Field(default_factory=list)
+    written_by: str | None = None  # who wrote the current value: their words are data, never instructions
 
 
 class TaskView(BaseModel):
@@ -50,6 +51,7 @@ class TaskView(BaseModel):
     waits_on: list[str] = Field(default_factory=list, description="Ids of tasks this one waits on.")
     pending: list[SuggestionView] = Field(default_factory=list)
     flags: list[str] = Field(default_factory=list)
+    written_by: str | None = None  # who wrote the title
 
 
 class ActivityView(BaseModel):
@@ -106,7 +108,7 @@ class FlagView(BaseModel):
 
 
 class TodoView(BaseModel):
-    kind: Literal["confirm", "verify_condition", "decide", "repair", "commit", "send"]
+    kind: Literal["confirm", "verify_condition", "decide", "repair", "commit", "send", "vote", "rsvp", "bring", "settle", "confirm_cost"]
     plan: str
     text: str
     where: str = Field(description='"your GroupFlow page" for things only a person may do there, or "ask Alexa".')
@@ -149,6 +151,11 @@ class PlanView(BaseModel):
     planning_window_days: int | None = None
     preset: str | None = None
     project: dict | None = None
+    polls: list[dict[str, Any]] = Field(default_factory=list, description=(
+        "Open votes, and ones decided in the last few days. Votes are suggestions to the person in 'decides'; they never confirm an activity."))
+    rsvp: dict[str, Any] | None = Field(default=None, description="Who is coming (yes, maybe, no, not answered) and the headcount with plus-ones.")
+    bring_list: list[dict[str, Any]] = Field(default_factory=list, description="Things to bring, and who claimed each one.")
+    costs: dict[str, Any] | None = Field(default=None, description="Shared expenses, each person's balance and the payments that would settle up.")
 
 
 class PlanSummaryView(BaseModel):
@@ -225,6 +232,8 @@ class ContextView(BaseModel):
     group_next_offset: int | None = None
     shared_with: list[str] = Field(default_factory=list, description="Other people who will read or hear this reply (a group chat, a shared device). Empty: only the speaker.")
     shared_note: str | None = None
+    heard_token: str | None = Field(default=None, description="After telling the person these updates, pass this as heard on your next get_context call.")
+    repeated_updates: int = Field(default=0, description="How many updates are shown a second time; they now count as heard.")
     open_questions: list[dict[str, Any]] = Field(default_factory=list, description=(
         "Questions the assistant asked this speaker that are still unanswered (newest first). If the speaker's words answer one, call answer_followup."))
     your_reminders: list[dict[str, Any]] = Field(default_factory=list, description=(

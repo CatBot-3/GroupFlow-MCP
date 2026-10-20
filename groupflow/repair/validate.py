@@ -59,6 +59,13 @@ def activity_violations(problem: Problem, base: Snapshot, a: Activity) -> list[V
                                      relaxable_by=rules[0].owner if rules else None))
         return out
 
+    from groupflow.core.errors import DomainError
+    from .local_time import validate_interval
+    try:
+        validate_interval(base.start_date, a.start, a.end, base.timezone, a.start_fold, a.end_fold)
+    except DomainError as err:
+        out.append(Violation('event_time', err.code, a.id, (), err.message, err.message))
+
     place = problem.catalog.places.get(a.place_id or "")
     day0 = a.day * DAY
     if a.place_id and place is None:
@@ -82,8 +89,8 @@ def activity_violations(problem: Problem, base: Snapshot, a: Activity) -> list[V
                 out.append(Violation("place_hours", "SLOT_UNAVAILABLE", a.id, (), msg, msg))
         for u in problem.unavailable:
             group = f"place_unavailable:{u.place_id}"
-            if u.place_id == place.id and a.start < u.to_min and u.from_min < a.end and _on(problem, group):
-                msg = f"{place.name} is unavailable from {_at(problem, u.from_min)} to {_at(problem, u.to_min)}."
+            if u.place_id == place.id and (u.activity_id is None or u.activity_id == a.id) and a.start < u.to_min and u.from_min < a.end and _on(problem, group):
+                msg = u.reason or f"{place.name} is unavailable from {_at(problem, u.from_min)} to {_at(problem, u.to_min)}."
                 out.append(Violation(group, "PLACE_UNAVAILABLE", a.id, (), msg, msg))
         if len(a.participants) > place.capacity and _on(problem, "capacity"):
             msg = f"{place.name} has room for {place.capacity}, not {len(a.participants)}."

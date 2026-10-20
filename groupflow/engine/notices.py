@@ -39,7 +39,7 @@ OFFER_TTL = timedelta(minutes=10)  # an offer the assistant may not have asked g
 FOLLOWUP_OPEN_MAX = 3
 FOLLOWUP_SUGGESTED_MAX = 5
 FOLLOWUP_TOOLS = ("notify_people", "propose_change", "decide_change", "request_confirmations", "find_alternatives", "commit_plan",
-                  "create_plan", "report_observation", "set_my_conditions", "set_reminder")
+                  "create_plan", "report_observation", "set_my_conditions", "set_reminder", "poll", "rsvp", "bring_list", "costs")
 YES = {"yes", "y", "yeah", "yea", "yep", "yup", "ya", "ye", "sure", "ok", "okay", "k", "do it", "go ahead", "please", "yes please", "sounds good",
        "go for it", "definitely", "absolutely", "of course", "why not"}
 NO = {"no", "n", "nah", "nope", "no thanks", "dont", "don't", "skip", "skip it", "not now", "leave it", "never mind", "nevermind", "no need"}
@@ -91,7 +91,12 @@ class Notices:
 
     def context(self, actor_id: str, *args: Any, **kwargs: Any) -> Any:
         view = super().context(actor_id, *args, **kwargs)  # type: ignore[misc]
-        view.open_questions = self.db.tx(lambda: self._open_questions(self.scope_for(actor_id)))
+
+        def questions() -> list[dict[str, Any]]:
+            scope = self.scope_for(actor_id)
+            hidden = {scope.plans[i]["title"] for i in scope.room_hidden if i != view.active_plan_id}
+            return [q for q in self._open_questions(scope) if q.get("plan") not in hidden]
+        view.open_questions = self.db.tx(questions)
         if view.open_questions:
             n = len(view.open_questions)
             note = f"{n} open question{'s' if n != 1 else ''}"
@@ -502,10 +507,16 @@ class Notices:
 
     @staticmethod
     def _match_option(options: list[dict[str, Any]], choice: str) -> dict[str, Any] | None:
-        c = _norm(choice)
+        def spoken_time(value: str) -> str:
+            value = value.lower().replace('’', "'")
+            value = re.sub(r"\bhalf(?: past)?\s+(1[0-2]|[1-9])\b", r"\1:30", value)
+            value = re.sub(r"(?<![:\d])\b(1[0-2]|[1-9])\s*(am|pm)\b", r"\1:00 \2", value)
+            return re.sub(r"\b(1[0-2]|[1-9])\s+o'?clock\b", r"\1:00", value)
+
+        c = _norm(spoken_time(choice))
         if not c:
             return None
-        labels = [_norm(o["label"]) for o in options]
+        labels = [_norm(spoken_time(o["label"])) for o in options]
         if c in labels:
             return options[labels.index(c)]
         # "7" is "7 pm", not "7:30 pm": times compare without am/pm and :00.
@@ -604,7 +615,9 @@ class Notices:
         if tool == "request_confirmations":
             return dump(self.request_confirmations(actor_id, **keep("plan", "expected_version")))
         if tool == "find_alternatives":
-            return dump(self.find_alternatives(actor_id, **keep("plan", "expected_version")))
+            # Guarded follow-up answers keep their receipt and chosen action
+            # atomic. Queue the search there; the worker solves after commit.
+            return dump(self.find_alternatives(actor_id, run_now=not self.db.in_transaction, **keep("plan", "expected_version")))
         if tool == "commit_plan":
             return dump(self.commit_plan(actor_id, **keep("plan", "expected_version")))
         if tool == "create_plan":

@@ -84,6 +84,8 @@ class Activity:
     locked: bool = False
     cancelled: bool = False
     place_name: str | None = None
+    start_fold: int | None = None
+    end_fold: int | None = None
 
     @property
     def duration(self) -> int:
@@ -179,6 +181,8 @@ class Unavailability:
     from_min: int
     to_min: int
     event_id: str
+    activity_id: str | None = None
+    reason: str | None = None
 
 
 @dataclass(frozen=True)

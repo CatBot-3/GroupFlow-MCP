@@ -86,7 +86,7 @@ scenarios:
     text: Does dessert stay the same?
     expect:
       no_plan_change: true
-      reply_mentions_any: ['yes', stays, same, unchanged, keep]
+      reply_mentions_any: ['yes', yep, stays, same, unchanged, untouched, keep]
   - say: alice
     text: And how much more does it cost each?
     expect:

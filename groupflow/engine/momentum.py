@@ -529,6 +529,10 @@ class Momentum:
                                 "since": d["created_at"], "next_step": "the owner decides it"})
         return out
 
+    def _after_event_blockers(self, plan: Row, now: datetime, event: datetime | None) -> list[dict[str, Any]]:
+        """What still waits once the plan has happened. Nothing here; shared costs add settling up."""
+        return []
+
     def _loose_ends(self, plan: Row, now: datetime, event: datetime | None) -> list[dict[str, Any]]:
         """Tasks nobody has started with the event three days away or less. Not a blocker: some are meant for the day itself
         ("drive Linda to the party"). Rules only tell the organizer; a reviewing model may judge which owners to remind."""
@@ -576,7 +580,8 @@ class Momentum:
         setting = self._checkin_hours(p)
         threshold = setting if setting else (CHECKIN_SOON_H if event_in is not None and timedelta(0) <= event_in <= timedelta(days=7) else CHECKIN_DEFAULT_H)
         over = self._event_over(p, event, now) or p["status"] == "CANCELLED"
-        blockers = [] if over else self._blockers(p, now, event)
+        # After the day only what is left to wrap up (settling shared costs) is waited on; a cancelled plan waits on nothing.
+        blockers = (self._after_event_blockers(p, now, event) if p["status"] != "CANCELLED" else []) if over else self._blockers(p, now, event)
         loose = [] if over else self._loose_ends(p, now, event)
         stuck = bool(blockers or loose) and quiet >= timedelta(hours=threshold)
         last_round = self.db.scalar("SELECT MAX(created_at) FROM nudges WHERE plan_id = ?", p["id"])
@@ -751,11 +756,16 @@ class Momentum:
                 if waits:
                     notes.append("Waiting on " + "; ".join(waits[:3]) + (f"; and {len(waits) - 3} more" if len(waits) > 3 else "") + ".")
                 loose = [b for b in report.get("loose_ends", []) if b["key"] not in nudged_keys]
-                if loose:
-                    away = f", with the day {report['event_in']} away" if report.get("event_in") else ""
-                    named = [f'"{b["label"]}" ({_names(b["waiting_on_names"])})' for b in loose]
+                away = f", with the day {report['event_in']} away" if report.get("event_in") else ""
+                tasks = [b for b in loose if b["kind"] == "not_started"]
+                if tasks:
+                    named = [f'"{b["label"]}" ({_names(b["waiting_on_names"])})' for b in tasks]
                     notes.append(f"Not started yet{away}: " + "; ".join(named[:3]) + (f"; and {len(named) - 3} more" if len(named) > 3 else "")
                                  + ". Ask Alexa to remind them if they should be on it already.")
+                unclaimed = [b["label"] for b in loose if b["kind"] == "unclaimed"]
+                if unclaimed:
+                    notes.append(f"Nobody is bringing {_names(unclaimed[:4])}{' and more' if len(unclaimed) > 4 else ''} yet{away}. "
+                                 "Ask Alexa to tell everyone if someone should pick them up.")
             if reminded:
                 notes.append(f"I reminded {_names(reminded)}.")
             escalated = list(report["escalate"])
@@ -793,5 +803,10 @@ class Momentum:
 
     def context(self, actor_id: str, *args: Any, **kwargs: Any) -> Any:
         view = super().context(actor_id, *args, **kwargs)  # type: ignore[misc]
-        view.your_reminders = self.db.tx(lambda: self._your_reminders(self.scope_for(actor_id)))
+
+        def reminders() -> list[dict[str, Any]]:
+            scope = self.scope_for(actor_id)
+            hidden = {scope.plans[i]["title"] for i in scope.room_hidden if i != view.active_plan_id}
+            return [r for r in self._your_reminders(scope) if r["plan"] not in hidden]
+        view.your_reminders = self.db.tx(reminders)
         return view

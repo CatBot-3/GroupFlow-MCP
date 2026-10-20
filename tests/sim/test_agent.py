@@ -63,6 +63,42 @@ async def test_the_model_gets_the_mcp_tools_the_date_and_the_speaker_and_calls_r
     assert party_date(h) == "Saturday, Oct 24, 6:00 pm"
 
 
+async def test_host_binds_real_words_to_bring_claims_instead_of_model_quotes(harness_factory):
+    model = ScriptedProvider([call('bring_list', {'plan': 'party', 'action': 'bring', 'things': ['speaker'],
+                                                 'quote': "I'll bring it"}), say('That needs a task assigned to Charlie.')])
+    h = harness_factory(model)
+    turn = await h.say('alice', 'Put Charlie down for a speaker')
+    written = next(c for c in turn.calls if c['name'] == 'bring_list')
+    assert written['result']['code'] == 'SELF_ONLY'
+    assert written['args']['quote'] == 'Put Charlie down for a speaker'
+    assert not h.engine.db.scalar('SELECT count(*) FROM bring_items WHERE label = ?', 'speaker')
+
+
+async def test_host_cannot_invent_an_answer_to_an_existing_clarification(harness_factory):
+    model = ScriptedProvider([call('answer_followup', {'choice': 'Tomorrow morning'}), say('What time should I use?')])
+    h = harness_factory(model)
+    h.engine.ask_followup('linda', 'When should I remind Bob?', [
+        {'label': 'Tomorrow morning', 'action': {'tool': 'set_reminder', 'arguments': {
+            'plan': 'home', 'audience': ['Bob'], 'when': 'tomorrow at 9am', 'note': 'Fix the gutter'}}},
+        {'label': 'Tomorrow evening', 'action': None},
+    ])
+    turn = await h.say('linda', 'Remind Bob to fix the gutter.')
+    assert turn.calls[0]['args']['choice'] == 'Remind Bob to fix the gutter.'
+    assert turn.calls[0]['result']['code'] == 'INVALID_ARGUMENT'
+    assert h.engine.db.scalar('SELECT count(*) FROM reminders') == 0
+
+
+async def test_correction_round_cannot_turn_a_reaction_into_a_stored_proposal(harness_factory):
+    model = ScriptedProvider([say("Noted."), call('propose_change', {'plan': 'party', 'item': 'party.venue',
+                            'value': 'somewhere else', 'certainty': 'tentative'}), say('Fair enough.')])
+    h = harness_factory(model)
+    before = h.engine.db.scalar('SELECT count(*) FROM requests')
+    turn = await h.say('alice', 'That venue again? seriously?')
+    assert any(x.get('selfCheck') for x in turn.llm['calls'])
+    assert next(c for c in turn.calls if c['name'] == 'propose_change')['result']['code'] == 'NO_ACTION_REQUESTED'
+    assert h.engine.db.scalar('SELECT count(*) FROM requests') == before
+
+
 async def test_the_model_confirms_with_the_request_id_the_server_returned(harness_factory):
     def decide(req):
         ctx = last_tool_result(req, "get_context")
@@ -257,3 +293,18 @@ async def test_the_corrective_round_happens_at_most_once(harness_factory):
     h = harness_factory(model)
     turn = await h.say("alice", "Note that.")
     assert len(model.requests) == 2 and turn.reply == "I've noted it."
+
+
+@pytest.mark.parametrize('reply', ["Want me to mark the gutter task done since you've finished it?", 'Want me to check that off?'])
+async def test_reported_completion_gets_a_correction_round_when_the_model_asks_again(harness_factory, reply):
+    model = ScriptedProvider([
+        say(reply),
+        call('propose_change', {'plan': 'home', 'item': 'Fix the gutter', 'status': 'done'}),
+        say('Marked done.'),
+    ])
+    h = harness_factory(model)
+    h.engine.propose_change('bob', plan='home', new_type='chore', title='Fix the gutter')
+    turn = await h.say('bob', "I've finished fixing the gutter.")
+    assert len(model.requests) == 3
+    assert turn.calls[0]['result']['outcome'] == 'updated'
+    assert h.engine.db.scalar("SELECT status FROM items WHERE label = 'Fix the gutter'") == 'done'

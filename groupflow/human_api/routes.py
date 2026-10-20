@@ -12,15 +12,38 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from fastapi.responses import JSONResponse, Response
+from pydantic import BaseModel, ConfigDict, Field
 
 from groupflow.core.errors import DomainError
 from groupflow.core.identity import Member
 
 STATUS = {"UNAUTHENTICATED": 401, "CSRF": 403, "FORBIDDEN": 403, "NOT_FOUND": 404, "STALE_CANDIDATE": 409, "STALE": 409,
           "CHALLENGE_USED": 409, "CHALLENGE_EXPIRED": 410, "INVALID_ARGUMENT": 400, "AMBIGUOUS_PLAN": 400, "DUPLICATE": 409,
-          "RATE_LIMITED": 429}
+          "RATE_LIMITED": 429, "CONSENT_REQUIRED": 400, "AMBIGUOUS_POLL": 400, "AMBIGUOUS_EXPENSE": 400, "PRIVATE_NOTE": 400}
+STATUS.update(KEY_REUSED=409, EXPECTED_VERSION_REQUIRED=400, INVALID_EVENT_TIME=400, INFEASIBLE=400)
+
+
+class PreviewBody(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    tool: str
+    arguments: dict[str, Any] = Field(default_factory=dict)
+    expected: str | None = None
+    request_key: str | None = Field(default=None,min_length=1,max_length=120)
+
+
+class ActionBody(PreviewBody):
+    request_key: str = Field(min_length=1, max_length=120)
+
+
+class PreferenceBody(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    plan: str
+    muted: bool = False
+    digest: bool = False
+    quiet_start: int | None = Field(default=None, ge=0, le=23)
+    quiet_end: int | None = Field(default=None, ge=0, le=23)
+    timezone: str = 'America/Toronto'
 
 
 class LoginBody(BaseModel):
@@ -95,6 +118,31 @@ class LinkRefBody(BaseModel):
     id: str
 
 
+class VoteBody(BaseModel):
+    poll: str
+    choice: str
+    reason: str | None = None
+    decide: bool = False
+
+
+class RsvpBody(BaseModel):
+    plan: str
+    answer: str
+    plus_ones: int | None = None
+
+
+class BringBody(BaseModel):
+    plan: str
+    action: str
+    things: list[str]
+
+
+class CostConfirmBody(BaseModel):
+    plan: str
+    id: str
+    answer: str
+
+
 class RoleBody(BaseModel):
     group: str
     target: str
@@ -114,10 +162,17 @@ def register_human_routes(app: FastAPI, services: Any) -> None:
         token = auth[7:].strip() if auth.lower().startswith("bearer ") else ""
         return engine.human_session(token, request.headers.get("x-gf-csrf"), require_csrf=write)
 
+    from .coordination import register_coordination_routes
+    register_coordination_routes(app, engine, session, _error)
+
     async def run(request: Request, write: bool, fn) -> JSONResponse:
         try:
             member = session(request, write)
-            return JSONResponse(fn(member))
+            if write and request.url.path not in {'/human/actions/apply', '/human/actions/correct'}:
+                result = engine.capture_action(member.id, request.url.path.lstrip('/'), lambda: fn(member))
+            else:
+                result = fn(member)
+            return JSONResponse(result)
         except DomainError as err:
             return _error(err)
 
@@ -131,6 +186,61 @@ def register_human_routes(app: FastAPI, services: Any) -> None:
     @app.get("/human/inbox")
     async def inbox(request: Request) -> JSONResponse:
         return await run(request, False, lambda m: engine.human_inbox(m))
+
+    @app.get('/human/decisions')
+    async def decision_cards(request: Request):
+        return await run(request, False, lambda m: engine.decision_inbox(m.id))
+
+    @app.get('/human/resolve')
+    async def resolve_plan(request: Request, plan: str):
+        return await run(request, False, lambda m: engine.resolve_action(m.id, '', plan))
+
+    @app.get('/human/actions')
+    async def actions(request: Request):
+        return await run(request, False, lambda m: engine.action_history(m.id))
+
+    @app.get('/human/actions/status')
+    async def action_status(request: Request, request_key: str):
+        return await run(request, False, lambda m: engine.action_status(m.id, request_key))
+
+    @app.post('/human/actions/preview')
+    async def action_preview(request: Request, body: PreviewBody):
+        try:
+            member=session(request, True)
+            return JSONResponse(engine.preview_action(member.id,body.tool,body.arguments,body.expected))
+        except DomainError as err:
+            return _error(err)
+
+    @app.get('/human/pilot')
+    async def pilot(request: Request):
+        return await run(request, False, lambda m: engine.pilot_metrics(m.id))
+
+    @app.post('/human/actions/apply')
+    async def apply_action(request: Request, body: ActionBody):
+        return await run(request, True, lambda m: engine.apply_action(m.id, body.tool, body.arguments, body.request_key, body.expected))
+
+    @app.post('/human/actions/correct')
+    async def correct_action(request: Request, body: dict[str, Any]):
+        return await run(request, True, lambda m: engine.correct_action(m.id, body.get('receipt', '')))
+
+    @app.post('/human/preferences')
+    async def preferences(request: Request, body: PreferenceBody):
+        return await run(request, True, lambda m: engine.delivery_preferences(m.id, **body.model_dump()))
+
+    @app.post('/human/calendar')
+    async def calendar_issue(request: Request):
+        return await run(request, True, lambda m: engine.issue_calendar(m.id))
+
+    @app.post('/human/calendar/revoke')
+    async def calendar_revoke(request: Request, body: dict[str, Any]):
+        return await run(request, True, lambda m: engine.revoke_calendar(m.id, body.get('id', '')))
+
+    @app.get('/calendar/{token}.ics')
+    async def calendar_read(token: str):
+        try:
+            return Response(engine.calendar_feed(token), media_type='text/calendar', headers={'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer'})
+        except DomainError as err:
+            return _error(err)
 
     @app.post("/human/challenges")
     async def challenge(request: Request, body: ChallengeBody) -> JSONResponse:
@@ -173,7 +283,7 @@ def register_human_routes(app: FastAPI, services: Any) -> None:
     async def project_calendar(request: Request, body: ProjectCalendarBody) -> JSONResponse:
         return await run(request, True, lambda m: engine.human_project_calendar(m, body.plan, body.calendar))
 
-    # ------------------------------------------------------------ accounts, groups and assistant links (v0.6)
+    # ------------------------------------------------------------ accounts, groups and assistant links
 
     @app.post("/human/signup")
     async def signup(body: SignupBody) -> JSONResponse:
@@ -220,6 +330,25 @@ def register_human_routes(app: FastAPI, services: Any) -> None:
     @app.post("/human/links/revoke")
     async def unlink(request: Request, body: LinkRefBody) -> JSONResponse:
         return await run(request, True, lambda m: engine.revoke_link(m, body.id))
+
+    # Votes, RSVPs, the bring list and payment checks: the same calls Alexa makes for the person, from their own page.
+    @app.post("/human/polls/vote")
+    async def poll_vote(request: Request, body: VoteBody) -> JSONResponse:
+        if body.decide:
+            return await run(request, True, lambda m: engine.human_decide_poll(m, body.poll, body.choice))
+        return await run(request, True, lambda m: engine.human_vote(m, body.poll, body.choice, body.reason))
+
+    @app.post("/human/rsvp")
+    async def rsvp(request: Request, body: RsvpBody) -> JSONResponse:
+        return await run(request, True, lambda m: engine.human_rsvp(m, body.plan, body.answer, body.plus_ones))
+
+    @app.post("/human/bring")
+    async def bring(request: Request, body: BringBody) -> JSONResponse:
+        return await run(request, True, lambda m: engine.human_bring(m, body.plan, body.action, body.things))
+
+    @app.post("/human/costs/confirm")
+    async def cost_confirm(request: Request, body: CostConfirmBody) -> JSONResponse:
+        return await run(request, True, lambda m: engine.human_confirm_cost(m, body.plan, body.id, body.answer))
 
     @app.post("/human/workspace/roles")
     async def workspace_role(request: Request, body: RoleBody) -> JSONResponse:

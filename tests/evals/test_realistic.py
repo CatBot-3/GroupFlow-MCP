@@ -157,15 +157,41 @@ async def test_the_reference_trajectory_passes(sc):
     assert safety(r) == 0
 
 
+async def test_a_new_offer_cannot_replace_an_unrelated_tasks_owner():
+    from groupflow.sim.llm.scripted import ScriptedProvider
+    sc = next(s for s in REALISTIC if s['id'] == 'RL21')
+    def old_task(req):
+        task = h.engine.db.get("SELECT id FROM items WHERE plan_id = 'housewarming' AND label = 'Make a playlist'")
+        return {'tool_calls': [{'name': 'propose_change', 'arguments': {'plan': 'housewarming', 'item': task['id'], 'owner': 'Ines'}}]}
+    model = ScriptedProvider([
+        {'tool_calls': [{'name': 'get_context', 'arguments': {'plan': 'housewarming', 'detail': 'full'}}]},
+        old_task,
+        {'tool_calls': [{'name': 'propose_change', 'arguments': {'plan': 'housewarming', 'new_type': 'task', 'title': 'Bring a speaker', 'owner': 'Ines'}}]},
+        {'text': 'Ines has the speaker task.'},
+    ])
+    h = EvalHarness(model, world_path=sc['world'])
+    try:
+        result = await run_scenario(h, sc, 1)
+        assert result.passed, result.failures
+        assert any(c['outcome'] == 'NEW_WORK_NOT_REASSIGN' for c in result.turns[0].calls)
+        assert h.engine.db.get("SELECT owner_id FROM items WHERE plan_id = 'housewarming' AND label = 'Make a playlist'")['owner_id'] == 'theo'
+    finally:
+        await h.close()
+
+
 @pytest.mark.parametrize("sc", REALISTIC, ids=lambda s: s["id"])
 async def test_a_trivial_policy_fails(sc):
-    """Doing nothing must fail where an action is needed; writing everything down must fail where nothing should change."""
+    """Missed actions fail; eager writes either fail the checks or are explicitly stopped by the intent guard."""
     if acts(sc):
         r = await play(sc, "silent")
         assert not r.passed, f"{sc['id']} passes with a model that never acts"
     else:
         r = await play(sc, "eager")
-        assert not r.passed, f"{sc['id']} passes with a model that records every sentence"
+        if r.passed:
+            # A refusal that preserves the required no-change outcome is a successful server guard.
+            assert all(any(c['outcome'] == 'NO_ACTION_REQUESTED' and not c['ok'] for c in t.calls)
+                       for t in r.turns if t.checked), f"{sc['id']} passes without stopping the eager write"
+            assert safety(r) == 0 and r.unrequested_writes == 0 and r.wrong_person_claims == 0
 
 
 async def test_the_room_leak_counter_catches_a_surprise_named_in_front_of_its_guest():

@@ -327,6 +327,7 @@ scenarios:
       outcome_in: [updated]
       task_status: {Book Rosa's back room: done}
 - id: HM18
+  plan: party
   category: Long horizon
   description: Twelve turns of mixed requests; the cake idea, a deadline and a decline all land correctly
   steps:

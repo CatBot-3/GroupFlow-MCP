@@ -3,6 +3,7 @@ import type { BoardModel, ConditionView, DetailView, Member, PlanStatus, PlanVie
 import { TaskGraph } from './TaskGraph';
 import { Timeline } from './Timeline';
 import { ProjectPanel } from './ProjectPanel';
+import { TogetherBoard } from './Together';
 
 export const STATUS_WORDS: Record<PlanStatus, string> = {
   ACTIVE: 'Open plan, owners decide their items',
@@ -26,6 +27,7 @@ const STATUS_TONE: Record<PlanStatus, 'ok' | 'warn' | 'bad' | 'plain'> = {
 const CELL: Record<ScopeStatus, { label: string; tone: string; title: string }> = {
   approved: { label: 'Confirmed', tone: 'ok', title: 'Confirmed by the person on their own page' },
   carried_forward: { label: 'Kept', tone: 'kept', title: 'Unchanged part: the earlier approval still covers it (digest, conditions and membership re-checked)' },
+  fallback_approved: { label: 'Fallback agreed', tone: 'kept', title: 'The person explicitly approved these exact fallback participation terms on their own page' },
   pending: { label: 'Waiting', tone: 'wait', title: 'Not answered yet' },
   rejected: { label: 'Declined', tone: 'bad', title: 'Declined on their own page' },
   conditional_met: { label: 'Yes, if', tone: 'ok', title: 'Confirmed with a condition that this version meets' },
@@ -352,6 +354,8 @@ export function PlanBoard({ model, planId, plans, onPlan, viewAs, onViewAs, memb
               <TaskGraph tasks={plan.tasks} colorOf={colorOf} hidden={hiddenFrom.length > 0} />
             </>
           )}
+
+          <TogetherBoard plan={plan} />
 
           <Conditions list={conditions} viewer={viewer} colorOf={colorOf} members={members} />
 

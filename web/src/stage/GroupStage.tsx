@@ -417,11 +417,14 @@ export function GroupStage({ scenario, transcripts, echo, tick, resetKey, onRese
               pageBadge={pendingFor[m.id] ?? 0}
               page={
                 <PhonePage
+                  client={client(m.id)}
+                  onInbox={fresh => { ++inboxSeq.current; setInboxes(x => ({ ...x, [m.id]: fresh })); void refresh(); void api.notify({ member: m.id }); onChanged(); }}
                   member={m}
                   simple={presentation}
                   signedIn={!!clients.current[m.id]?.signedIn}
                   inbox={inboxes[m.id] ?? null}
                   groupPlanIds={groupPlanIds}
+                  groupId={scenario.id}
                   busy={!!phoneBusy[m.id]}
                   error={phoneErr[m.id] ?? null}
                   message={phoneMsg[m.id] ?? null}
@@ -435,6 +438,10 @@ export function GroupStage({ scenario, transcripts, echo, tick, resetKey, onRese
                   onProjectRevoke={(sid) => void phone(m.id, (c) => c.revokeProject(sid), 'Your project answer was withdrawn.')}
                   onProjectCalendar={(pid, cal) => void phone(m.id, (c) => c.projectCalendar(pid, cal), 'Your availability was saved. The schedule needs review.')}
                   onWorkspaceRole={(gid, target, role, grant) => void phone(m.id, (c) => c.workspaceRole(gid, target, role, grant), 'Workspace role updated.')}
+                  onVote={(poll, choice, decide, reason) => void phone(m.id, (c) => c.vote(poll, choice, { decide, reason }), decide ? 'Decided. Everyone was told.' : 'Your answer is in.')}
+                  onRsvp={(pid, a, plus) => void phone(m.id, (c) => c.rsvp(pid, a, plus), 'Your answer is in. The organizer was told.')}
+                  onBring={(pid, action, things) => void phone(m.id, (c) => c.bring(pid, action, things), action === 'unclaim' ? 'Dropped. The others were told.' : 'Thanks, it is on you.')}
+                  onConfirmCost={(pid, id, a) => void phone(m.id, (c) => c.confirmCost(pid, id, a), a === 'yes' ? 'Confirmed; it counts now.' : 'Noted; it does not count.')}
                 />
               }
             />

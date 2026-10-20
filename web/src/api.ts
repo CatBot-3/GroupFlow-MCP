@@ -61,7 +61,7 @@ export interface DetailView { id: string; label: string; value: string | null; o
 export interface TaskView { id: string; title: string; type: string; owner: string; status: 'todo' | 'in_progress' | 'done'; due?: string | null; decided_by: string; blocked_by: string[]; waits_on: string[]; pending: Suggestion[]; flags: string[] }
 export interface ActivityView { id: string; title: string; when: string; place: string | null; participants: string; cost_each?: string | null; your_cost?: string | null; status: 'planned' | 'dropped' }
 export interface VersionView { label: string; kind: 'draft' | 'candidate' | 'committed'; activities: ActivityView[]; your_total?: string | null; changes: string[]; changed_activity_ids?: string[] }
-export type ScopeStatus = 'approved' | 'pending' | 'rejected' | 'conditional_met' | 'conditional_unmet' | 'revoked' | 'expired' | 'carried_forward';
+export type ScopeStatus = 'approved' | 'pending' | 'rejected' | 'conditional_met' | 'conditional_unmet' | 'revoked' | 'expired' | 'carried_forward' | 'fallback_approved';
 export interface ConfirmationsView { version: string; required: number; satisfied: number; complete: boolean; rows: { person: string; done: boolean; items: Record<string, ScopeStatus> }[] }
 export interface ConditionView { id: string; plan: string; name: string; description: string; status: 'unverified' | 'active' | 'retired'; private: boolean; owner?: string; owner_id?: string }
 export interface AlternativesResult {
@@ -84,6 +84,27 @@ export interface PlanView {
   gate?: string[]; repair?: AlternativesResult | null; explain?: ExplainView | null; audit?: HistoryItem[]; conditions?: ConditionView[];
   lifecycle?: 'bounded' | 'ongoing'; planning_window_days?: number; preset?: string | null;
   project?: { stage: string; open_work: number; workstreams: string[]; revision: string | null; status: string; next: string; pending_by_person?: Record<string, number> } | null;
+  polls?: PollView[]; rsvp?: RsvpView | null; bring_list?: BringItem[]; costs?: CostsView | null;
+}
+
+/** A vote (a suggestion to whoever decides) or a proposal settled unless someone objects by its deadline. */
+export interface PollView {
+  id: string; kind: 'vote' | 'unless someone objects'; question: string; status: 'open' | 'closed' | 'decided' | 'cancelled'; decides: string;
+  votes: Record<string, string[]>; not_voted: string[]; options?: string[]; proposal?: string; about?: string; closes?: string; if_undecided?: string;
+  your_vote?: string; result?: string; can_vote?: boolean; can_decide?: boolean;
+}
+export interface RsvpView {
+  coming: string[]; maybe: string[]; not_coming: string[]; not_answered: string[]; headcount: number; headcount_with_maybes: number;
+  your_answer?: string; dietary_needs?: string[]; dietary_note?: string;
+}
+export interface BringItem { id: string; thing: string; bringing: string | null }
+export interface CostsView {
+  currency: string; total: string; expenses: { id: string; what: string; amount: string; paid_by: string; split_among: string[]; status: string; your_share?: string }[];
+  balances: { who: string; balance: string }[]; settle_up: string[]; your_balance?: string; repayments_waiting?: string[]; earlier_expenses?: number;
+}
+export interface TogetherPlan {
+  plan_id: string; title: string; polls: PollView[]; rsvp: RsvpView | null; offer_rsvp: boolean; bring_list: BringItem[]; costs: CostsView | null;
+  to_confirm: { id: string; text: string }[];
 }
 
 export interface ProjectWork {
@@ -139,8 +160,9 @@ export interface BoardModel {
 async function json<T>(res: Response): Promise<T> {
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const err = (body as { error?: string | { message?: string } }).error;
-    throw new Error(typeof err === 'string' ? err : err?.message ?? `Request failed (${res.status})`);
+    const err = (body as { error?: string | { message?: string; code?: string } }).error;
+    throw Object.assign(new Error(typeof err === 'string' ? err : err?.message ?? `Request failed (${res.status})`),
+      { code: typeof err === 'object' ? err?.code : undefined });
   }
   return body as T;
 }
@@ -190,13 +212,37 @@ export interface SkipAhead {
 
 export interface InboxItem { scope_id: string; plan: string; plan_id: string; revision: string; activity_id: string | null; text: string; status: ScopeStatus; via: string | null; scope_digest: string }
 export interface Receipt { receipt_id: string; plan: string; revision: string; decision: 'approved' | 'rejected' | 'conditional'; status: string; condition: Record<string, unknown> | null; text: string; created_at: string; current?: boolean }
-export interface InboxPlan { id: string; title: string; status: PlanStatus; conditions: { name: string; label: string; check: string; hint: string; tags: string[] }[] }
+export interface InboxPlan { id: string; group_id?: string; title: string; status: PlanStatus; planning?: boolean; you_organize?: boolean; agreement_version?: string; conditions: { name: string; label: string; check: string; hint: string; tags: string[] }[] }
 export interface Inbox {
   member: { id: string; name: string }; plans: InboxPlan[]; pending: InboxItem[]; answered: InboxItem[]; receipts: Receipt[];
   conditions: (ConditionView & { plan_id: string | null; value: Record<string, unknown>; verify_digest: string })[]; notifications: { id: string; kind?: string; text: string; created_at: string; plan_id: string | null }[];
   project_items?: ProjectHumanItem[];
   project_plans?: ProjectHumanPlan[];
+  together?: TogetherPlan[];
+  decision_inbox?: { cards: DecisionCard[]; unresolved: number };
+  action_receipts?: ActionReceipt[];
+  calendar_links?: { id: string; created_at: string }[];
+  groups?: { id: string; name: string }[];
 }
+export interface ActionReceipt { id: string; actor: string; subjects: string[]; operation: string; plans: string[]; outcome: string; message: string; reversible: boolean; created_at: string }
+export interface DecisionCard { plan: string; title: string; version_token: string; version: number; update_count: number; updates: string[]; changed_since: string | null; preferences: { muted?: number; digest?: number; quiet_start?: number | null; quiet_end?: number | null; timezone?: string }; actions: { kind: string; id: string; text: string; why: string; effect: string; options?: string[] }[] }
+export interface PlanningChoices { message: string; status?: string; outcome?: string; alternatives?: { candidate: string; label: string; changes: string[]; unchanged: string[]; cost_each_after: string }[]; suggestions?: { changes: string[]; hypothetical: boolean }[]; facts?: { id: string; kind: string; place_id?: string; source: string; freshness: string; verified_at: string | null; valid_until: string | null; value: unknown }[] }
+export interface AgreementTerms { title: string; date: string; time: string; place: string | null; cost_share_minor: number; currency: string; participants: string[]; cancelled: boolean }
+export interface AgreementReview { plan: string; title: string; version_token: string; revision: string | null; group_id?: string; can_manage?: boolean; start_date?: string; currency?: string; message: string;
+  items: { activity_id: string; title: string; before: AgreementTerms | null; after: AgreementTerms | null; status: ScopeStatus; why: string; can_contest: boolean; can_answer: boolean; confirmation_text: string | null; scope_id: string | null; confirmation_mode: string; contest?: {reason: string} | null }[];
+  activities?: { id: string; title: string; kind: string; place_id: string | null; participants: string[]; venues: {id: string; name: string; price_minor: number}[] }[];
+  people?: {id:string;name:string}[];
+}
+export interface FallbackBranch { terms: {place_id:string;place_name:string}; text:string }
+export interface FallbackChallenge { challenge_id:string;nonce:string;branches:FallbackBranch[];expires_at:string;bounds:{max_total_minor?:number;latest_end?:string};message:string }
+export interface FallbackList { authorizations:{id:string;activity_id:string;status:string;branches:FallbackBranch[];expires_at:string}[];message:string }
+export interface AnalysisResult { outcome:string;message:string;budget_remaining?:number;privacy_scope?:string;least_change?:string;fairer?:string;
+  scenarios?:{id:number;input:{kind:string;place_id?:string;price_minor?:number;member_id?:string};comparisons:{candidate:string;label:string;status:string;currently_feasible_in_scenario:boolean;repairs:{reconfirmation_count:number;changed_activities:string[];changes:string[]}[]}[]}[];
+  alternatives?:{candidate:string;label:string;changes:string[];maximum_total:number;current_burden:Record<string,number>;totals:Record<string,number>}[];
+}
+export interface PendingAction { key: string; tool: string; arguments: Record<string, unknown>; expected?: string; createdAt: string }
+export interface ActionResult { action_receipt?: ActionReceipt; plan?: { id: string }; outcome: string; message?: string }
+export interface ActionPreview { outcome: string; expected: string; changes: { item: string; before: unknown; after: unknown }[]; affected_participants: string[]; approval_impact: { carried: {member:string;activity:string}[]; needs_confirmation: {member:string;activity:string}[] }; message: string }
 export interface ProjectHumanItem {
   id: string; plan: string; plan_id: string; kind: 'commitment' | 'authorization'; status: string; expires_at: string; can_answer: boolean; can_revoke?: boolean; current?: boolean;
   payload: { stage: string; cost_minor?: number; recurrence_id?: string; schedule: ProjectSchedule | ProjectSchedule[]; spec?: ProjectWork['spec'] };
@@ -212,6 +258,16 @@ export class HumanClient {
 
   get signedIn() { return !!this.token; }
 
+  private get pendingKey() { return `groupflow.pending.v1:${this.base}:${this.memberId}`; }
+  pendingActions(): PendingAction[] {
+    const raw = localStorage.getItem(this.pendingKey);
+    if (!raw) return [];
+    try { const items: unknown = JSON.parse(raw); if (Array.isArray(items) && items.every(p => p && typeof p.key === 'string' && typeof p.tool === 'string' && typeof p.arguments === 'object' && p.arguments)) return items as PendingAction[]; } catch { /* Preserve unreadable evidence; do not issue a fresh write. */ }
+    throw new Error('Saved pending actions could not be read. Keep this browser data and reload before making another change.');
+  }
+  private savePending(items: PendingAction[]) { localStorage.setItem(this.pendingKey, JSON.stringify(items)); }
+  private clearPending(key: string) { this.savePending(this.pendingActions().filter(p => p.key !== key)); }
+
   private async call<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {
     const headers: Record<string, string> = {};
     if (this.token) headers.authorization = `Bearer ${this.token}`;
@@ -220,13 +276,19 @@ export class HumanClient {
       if (this.csrf) headers['x-gf-csrf'] = this.csrf;
     }
     let res: Response;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 25000);
     try {
-      res = await fetch(`${this.base}${path}`, { method, headers, body: method === 'POST' ? JSON.stringify(body ?? {}) : undefined });
-    } catch {
-      throw new Error('The GroupFlow server is not reachable from this page.');
+      res = await fetch(`${this.base}${path}`, { method, headers, signal: controller.signal, body: method === 'POST' ? JSON.stringify(body ?? {}) : undefined });
+      if (res.status === 401 && path !== '/human/login') this.token = null;
+      try { return await json<T>(res); }
+      catch (e) { if (e instanceof Error && res.headers.get('x-request-id')) e.message += ` (Reference ${res.headers.get('x-request-id')})`; throw e; }
+    } catch (e) {
+      if (e instanceof Error && (e as Error & {code?:string}).code) throw e;
+      throw new Error(e instanceof Error && e.message.includes('Reference') ? e.message : 'The connection ended before the result was known. Check pending actions to see whether it was saved.');
+    } finally {
+      clearTimeout(timer);
     }
-    if (res.status === 401 && path !== '/human/login') this.token = null;
-    return json<T>(res);
   }
 
   async login(passcode: string) {
@@ -239,6 +301,46 @@ export class HumanClient {
   async inbox() {
     return this.call<Inbox>('GET', '/human/inbox');
   }
+  async act(tool: string, args: Record<string, unknown>, requestKey: string, expected?: string): Promise<ActionResult> {
+    const pending = this.pendingActions();
+    const signature = JSON.stringify([tool,args]);
+    const original = pending.find(p => JSON.stringify([p.tool,p.arguments]) === signature);
+    const op = original ?? { key: requestKey, tool, arguments: args, expected, createdAt: new Date().toISOString() };
+    if (!original) this.savePending([...pending, op]); // Persist before starting the request.
+    try {
+      const result = await this.call<ActionResult>('POST', '/human/actions/apply', { tool:op.tool,arguments:op.arguments,request_key:op.key,expected:op.expected });
+      this.clearPending(op.key);
+      return result;
+    } catch (e) {
+      const code = (e as {code?:string})?.code;
+      if (code && !['INTERNAL','UNAUTHENTICATED','RATE_LIMITED'].includes(code)) this.clearPending(op.key);
+      throw e;
+    }
+  }
+  actionStatus(requestKey: string) { return this.call<{ outcome: string; result?: ActionResult; message: string }>('GET', '/human/actions/status?request_key='+encodeURIComponent(requestKey)); }
+  async recoverAction(op: PendingAction, retry = false): Promise<ActionResult> {
+    const saved = await this.actionStatus(op.key);
+    if (saved.outcome === 'saved' && saved.result) { this.clearPending(op.key); return saved.result; }
+    if (retry) return this.act(op.tool,op.arguments,op.key,op.expected);
+    return {outcome:'unknown',message:'The saved result is still unknown. You can retry the original request safely.'};
+  }
+  previewAction(tool: string, args: Record<string, unknown>, expected: string) { return this.call<ActionPreview>('POST', '/human/actions/preview', {tool,arguments:args,expected}); }
+  correctAction(receipt: string) { return this.call('POST', '/human/actions/correct', { receipt }); }
+  resolvePlan(plan: string) { return this.call<{ version: string }>('GET', '/human/resolve?plan=' + encodeURIComponent(plan)); }
+  preferences(plan: string, values: Record<string, unknown>) { return this.call('POST', '/human/preferences', { plan, ...values }); }
+  calendarLink() { return this.call<{ id: string; url: string }>('POST', '/human/calendar'); }
+  revokeCalendar(id: string) { return this.call('POST', '/human/calendar/revoke', { id }); }
+  planning(plan: string, candidate?: string, mode='options') { return this.call<PlanningChoices>('POST', '/human/planning', { plan, candidate,mode }); }
+  agreementReview(plan:string) { return this.call<AgreementReview>('GET','/human/agreements?plan='+encodeURIComponent(plan)); }
+  contestAgreement(plan:string,activity:string,reason:string,expected:string) { return this.call<{message:string}>('POST','/human/agreements/contest',{plan,activity,reason,expected}); }
+  fallbacks(plan:string) { return this.call<FallbackList>('GET','/human/fallbacks?plan='+encodeURIComponent(plan)); }
+  fallbackChallenge(plan:string,activity:string,places:string[],expires_at:string,max_total_minor?:number,latest_end?:string) { return this.call<FallbackChallenge>('POST','/human/fallbacks/challenges',{plan,activity,places,expires_at,max_total_minor,latest_end}); }
+  fallbackDecision(challenge:FallbackChallenge,decision:'approve'|'decline') { return this.call<{message:string}>('POST','/human/fallbacks/decisions',{challenge_id:challenge.challenge_id,nonce:challenge.nonce,decision}); }
+  revokeFallback(id:string) { return this.call<{message:string}>('POST','/human/fallbacks/revoke',{id}); }
+  fairnessPreference(group:string,enabled:boolean,reset=false) { return this.call<{message:string}>('POST','/human/fairness/preferences',{group,enabled,reset}); }
+  fairnessStatus(group:string) { return this.call<{enabled:boolean}>('GET','/human/fairness/preferences?group='+encodeURIComponent(group)); }
+  analyze(plan:string,mode:'resilience'|'fairness',scenarios?:Record<string,unknown>[]) { return this.call<AnalysisResult>('POST','/human/planning',{plan,mode,scenarios}); }
+  privateReview(plan:string) { return this.call<{conditions:{id:string;description:string}[];message:string}>('GET','/human/planning/privacy?plan='+encodeURIComponent(plan)); }
   async decideProject(scopeId: string, decision: 'approve' | 'decline') {
     const ch = await this.call<{ challenge_id: string; nonce: string }>('POST', '/human/projects/challenges', { scope_id: scopeId });
     return this.call<{ outcome: string }>('POST', '/human/projects/decisions', { challenge_id: ch.challenge_id, nonce: ch.nonce, decision });
@@ -253,4 +355,8 @@ export class HumanClient {
   verify(conditionId: string, verifyDigest: string) { return this.call<{ outcome: string }>('POST', '/human/conditions/verify', { condition_id: conditionId, verify_digest: verifyDigest }); }
   setCondition(planId: string, kind: string, value: Record<string, unknown>) { return this.call<{ outcome: string }>('POST', '/human/conditions', { kind, value, plan_id: planId }); }
   revoke(receiptId: string) { return this.call<{ outcome: string }>('POST', '/human/revoke', { receipt_id: receiptId }); }
+  vote(poll: string, choice: string, opts: { reason?: string; decide?: boolean } = {}) { return this.call<{ outcome: string; message: string }>('POST', '/human/polls/vote', { poll, choice, ...opts }); }
+  rsvp(plan: string, answer: 'yes' | 'no' | 'maybe', plusOnes?: number) { return this.call<{ outcome: string; message: string }>('POST', '/human/rsvp', { plan, answer, plus_ones: plusOnes ?? null }); }
+  bring(plan: string, action: 'add' | 'bring' | 'unclaim' | 'remove', things: string[]) { return this.call<{ outcome: string; message: string }>('POST', '/human/bring', { plan, action, things }); }
+  confirmCost(plan: string, id: string, answer: 'yes' | 'no') { return this.call<{ outcome: string; message: string }>('POST', '/human/costs/confirm', { plan, id, answer }); }
 }

@@ -46,7 +46,7 @@ MAX_TEXT = 2000
 ME_TTL_S = 15.0
 # What the server queues for a person with nobody in a conversation, posted into their private thread. Other kinds (a version to
 # confirm, a plan committed) already reach them as updates and to-dos.
-RELAYED_KINDS = ("reminder", "nudge", "notice")
+RELAYED_KINDS = ("reminder", "nudge", "notice", "poll", "rsvp", "bring", "costs")
 RELAY_EVERY_S = 10.0
 
 # "@Alexa ...", "Alexa, ...", "hey Alexa: ..." at the start; or "@alexa" anywhere in the message.
@@ -463,7 +463,9 @@ class ChatService:
         """The person's own unheard news and to-dos, read over their private session (no listeners), without marking anything heard."""
         if not self.linked(me):
             return {"linked": False, "headline": None, "updates": [], "todos": [], "decisions": []}
-        result = await self.sessions.get(me.id, "chat").call_tool("get_context", {"detail": "summary", "mark_read": False})
+        from .agent import PERSONAL_DEVICE
+
+        result = await self.sessions.get(me.id, "chat", headers=PERSONAL_DEVICE).call_tool("get_context", {"detail": "summary", "mark_read": False})
         if not result.ok:
             raise ChatError(502, (result.error or {}).get("message", "Could not read your updates."))
         data = result.data or {}

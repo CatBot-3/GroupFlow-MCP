@@ -16,7 +16,7 @@ import logging
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 from fastapi import FastAPI, Request
@@ -25,7 +25,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from groupflow.core.settings import LlmSettings, SimSettings
-from groupflow.sim.agent import LlmAgent, compact
+from groupflow.sim.agent import PERSONAL_DEVICE, LlmAgent, compact
 from groupflow.sim.chat import ChatService, ChatStore, register_chat_routes
 from groupflow.sim.demo_script import SCRIPTS
 from groupflow.sim.llm.types import LlmError
@@ -41,6 +41,7 @@ class SayBody(BaseModel):
     text: str
     scenario: str | None = None
     plan: str | None = None
+    device: Literal["personal", "kitchen"] = "personal"  # kitchen: a shared Echo that does not say who is listening
 
 
 class ResetBody(BaseModel):
@@ -142,7 +143,7 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
     traffic.subscribe(lambda e: broadcast("traffic", e))
 
     async def admin(method: str, path: str, **kw: Any) -> httpx.Response:
-        return await backend_clients["http"].request(method, path, headers={"x-groupflow-admin": admin_key}, **kw)
+        return await backend_clients["http"].request(method, path, headers={"x-groupflow-admin": admin_key or ""}, **kw)
 
     def unreachable() -> JSONResponse:
         return JSONResponse({"error": f"The GroupFlow server is not reachable at {mcp_url}. Start it with: python -m groupflow server"}, status_code=502)
@@ -180,7 +181,7 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
         lock = locks.setdefault(member, asyncio.Lock())
         try:
             async with lock:
-                turn = await agent.handle(member, text, plan=body.plan,
+                turn = await agent.handle(member, text, plan=body.plan, device=body.device,
                                           group=body.scenario.split(":", 1)[0] if body.scenario else None)
         except LlmError as err:
             log.warning("LLM error: %s", err)
@@ -210,8 +211,8 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
         if member not in members:
             return JSONResponse({"error": "Unknown member."}, status_code=400)
         try:
-            s = sessions.get(member, "panel")
-            args: dict[str, Any] = {"mark_read": False}
+            s = sessions.get(member, "panel", headers=PERSONAL_DEVICE)
+            args: dict[str, Any] = {"mark_read": False, "detail": "full"}
             if plan:
                 args["plan"] = plan
             state = await s.call_tool("get_context", args)
@@ -223,7 +224,7 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
     async def project_view(member: str, plan: str, workstream: str | None = None, limit: int = 25, offset: int = 0) -> JSONResponse:
         if member not in members:
             return JSONResponse({"error": "Unknown member."}, status_code=400)
-        result = await sessions.get(member, "panel").call_tool("get_project", {"plan": plan, "workstream": workstream, "limit": limit, "offset": offset})
+        result = await sessions.get(member, "panel", headers=PERSONAL_DEVICE).call_tool("get_project", {"plan": plan, "workstream": workstream, "limit": limit, "offset": offset})
         return JSONResponse(result.data if result.ok else {"error": result.error}, status_code=200 if result.ok else 400)
 
     @app.get("/api/memory/{member}")
@@ -238,13 +239,13 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
         if plan:
             args['plan'] = plan
         try:
-            result = await sessions.get(member, 'panel').call_tool('get_context', args)
+            result = await sessions.get(member, 'panel', headers=PERSONAL_DEVICE).call_tool('get_context', args)
             hidden_plan = None
             if not result.ok and plan and (result.error or {}).get('code') == 'NOT_FOUND':
                 # The selected plan does not exist for this person (a surprise kept from them). Show what their session does return,
                 # without it: that absence is the point, so it is not an error.
                 hidden_plan = plan
-                result = await sessions.get(member, 'panel').call_tool('get_context', {k: v for k, v in args.items() if k != 'plan'})
+                result = await sessions.get(member, 'panel', headers=PERSONAL_DEVICE).call_tool('get_context', {k: v for k, v in args.items() if k != 'plan'})
         except Exception:  # a failed read must never fall back to admin data
             return JSONResponse({"error": "Could not read authorized MCP memory."}, status_code=502)
         if not result.ok:
@@ -269,7 +270,7 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
         # checks this persona's actual scope/role. No human-only tool is routed.
         if member not in members or body.tool not in {"configure_project", "upsert_work", "manage_recurrence", "repair_project", "request_confirmations", "commit_plan", "propose_change"}:
             return JSONResponse({"error": "Unsupported project action."}, status_code=400)
-        result = await sessions.get(member, "panel").call_tool(body.tool, body.arguments)
+        result = await sessions.get(member, "panel", headers=PERSONAL_DEVICE).call_tool(body.tool, body.arguments)
         if result.ok:
             broadcast("project", {"member": member, "plan": body.arguments.get("plan")})
         return JSONResponse(result.data if result.ok else {"error": result.error}, status_code=200 if result.ok else 400)
@@ -380,14 +381,25 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
         unchanged and keeps nothing; the agent has no route to it and holds no human session."""
         headers = {k: v for k, v in request.headers.items() if k.lower() in ("authorization", "x-gf-csrf", "content-type")}
         try:
-            r = await backend_clients["http"].request(request.method, f"/human/{path}", content=await request.body(), headers=headers)
+            r = await backend_clients["http"].request(request.method, f"/human/{path}", params=request.query_params,
+                                                       content=await request.body(), headers=headers)
         except httpx.HTTPError:
             return unreachable()
         try:
             body = r.json()
         except ValueError:
             body = {"error": r.text[:200]}
-        return JSONResponse(body, status_code=r.status_code)
+        return JSONResponse(body, status_code=r.status_code, headers={'X-Request-ID':r.headers['x-request-id']} if 'x-request-id' in r.headers else {})
+
+    @app.get('/calendar/{token}.ics')
+    async def calendar_proxy(token: str):
+        from fastapi.responses import Response
+        try:
+            r = await backend_clients['http'].get(f'/calendar/{token}.ics')
+            return Response(r.content, status_code=r.status_code, media_type=r.headers.get('content-type', 'text/calendar'),
+                            headers={'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer'})
+        except httpx.HTTPError:
+            return unreachable()
 
     @app.get("/api/stream")
     async def stream(request: Request) -> StreamingResponse:

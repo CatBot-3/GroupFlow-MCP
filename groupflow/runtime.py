@@ -63,7 +63,9 @@ def build_runtime(settings: ServerSettings | None = None, db_path: str | None = 
     services.extra["checkins"] = checkins
     worker = Worker(engine, interval_s=worker_interval_s, checkins=checkins)
     app = create_server_app(services, host=settings.host, allowed_origins=settings.allowed_origins, demo_admin=settings.demo_admin,
-                            admin_key=settings.admin_key, worker=worker, responses=settings.mcp_responses)
+                            admin_key=settings.admin_key, worker=worker, responses=settings.mcp_responses,
+                            allowed_hosts=settings.allowed_hosts, undeclared_audience=settings.undeclared_audience,
+                            tool_profile=settings.tool_profile, public_url=settings.public_url)
     return Runtime(db=db, services=services, worker=worker, app=app, world=world)
 
 

@@ -24,7 +24,8 @@ _SCHEMAS: list[tuple[str, str]] = []
 
 # Schemas added after the first release, in the order they appeared. Each only adds tables, so a file
 # recorded without some of them is upgraded in place by the same CREATE TABLE IF NOT EXISTS script.
-ADDITIVE_SCHEMAS = ("collaboration_v1", "accounts_v1", "followups_v1", "momentum_v1")
+ADDITIVE_SCHEMAS = ("collaboration_v1", "accounts_v1", "followups_v1", "momentum_v1", "together_v1", "product_v1", "reliability_v1", "coordination_v1", "coordination_v2",
+                    "hardening_v1")
 
 
 def register_schema(name: str, sql: str) -> None:
@@ -185,12 +186,18 @@ def _schema_hash(skip: set[str]) -> str:
     return hashlib.sha256("\n".join(sql for name, sql in _SCHEMAS if name not in skip).encode()).hexdigest()[:16]
 
 
+_KNOWN: dict[int, set[str]] = {}
+
+
 def _known_versions() -> set[str]:
-    """The current schema, and every earlier one that lacks only some additive schemas."""
+    """The current schema, and every earlier one that lacks only some additive schemas (computed once per schema set)."""
     from itertools import combinations
 
-    present = [n for n in ADDITIVE_SCHEMAS if any(name == n for name, _ in _SCHEMAS)]
-    return {_schema_hash(set(skip)) for k in range(len(present) + 1) for skip in combinations(present, k)}
+    key = len(_SCHEMAS)
+    if key not in _KNOWN:
+        present = [n for n in ADDITIVE_SCHEMAS if any(name == n for name, _ in _SCHEMAS)]
+        _KNOWN[key] = {_schema_hash(set(skip)) for k in range(len(present) + 1) for skip in combinations(present, k)}
+    return _KNOWN[key]
 
 
 def _bind(params: tuple[Any, ...]) -> tuple[Any, ...]:

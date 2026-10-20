@@ -45,11 +45,12 @@ log = logging.getLogger("groupflow.agreement")
 
 CHALLENGE_TTL = timedelta(minutes=10)
 SESSION_TTL = timedelta(hours=12)
-SATISFIED = {"approved", "conditional_met", "carried_forward"}
+SATISFIED = {"approved", "conditional_met", "carried_forward", "fallback_approved"}
 BLOCKING = {"rejected", "revoked", "conditional_unmet", "expired"}
 AGREEMENT_STATES = ("DRAFT", "PROPOSED", "AWAITING_CONFIRMATIONS", "READY_TO_COMMIT", "COMMITTED", "DEGRADED", "REPAIRING", "BLOCKED", "NEEDS_ATTENTION")
 STATUS_WORDS_PAGE = {"approved": "approved", "pending": "pending", "rejected": "declined", "conditional_met": "approved with a condition (met)",
-                     "conditional_unmet": "condition not met", "revoked": "withdrew", "expired": "expired", "carried_forward": "kept from before"}
+                     "conditional_unmet": "condition not met", "revoked": "withdrew", "expired": "expired", "carried_forward": "kept from before",
+                     "fallback_approved": "covered by your approved fallback"}
 
 
 # ---------------------------------------------------------------- snapshots
@@ -60,7 +61,8 @@ def snapshot_to_dict(s: Snapshot) -> dict[str, Any]:
         "activities": [
             {"id": a.id, "title": a.title, "kind": a.kind, "start": a.start, "end": a.end, "place_id": a.place_id, "place_name": a.place_name,
              "participants": list(a.participants), "cost_shares": dict(a.cost_shares), "required": a.required, "locked": a.locked,
-             "cancelled": a.cancelled}
+             "cancelled": a.cancelled, **({"start_fold": a.start_fold} if a.start_fold is not None else {}),
+             **({"end_fold": a.end_fold} if a.end_fold is not None else {})}
             for a in s.activities
         ],
         "dependencies": [list(d) for d in s.dependencies],
@@ -72,7 +74,8 @@ def snapshot_from_dict(d: dict[str, Any]) -> Snapshot:
         Activity(id=a["id"], title=a["title"], kind=a["kind"], start=int(a["start"]), end=int(a["end"]), place_id=a.get("place_id"),
                  place_name=a.get("place_name"), participants=tuple(a["participants"]),
                  cost_shares=tuple(sorted((m, int(v)) for m, v in a["cost_shares"].items())), required=bool(a.get("required", True)),
-                 locked=bool(a.get("locked", False)), cancelled=bool(a.get("cancelled", False)))
+                 locked=bool(a.get("locked", False)), cancelled=bool(a.get("cancelled", False)),
+                 start_fold=a.get('start_fold'), end_fold=a.get('end_fold'))
         for a in d["activities"]
     )
     return Snapshot(plan_id=d["plan_id"], start_date=d["start_date"], days=int(d.get("days", 1)), timezone=d["timezone"], currency=d["currency"],
@@ -134,6 +137,10 @@ class Agreement(Core):
         return int(plan["days"]) > 1
 
     def _when(self, plan: Row, a: Activity) -> str:
+        if a.start_fold is not None or a.end_fold is not None:
+            from groupflow.repair.local_time import validate_interval
+            lo,hi=validate_interval(plan['start_date'],a.start,a.end,plan['timezone'],a.start_fold,a.end_fold)
+            return f"{hhmm(a.start)}-{hhmm(a.end)} {plan['timezone']} ({lo:%H:%M}–{hi:%H:%M} UTC)"
         if self._multi(plan):
             return f"{when_text(a.start, plan['start_date'], True)}-{hhmm(a.end)}"
         return f"{hhmm(a.start)}-{hhmm(a.end)}"
@@ -271,6 +278,7 @@ class Agreement(Core):
                     "status": "cancelled" if a.cancelled else "planned", "start": a.start, "end": a.end, "place_id": a.place_id,
                     "place_name": self._place_name(plan, a, catalog), "cost_share_minor": a.share(m["id"]), "currency": snap.currency,
                     "participants": sorted(a.participants), "guards": ["arrive_in_time", "within_my_budget", "fits_my_conditions"],
+                    "timezone": snap.timezone, "start_fold": a.start_fold, "end_fold": a.end_fold,
                 }
                 self.db.run("INSERT INTO approval_scopes (id, revision_id, member_id, scope_kind, activity_id, canonical_json, scope_digest) "
                             "VALUES (?, ?, ?, 'activity', ?, ?, ?)", new_id("sc"), revision["id"], m["id"], a.id, canonical_json(canonical), digest(canonical))
@@ -282,7 +290,7 @@ class Agreement(Core):
         plan = self._plan_row(rev["plan_id"])
         snap = self._snapshot(rev)
         if scope_row["scope_kind"] == "whole_plan":
-            parts = [f"{a.title} {when_text(a.start, plan['start_date'], self._multi(plan))}" for a in snap.live]
+            parts = [f"{a.title} {self._when(plan,a)}" for a in snap.live]
             return (f"The whole of {plan['title']} ({dates_text(plan['start_date'], plan['days'])}): {', '.join(parts)}. "
                     f"Your total: {money(snap.member_total(scope_row['member_id']), snap.currency)}.")
         names = _names([self.name(p) for p in c["participants"]])
@@ -290,7 +298,12 @@ class Agreement(Core):
         if c["status"] == "cancelled":
             return f"{c['title']} on {day} is dropped from {plan['title']}."
         where = f" at {c['place_name']}" if c.get("place_name") else ""
-        return (f"{plan['title']}: {c['title']} on {day}, {hhmm(c['start'])} to {hhmm(c['end'])}{where}. "
+        occurrence=''
+        if c.get('start_fold') is not None or c.get('end_fold') is not None:
+            from groupflow.repair.local_time import validate_interval
+            lo,hi=validate_interval(plan['start_date'],c['start'],c['end'],c.get('timezone',plan['timezone']),c.get('start_fold'),c.get('end_fold'))
+            occurrence=f" {c.get('timezone',plan['timezone'])} ({lo:%H:%M}–{hi:%H:%M} UTC)"
+        return (f"{plan['title']}: {c['title']} on {day}, {hhmm(c['start'])} to {hhmm(c['end'])}{occurrence}{where}. "
                 f"Your share: {money(c['cost_share_minor'], c['currency'])}. With {names}.")
 
     def _expires_at(self, plan: Row) -> str:
@@ -321,7 +334,7 @@ class Agreement(Core):
         return True
 
     def _scope_status(self, scope_row: Row, snap: Snapshot) -> tuple[str, str | None]:
-        receipt = self.db.get("SELECT * FROM approval_receipts WHERE scope_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1", scope_row["id"])
+        receipt = self.db.get("SELECT * FROM approval_receipts WHERE scope_id = ? ORDER BY rowid DESC LIMIT 1", scope_row["id"])
         if receipt:
             return self._receipt_state(receipt, snap), "receipt"
         cf = self.db.get("SELECT cf.*, r.status AS r_status, r.expires_at AS r_expires FROM approval_carry_forwards cf "
@@ -383,7 +396,7 @@ class Agreement(Core):
         return carried
 
     def _approving_receipt(self, scope_row: Row) -> Row | None:
-        r = self.db.get("SELECT * FROM approval_receipts WHERE scope_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1", scope_row["id"])
+        r = self.db.get("SELECT * FROM approval_receipts WHERE scope_id = ? ORDER BY rowid DESC LIMIT 1", scope_row["id"])
         if r:
             return r if r["status"] == "valid" and r["decision"] == "approved" and r["expires_at"] >= iso_now() else None
         cf = self.db.get("SELECT r.* FROM approval_carry_forwards cf JOIN approval_receipts r ON r.id = cf.receipt_id "
@@ -837,7 +850,7 @@ class Agreement(Core):
         return None, text.strip(), None
 
     def _activity_spec(self, scope: Scope, plan: Row, item: Row | None, title: str | None, day: Any, start: Any, end: Any, place: str | None,
-                       participants: list[str] | None, remove: bool, type_name: str | None) -> dict[str, Any]:
+                       participants: list[str] | None, remove: bool, type_name: str | None, end_day: str | int | None = None) -> dict[str, Any]:
         t = self.template(plan)
         base = self._latest_snapshot(plan)
         cur = base.activity(item["id"]) if item and base and base.has(item["id"]) else None
@@ -873,8 +886,13 @@ class Agreement(Core):
                 new_end = day_idx * DAY + e
             else:
                 new_end = new_start + cur.duration
-        if new_end <= new_start:
-            raise DomainError("INVALID_ARGUMENT", "The end must be after the start.")
+        if end_day not in (None, ''):
+            last_day = parse_day(end_day, plan['start_date'], plan['days'])
+            if last_day is None or e is None:
+                raise DomainError('INVALID_ARGUMENT', 'end_day must be a plan day and requires an end time.')
+            new_end = last_day * DAY + e
+        if new_start < 0 or new_end > max(1,plan['days'])*DAY:
+            raise DomainError('INVALID_EVENT_TIME','The activity must fit within the plan dates.')
         spec.update(start=new_start, end=new_end)
         if place:
             pid, free, kind = self._resolve_place(plan, place, it.place_kinds or ([cur.kind] if cur and cur.place_id else []), scope)
@@ -917,7 +935,16 @@ class Agreement(Core):
                                                             r"drop (?:me|him|her|them)|drop \w+ (?:from|off))\b|不能参加|退出|不来了", words):
             raise DomainError("SELF_WITHDRAWAL_REQUIRED", "Attendance withdrawal must happen on that person's own page. Record a cannot_attend observation instead; do not edit the roster to withdraw for them.")
         spec = self._activity_spec(scope, plan, item, kw.get("title"), kw.get("day"), kw.get("start"), kw.get("end"), kw.get("place"),
-                                   kw.get("participants"), bool(kw.get("remove")), kw.get("type_name"))
+                                   kw.get("participants"), bool(kw.get("remove")), kw.get("type_name"), kw.get('end_day'))
+        if not spec.get('remove'):
+            cur_snap = self._latest_snapshot(plan)
+            cur = cur_snap.activity(item['id']) if item and cur_snap and cur_snap.has(item['id']) else None
+            # An omitted fold is inherited only for the same wall time.
+            for key, attr in (('start_fold', 'start'), ('end_fold', 'end')):
+                inherited = getattr(cur, key) if cur and spec[attr] == getattr(cur, attr) else None
+                spec[key] = kw.get(key) if kw.get(key) is not None else inherited
+            from groupflow.repair.local_time import validate_interval
+            validate_interval(plan['start_date'], spec['start'], spec['end'], plan['timezone'], spec['start_fold'], spec['end_fold'])
         utt = self._record_utterance(actor_id, plan["space_id"], kw.get("quote"))
         certainty = kw.get("certainty", "committed")
         summary = self._spec_text(plan, spec)
@@ -964,7 +991,10 @@ class Agreement(Core):
                 (m, dict(cur.cost_shares).get(m, 0)) for m in sorted(participants))
             new = Activity(id=aid, title=spec.get("title") or (cur.title if cur else "Activity"), kind=spec.get("kind") or (cur.kind if cur else spec["type"]),
                            start=spec.get("start", cur.start if cur else 0), end=spec.get("end", cur.end if cur else 60), place_id=place_id, place_name=place_name,
-                           participants=participants, cost_shares=shares, required=cur.required if cur else True, locked=cur.locked if cur else False)
+                           participants=participants, cost_shares=shares, required=cur.required if cur else True, locked=cur.locked if cur else False,
+                           start_fold=spec.get('start_fold', cur.start_fold if cur else None), end_fold=spec.get('end_fold', cur.end_fold if cur else None))
+            from groupflow.repair.local_time import validate_interval
+            validate_interval(base.start_date, new.start, new.end, base.timezone, new.start_fold, new.end_fold)
             snap = base.with_activity(new)
             if item and new.title != item["label"]:
                 self.db.run("UPDATE items SET label = ?, updated_at = ? WHERE id = ?", new.title, self.ts(), item["id"])
@@ -1211,6 +1241,9 @@ class Agreement(Core):
             cand = self._revision(p["candidate_revision_id"])
             if cand is None:
                 if p["active_revision_id"]:
+                    problems=self._public_problems(p,self._snapshot(self._revision(p['active_revision_id'])))
+                    if problems:
+                        return ConfirmationsResult(outcome='infeasible',plan_status=p['status'],problems=problems,message='The agreed version needs correction or a fact recheck before it can be sent again.')
                     return ConfirmationsResult(outcome="ready", plan_status=p["status"], message=f"{p['title']} is already agreed and nothing has changed since.")
                 draft = self._revision(p["draft_revision_id"])
                 snap = self._snapshot(draft)
@@ -1223,12 +1256,19 @@ class Agreement(Core):
                 p = self._bump(p["id"], "PROPOSED", None, candidate_revision_id=cand["id"])
                 self._audit(actor_id, "plan.proposed", "plan", p["id"], p, f"{me} proposed {cand['label']}.")
             else:
-                snap = self._snapshot(cand)
+                snap = self._with_current_prices(p,self._snapshot(cand))
                 problems = self._public_problems(p, snap)
                 if problems:
                     return ConfirmationsResult(outcome="infeasible", plan_status=p["status"], version=cand["label"], problems=problems,
                                                message=f"{cand['label']} breaks someone's hard conditions, so it was not sent. Nothing changed. find_alternatives can "
                                                        "look for the smallest change that works; the organizer decides whether to send that.")
+                if json.loads(cand['input_versions']) != self._input_versions(p):
+                    # The organizer explicitly asked to send the current version.
+                    # Bind it to fresh inputs; carry only still-valid identical scopes.
+                    previous=cand
+                    self._supersede_candidate(p)
+                    cand=self._new_revision(p,snap,previous['label'],'candidate','proposal',actor_id,previous['id'])
+                    p=self._bump(p['id'],'PROPOSED',None,candidate_revision_id=cand['id'])
             for other in self.db.all("SELECT id FROM plan_revisions WHERE plan_id = ? AND kind = 'candidate' AND id <> ?", p["id"], cand["id"]):
                 self.db.run("UPDATE plan_revisions SET kind = 'discarded' WHERE id = ?", other["id"])
             if not self._round_open(cand):
@@ -1281,7 +1321,8 @@ class Agreement(Core):
 
     # ================================================================ find_alternatives (repair)
 
-    def find_alternatives(self, actor_id: str, plan: str | None = None, expected_version: int | None = None, run_now: bool = True) -> AlternativesResult:
+    def find_alternatives(self, actor_id: str, plan: str | None = None, expected_version: int | None = None, run_now: bool = True,
+                          include_current: bool = False) -> AlternativesResult:
         self._rate_limit(actor_id)
 
         def start() -> tuple[str, bool]:
@@ -1296,7 +1337,8 @@ class Agreement(Core):
             if existing:
                 return existing["id"], False
             base = self._revision(p["active_revision_id"]) or self._revision(p["candidate_revision_id"]) or self._revision(p["draft_revision_id"])
-            inputs = {"base_revision": base["id"], "versions": self._input_versions(p), "publish_version": p["aggregate_version"] + 1}
+            inputs = {"base_revision": base["id"], "versions": self._input_versions(p), "publish_version": p["aggregate_version"] + 1,
+                      "include_current": bool(include_current and not p['active_revision_id'])}
             job_id = new_id("job")
             self.db.run("INSERT INTO repair_jobs (id, plan_id, base_revision_id, input_digest, input_json, status, method, solver_budget_ms, requested_by, created_at) "
                         "VALUES (?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?)", job_id, p["id"], base["id"], digest(inputs), json.dumps(inputs), self.method,
@@ -1354,7 +1396,7 @@ class Agreement(Core):
                      "search_complete": outcome.search_complete, "runtime_ms": round(outcome.runtime_ms, 1),
                      "requested_method": outcome.requested_method, "fallback_reason": outcome.fallback_reason}
             label = self._next_label(fresh) if fresh["active_revision_id"] else "P1"
-            nothing_to_do = bool(outcome.candidates) and not outcome.candidates[0].changed
+            nothing_to_do = bool(outcome.candidates) and not outcome.candidates[0].changed and not inputs.get('include_current')
             result = {"proof": proof, "conflict": [v.public for v in outcome.conflict], "nothing_to_do": nothing_to_do}
             if nothing_to_do:
                 outcome.candidates = []
@@ -1422,7 +1464,10 @@ class Agreement(Core):
             if j["status"] in ("queued", "running"):
                 return AlternativesResult(job=j["id"], status=j["status"], plan_status=p["status"], message="Still searching. Ask again in a moment.")
             if j["status"] == "failed":
-                return AlternativesResult(job=j["id"], status="failed", plan_status=p["status"], message="The search failed; the plan needs attention.")
+                message = ("The plan changed while searching. Request fresh alternatives."
+                           if (j.get('error') or '').startswith('STALE_INPUT:') else
+                           "The search failed. Request fresh alternatives to retry; no approval or commit was created.")
+                return AlternativesResult(job=j["id"], status="failed", plan_status=p["status"], message=message)
             result = json.loads(j["result_json"])
             base = self._snapshot(self._revision(j["base_revision_id"]))
             alts = []
@@ -1436,7 +1481,8 @@ class Agreement(Core):
                                             unchanged=[a.title for a in snap.activities if a.id not in changed],
                                             cost_each_before=" / ".join(money(t, snap.currency) for t in totals_before),
                                             cost_each_after=" / ".join(money(t, snap.currency) for t in totals_after),
-                                            reconfirm=[self.name(m) for m in json.loads(rc["reconfirm_json"])]))
+                                            reconfirm=[self.name(m) for m in (snap.members if json.loads(j['input_json']).get('include_current')
+                                                                           else json.loads(rc["reconfirm_json"]))]))
             if result.get("nothing_to_do"):
                 msg = "Nothing needs to change: the current plan still satisfies everyone's conditions."
             elif alts:

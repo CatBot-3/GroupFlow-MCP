@@ -22,6 +22,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable
 from zoneinfo import ZoneInfo
 
+from groupflow.host_guidance import LOCAL_HOST_CAPABILITIES, WEATHER_POLICY
 from .llm.types import AssistantMessage, LlmError, LlmMessage, LlmProvider, LlmRequest, LlmToolCall, LlmToolDef, ToolMessage, UserMessage, clean_schema
 from .mcp_pool import SessionPool, ToolResult
 
@@ -47,11 +48,13 @@ def system_prompt(name: str, today: str, surface: str = "echo") -> str:
     intro = SURFACES.get(surface, SURFACES["echo"]).format(name=name)
     return f"""{intro} It is {today}. The authenticated MCP connection fixes the speaker; never impersonate anyone.
 
+{WEATHER_POLICY} {LOCAL_HOST_CAPABILITIES}
+
 How people talk: the way they text or talk to friends. Lowercase, typos, slang (idk, lol, ngl, def, tmrw, rn, u), emoji, a story about their day or a joke, and the real ask somewhere in the middle. Work out what they want done about a plan and do exactly that; the rest is chatter, so answer it in a few words and change nothing. One message can carry two asks for two plans ("throw ketchup on the bbq list, oh and I already booked the campsite"): handle both. In a self-correction the last version wins ("sat... wait no, sunday" means Sunday). Jokes, exaggeration and venting ("we should just move to the moon lol", "this week is killing me") are not requests.
 
-Fresh state: each turn starts with a server briefing, newer than chat history. It contains a plan index with key item ids, your_tasks across visible plans, pending decisions and fresh updates, plus details for the active plan. Use these ids directly when enough facts are present; get_context(plan=..., detail="full") loads missing facts. Focus is a hint, never a restriction on "what's new" or "my list": include the speaker's tasks from every visible plan, especially new updates elsewhere. An explicit subject overrides focus. "The venue" refers to the named Venue detail, even if another plan has a restaurant. Search all visible plans before claiming an item or place is missing. Ask only when genuinely ambiguous, and recover using an error's suggested id.
+Fresh state: the briefing supersedes history. Use its plan index, item ids, cross-plan your_tasks, decisions and updates; get_context(plan=..., detail="full") loads missing facts. Focus never restricts news or the speaker's whole task list. An exact detail label in the request outranks a similar activity. If its plan is unstated, search_plan(query=that label) with plan omitted first. Recover suggested ids; ask on ambiguity.
 
-Record statements and requests with propose_change, including finished tasks, hand-offs and deadlines ("I'll grab the cups by friday" is a hand-off with a due date). Plain statements and casual direct requests are committed: "can we push dinner to 7", "can u mark that done" and "put me down for the ice" are requests, not hedges. Hedges are tentative: maybe, idk, I guess, kinda thinking, prob, we could, what if, how about, should we, or not. Record tentative ideas NOW too; never ask "want me to record it?" when the person already said it. Keep the speaker's exact words as quote. New items need explicit new_type from the template. Use link_items for dependencies. The server decides permissions, so CALL the tool instead of refusing based on an owner's name. A non-owner completion may become an owner request; organizers may be allowed to update it. A task with decided_by="anyone" is an OPEN shared list entry: anyone may finish it, even when it has a named owner. Trust the returned outcome.
+Use propose_change for changes, completed tasks, hand-offs and due dates. Direct requests, including "can/could we move...", are committed; maybe, idk, I guess, prob, we could, what if, how about and should we are tentative. Record actual proposals without another permission question. Preserve quote; new items need the template's new_type; link_items sets dependencies. Call instead of inferring edit rights from ownership: non-owner edits may become requests; tasks with decided_by="anyone" can be completed by anyone. Trust the outcome.
 
 Support is an action: "ya 7:30 works for me too" about a pending change repeats that proposal and MUST call propose_change with that value and quote. The server records support/already_pending. Do not use decide_change for someone who only supports another owner's decision. Do not ask permission to record support already spoken, and never say "noted" after a refused call.
 
@@ -68,6 +71,10 @@ New plans: choose an id from the directory or list_templates(query); get_templat
 When asked about OTHER people's diets, budgets, busy times or personal limits ("is jay vegan or smth?", "what's nina's budget?"), say those are private and you can only read the speaker's own limits. Do not guess a specific diet or number, even as an example. your_conditions only lists the speaker's conditions: its absence says NOTHING about whether anyone else has limits. Public template tags describe supported formats, and public venue tags describe places; neither is evidence of a person's needs. Never say "nobody has restrictions" based on filtered results.
 
 Telling people: when the speaker wants others told ("let everyone know", "tell the organizers"), call notify_people with the items and/or their note; the server picks who may hear it, so never promise to tell someone it refused. When a write result has suggested_followup, end your reply with its question; when they answer, call answer_followup with their words. Never invent a time or amount from vague words ("push it back a bit", "sometime next week"): ask with ask_followup, two or three concrete options each carrying the exact call, then pass their reply to answer_followup. If the briefing's open_questions has one their words answer, call answer_followup. "Remind me (or whoever hasn't answered) the day before" calls set_reminder with the time in their words; a vague time is asked, never guessed. "Where are we with X?" or "what's holding it up?" calls review_plan.
+
+Deciding together: poll advises a decider, never confirms an activity. A stated switch unless someone objects/complains by a deadline needs poll(action="start", one option, closes, item). rsvp answers attendance; bring_list claims only for the speaker; costs records expenses or repayments. Assign a named companion with propose_change(owner=...), using room context, never a self-claim. Complaints without a requested replacement and acknowledgements change nothing.
+
+Money: agreed.your_total is the current whole-outing price; costs.your_balance is reimbursement for recorded payments. An empty ledger proves neither paid nor free. For ambiguous questions give both labelled amounts or clarify; refresh the agreed price after repairs. A new offer creates separate work; never take over an existing task merely because its topic is related.
 
 Dates: a bare weekday ("sat", "fri night") is nearest the item's existing date; "this", "next", "tmrw" and "tomorrow" are relative to today. Keep the plan's date style. Mention pending decisions and fresh updates briefly. Never claim a write succeeded without its tool outcome. Speak in at most three short sentences, without lists, markdown, ids or keys.""" + (GROUP_CHAT if surface == "group_chat" else "")
 
@@ -93,6 +100,15 @@ class ChatContext:
         return "\n".join(lines)
 
 
+MINIMAL_SYSTEM = ("You are Alexa, a voice assistant, talking with {name}. It is {today}. Use the connected tools for anything about the "
+                  "user's plans. Reply in at most three short spoken sentences.")
+"""A host that adds nothing GroupFlow-specific: only this line, the server's own instructions and the tool descriptions. It does not
+read state before the turn, does not re-check replies, does not bind quotes, and does not say who will hear the reply. This is the
+closest local stand-in for Alexa+, where an add-on controls only its server instructions and tool descriptions."""
+
+PERSONAL_DEVICE = {"X-GroupFlow-Listeners": "me"}  # a personal Echo or private thread: only the speaker hears the reply
+
+
 PROJECT_WORKFLOW = ("\n\nProject workflow: use get_project to page work and read ids. configure_project sets public stage policy; "
                     "upsert_work sets ISO dates, effort in 15-minute work units, resources and dependencies; manage_recurrence creates independent occurrences. "
                     "An owner/lead work edit is a draft, not a commitment. repair_project prepares a parallel resource schedule; "
@@ -102,7 +118,7 @@ PROJECT_WORKFLOW = ("\n\nProject workflow: use get_project to page work and read
 
 WRITE_TOOLS = {"propose_change", "decide_change", "link_items", "set_my_conditions", "report_observation", "request_confirmations", "find_alternatives",
                "commit_plan", "create_plan", "configure_project", "upsert_work", "manage_recurrence", "repair_project", "create_group", "invite_to_group",
-               "notify_people", "answer_followup", "set_reminder", "review_plan"}
+               "notify_people", "answer_followup", "set_reminder", "review_plan", "poll", "rsvp", "bring_list", "costs"}
 PROJECT_WRITES = {"configure_project", "upsert_work", "manage_recurrence", "repair_project"}
 PREFETCH = ("get_context",)
 # A reply that says something was done ("I've noted...", "Done, ...") although no write tool ran in this turn.
@@ -121,11 +137,41 @@ def compact(value: Any) -> Any:
     return value
 
 
+def assignment_mismatches_offer(args: dict[str, Any], text: str, calls: list[dict[str, Any]], chat: ChatContext | None) -> bool:
+    """Reject a narrowly identifiable substitution of unrelated work for a room member's offer."""
+    if not chat or not chat.shared or not args.get('owner') or not args.get('item'):
+        return False
+    from groupflow.engine.text import topic_stems
+    owner = str(args['owner']).casefold()
+    offers = [said for who, said in chat.recent if who.casefold() == owner
+              and re.search(r"\bi(?: can|'ll| will| could)\b", said, re.I)]
+    if not offers:
+        return False
+
+    def label(value: Any) -> str | None:
+        if isinstance(value, dict):
+            if value.get('id') == args['item'] and 'owner' in value:
+                return value.get('title') or value.get('label')
+            return next((found for v in value.values() if (found := label(v))), None)
+        if isinstance(value, list):
+            return next((found for v in value if (found := label(v))), None)
+        return None
+
+    task = next((found for c in reversed(calls) if c.get('ok') and (found := label(c.get('result')))), None)
+    if not task:
+        return False
+    generic = {'bring', 'make', 'handle', 'take', 'could', 'get', 'big', 'task', 'work'}
+    target = set(topic_stems(task)) - generic
+    offered = set(topic_stems(offers[-1])) - generic
+    return bool(target and offered and not target.intersection(topic_stems(text)) and not target.intersection(offered))
+
+
 def claims_without_action(reply: str, calls: list[dict[str, Any]], speaker_text: str = "") -> bool:
     if any(c["name"] in WRITE_TOOLS and c.get("ok") and (c.get("result") or {}).get("outcome") not in {"blocked", "infeasible", "forbidden"}
            for c in calls):
         return False
-    omitted = re.search(r"\b(want me to|would you like me to)\s+(record|note|save|log|put|do that)\b", reply, re.I)
+    omitted = re.search(r"\b(want me to|would you like me to)\s+(?:(record|note|save|log|put|mark|complete|finish|update|do that)\b|"
+                        r"(?:check|tick)\b[^?.!]{0,60}\boff\b)", reply, re.I)
     # Distinguish ordinary task status from the human-only agreement gate.
     # The model must not invent a permission refusal before asking the server.
     guessed_task_refusal = (not any(c["name"] in WRITE_TOOLS for c in calls)
@@ -143,7 +189,8 @@ def check_message(name: str) -> str:
     return (f"(Automatic check from the assistant software, not from {name}: your reply claims an action, offers to record an already-spoken request, "
             f"or guesses task-edit permissions without a tool result. If {name} asked for a change, call the tool and let the server enforce its policy. If nothing needs to "
             "change, answer again without claiming that anything was done. Do not ask whether to record an idea/request that was already spoken: "
-            "record the tentative or requested intention now and let the server enforce permission. For a why-question, call explain (or get_project for structured project evidence) before answering. Before claiming a task/item is missing, call search_plan: the summary is capped and is not proof of absence. Do not invent writes for read-only questions.)")
+            "record an actual tentative proposal or instruction, but do not manufacture one from a reaction, complaint or acknowledgement. "
+            "When the utterance has no proposed replacement or request, answer without a write. For a why-question, call explain (or get_project for structured project evidence) before answering. Before claiming a task/item is missing, call search_plan: the summary is capped and is not proof of absence. Do not invent writes for read-only questions.)")
 
 
 def to_tool_defs(tools: list[Any], include_project: bool = True, descriptions: str = "expanded") -> list[LlmToolDef]:
@@ -189,6 +236,16 @@ class LlmAgent:
     prefetch_state: bool = True  # start every turn with a fresh briefing/state read, so the model never answers from stale chat memory
     self_check: bool = True  # one corrective round when a reply claims a change that no tool call made
     descriptions: str = "expanded"
+    # lab: the simulator's own host help (long prompt, state read every turn, reply check, quote binding).
+    # minimal: an Alexa+-like host that adds none of that (see MINIMAL_SYSTEM).
+    host: str = "lab"
+    # personal: the speaker's own Echo (declares X-GroupFlow-Listeners: me). kitchen: a shared household device that says nothing
+    # about who is listening, as Alexa+ does today, so the server assumes it may be overheard.
+    device: str = "personal"
+    # Which server tool surface the minimal host connects to: voice (/mcp, the Alexa+ profile) or lab (/mcp/lab, the full set).
+    minimal_tools: str = "voice"
+    # What the minimal host says about who hears the reply: undeclared (Alexa+ today) or me (a personal device).
+    minimal_audience: str = "undeclared"
     history: dict[str, list[LlmMessage]] = field(default_factory=dict)
     active_plans: dict[str, str] = field(default_factory=dict)
     active_groups: dict[str, str] = field(default_factory=dict)
@@ -210,8 +267,11 @@ class LlmAgent:
             self.active_plans.clear()
             self.active_groups.clear()
 
-    async def handle(self, member: str, text: str, *, plan: str | None = None, group: str | None = None, chat: ChatContext | None = None) -> AgentTurn:
+    async def handle(self, member: str, text: str, *, plan: str | None = None, group: str | None = None, chat: ChatContext | None = None,
+                     device: str | None = None) -> AgentTurn:
         started = time.perf_counter()
+        minimal = self.host == "minimal"
+        device = device or self.device
         if self.provider.id == "none":
             raise LlmError(getattr(self.provider, "reason", None) or "No LLM is configured.")
         key = member if chat is None else f"{member}#{chat.id}"
@@ -221,21 +281,32 @@ class LlmAgent:
             self.active_groups[key] = group
         if plan:
             self.active_plans[key] = plan
-        if chat is None:
-            session = self.sessions.get(member, "alexa")
+        if minimal and chat is None:
+            # Alexa+ as documented: no listener declaration, the deployed tool profile, nothing GroupFlow-specific in the host.
+            session = self.sessions.get(member, f"alexa+:{self.minimal_tools}:{self.minimal_audience}", profile=self.minimal_tools,
+                                        headers=PERSONAL_DEVICE if self.minimal_audience == "me" else None)
+        elif chat is None and device == "kitchen":
+            # A household device: nothing says who is listening, so the server treats the reply as possibly overheard.
+            session = self.sessions.get(member, "kitchen")
+        elif chat is None:
+            session = self.sessions.get(member, "alexa", headers=PERSONAL_DEVICE)
         elif chat.shared:
             # Its own MCP session, declaring the room as listeners: the server narrows what this speaker's tools return.
             session = self.sessions.get(member, f"room:{chat.id}", headers={"X-GroupFlow-Listeners": chat.listeners} if chat.listeners else None)
         else:
-            session = self.sessions.get(member, "chat")
+            session = self.sessions.get(member, "chat", headers=PERSONAL_DEVICE)
         mcp_tools = await session.list_tools()
         known = {t.name for t in mcp_tools}
-        project_enabled = bool(re.search(r"\b(project|corporate|milestone|workstream|sprint|release|recurring|capacity)\b|项目|里程碑|周期任务|资源容量", text, re.I))
-        tools = to_tool_defs(mcp_tools, project_enabled, self.descriptions)
+        project_enabled = minimal or bool(re.search(r"\b(project|corporate|milestone|workstream|sprint|release|recurring|capacity)\b|项目|里程碑|周期任务|资源容量", text, re.I))
+        tools = to_tool_defs(mcp_tools, project_enabled, "expanded" if minimal else self.descriptions)
         name = self.member_names.get(member, member)
         today = format_today(self.now(), self.timezone)
         surface = "echo" if chat is None else "group_chat" if chat.shared else "private_chat"
-        system = system_prompt(name, today, surface)
+        if minimal:
+            instructions = await session.server_instructions()
+            system = MINIMAL_SYSTEM.format(name=name, today=today) + (f"\n\nInstructions from the {name}'s GroupFlow connection:\n{instructions}" if instructions else "")
+        else:
+            system = system_prompt(name, today, surface)
 
         # In a shared room the recent messages carry the context, including Alexa's own earlier replies there.
         prior = [] if chat is not None and chat.shared else self.history.get(key, [])
@@ -245,7 +316,7 @@ class LlmAgent:
         llm_calls: list[dict[str, Any]] = []
         reply = ""
         checked = False
-        if self.prefetch_state:
+        if self.prefetch_state and not minimal:
             # A client-side step, like a device sending context with the request: read the speaker's current state over MCP
             # and put it in the conversation as ordinary tool calls and results.
             for state_tool in PREFETCH:
@@ -253,7 +324,7 @@ class LlmAgent:
                     continue
                 self._turns += 1
                 pre = LlmToolCall(id=f"state_{self._turns}", name=state_tool, arguments={}, raw_arguments="{}")
-                state_args: dict[str, Any] = {"detail": "summary"}
+                state_args: dict[str, Any] = {"detail": "summary", "mark_read": True}  # the lab host hears every briefing it reads
                 if group:
                     state_args["group"] = group
                 if self.active_plans.get(key):
@@ -283,14 +354,14 @@ class LlmAgent:
             # includes it. The last budget-exhausting call may never be sent.
             for observed in calls:
                 observed['sent_to_model'] = True
-            if project_enabled and "Project workflow:" not in system:
+            if project_enabled and not minimal and "Project workflow:" not in system:
                 system += PROJECT_WORKFLOW
             res = await self.provider.complete(LlmRequest(system=system, messages=messages, tools=tools, max_tokens=self.max_tokens))
             llm_calls.append({"ms": res.ms, "inputTokens": res.usage.input_tokens, "outputTokens": res.usage.output_tokens,
                               "cachedInputTokens": res.usage.cached_input_tokens, "stop": res.stop, "toolCalls": [t.name for t in res.tool_calls]})
             if not res.tool_calls:
                 reply = re.sub(r"\s+", " ", res.text).strip()
-                if self.self_check and not checked and claims_without_action(reply, calls, text) and len(llm_calls) < self.max_steps:
+                if self.self_check and not minimal and not checked and claims_without_action(reply, calls, text) and len(llm_calls) < self.max_steps:
                     checked = True
                     llm_calls[-1]["selfCheck"] = True
                     messages.append(AssistantMessage(content=reply))
@@ -305,12 +376,18 @@ class LlmAgent:
                     r = ToolResult(ok=False, data=None, error={"code": "INVALID_ARGUMENTS", "message": tc.parse_error or "Arguments were missing."})
                 elif tc.name not in known:
                     r = ToolResult(ok=False, data=None, error={"code": "UNKNOWN_TOOL", "message": f'There is no tool called "{tc.name}". Available: {", ".join(sorted(known))}.'})
+                elif not minimal and tc.name == 'propose_change' and assignment_mismatches_offer(tc.arguments, text, calls, chat):
+                    r = ToolResult(ok=False, data=None, error={"code": "NEW_WORK_NOT_REASSIGN",
+                        "message": "The room member offered different work from this existing task. Create a separate task with item omitted, "
+                                   "the appropriate new_type, a title describing the offer, and that owner. Leave this task's owner unchanged."})
                 else:
                     try:
                         # Bind evidence to the actual current utterance, including
                         # when the model omits or paraphrases its quote argument.
-                        if tc.name in {"set_my_conditions", "propose_change", "decide_change", "create_plan"}:
+                        if not minimal and tc.name in {"set_my_conditions", "propose_change", "decide_change", "create_plan", "bring_list", "poll"}:
                             tc.arguments["quote"] = text
+                        if not minimal and tc.name == 'answer_followup':
+                            tc.arguments['choice'] = text
                         r = await session.call_tool(tc.name, tc.arguments)
                     except Exception as err:  # noqa: BLE001
                         r = ToolResult(ok=False, data=None, error={"code": "TRANSPORT", "message": str(err)})
@@ -322,7 +399,7 @@ class LlmAgent:
                         focus = (r.data.get("plan") or {}).get("id")
                     if focus:
                         self.active_plans[key] = focus
-                    if tc.name in {"get_project", "repair_project", "upsert_work"} or (tc.name == "get_template" and r.data.get("id") == "project") or (tc.name == "create_plan" and (r.data.get("plan") or {}).get("project")):
+                    if not minimal and (tc.name in {"get_project", "repair_project", "upsert_work"} or (tc.name == "get_template" and r.data.get("id") == "project") or (tc.name == "create_plan" and (r.data.get("plan") or {}).get("project"))):
                         project_enabled = True
                         tools = to_tool_defs(mcp_tools, True, self.descriptions)
                 messages.append(ToolMessage(tool_call_id=tc.id, name=tc.name, content=compact(r.data) if r.ok else {"error": r.error}, is_error=not r.ok))

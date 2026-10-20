@@ -284,6 +284,8 @@ def parse_time_of_day(text: str | int | None) -> int | None:
     mer = m.group(3) if m.lastindex and m.lastindex >= 3 else None
     if hour > 23 or minute > 59:
         return None
+    if not mer and m.group(2) is not None and len(m.group(1)) == 2:
+        return hour * 60 + minute  # Explicit two-digit HH:MM is a 24-hour clock, including 01:30.
     p = DateTimeParts(hour=hour, minute=minute, meridiem=mer)
     h = hour24(p)
     return (h if h is not None else hour) * 60 + minute
