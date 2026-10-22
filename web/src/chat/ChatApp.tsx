@@ -45,7 +45,8 @@ function clearInviteFromUrl() {
 // ------------------------------------------------------------------ sign in / sign up
 
 function AuthScreen({ invite, preview, onSession }: { invite: string | null; preview: InvitePreview | null; onSession: (s: Session, joinedNow: boolean) => void }) {
-  const [mode, setMode] = useState<'up' | 'in'>(invite ? 'up' : 'in');
+  // New people are the usual visitors here (an invite link, or someone trying GroupFlow out), so the form starts on sign-up.
+  const [mode, setMode] = useState<'up' | 'in'>('up');
   const [name, setName] = useState('');
   const [memberId, setMemberId] = useState('');
   const [passcode, setPasscode] = useState('');
@@ -119,7 +120,7 @@ function AuthScreen({ invite, preview, onSession }: { invite: string | null; pre
             </div>
           </div>
         )}
-        <p className="chat-fine">Alexa here is a simulation of Alexa+ talking to the GroupFlow MCP server. <a href="/">Back to the demo</a></p>
+        <p className="chat-fine">Alexa here is a simulation of Alexa+ talking to the GroupFlow MCP server. <a href="/">See the Echos</a></p>
       </div>
     </div>
   );
@@ -165,16 +166,28 @@ function Message({ m, mine, colors, onQuick }: {
 
 // ------------------------------------------------------------------ the person's own answers (never through Alexa)
 
-function OwnPanel({ inbox, updates, busy, onAnswer, onVerify }: {
+function OwnPanel({ inbox, updates, busy, onAnswer, onVerify, onJoin }: {
   inbox: HumanInbox | null; updates: Updates | null; busy: boolean;
   onAnswer: (scopeId: string, decision: 'approved' | 'rejected') => void; onVerify: (id: string, digest: string) => void;
+  onJoin: (id: string, accept: boolean) => void;
 }) {
   const drafts = (inbox?.conditions ?? []).filter((c) => c.status === 'unverified');
+  const joins = inbox?.joins ?? [];
   return (
     <aside className="chat-own" aria-label="Your answers">
       <h2>Needs your answer</h2>
       <p className="chat-fine">Only you can answer these. Alexa can ask, never answer for you.</p>
-      {!inbox?.pending.length && !drafts.length && <p className="chat-empty-note">Nothing waiting for you.</p>}
+      {!inbox?.pending.length && !drafts.length && !joins.length && <p className="chat-empty-note">Nothing waiting for you.</p>}
+      {joins.map((j) => (
+        <div key={j.id} className="chat-card">
+          <p className="chat-card-plan">{j.group.name} · joining</p>
+          <p>{j.invited_by} invited you to {j.group.name}. Join it?</p>
+          <div className="chat-card-actions">
+            <button type="button" className="primary" disabled={busy} onClick={() => onJoin(j.id, true)}>Join</button>
+            <button type="button" className="ghost" disabled={busy} onClick={() => onJoin(j.id, false)}>Not now</button>
+          </div>
+        </div>
+      ))}
       {inbox?.pending.map((p) => (
         <div key={p.scope_id} className="chat-card">
           <p className="chat-card-plan">{p.plan} · {p.revision}</p>
@@ -373,7 +386,7 @@ export function ChatApp() {
     });
   };
 
-  const pending = (inbox?.pending.length ?? 0) + (inbox?.conditions.filter((c) => c.status === 'unverified').length ?? 0);
+  const pending = (inbox?.pending.length ?? 0) + (inbox?.conditions.filter((c) => c.status === 'unverified').length ?? 0) + (inbox?.joins?.length ?? 0);
   const organizer = room?.kind === 'group' && room.your_role === 'organizer';
   const roomMessages = room ? messages[room.id] ?? [] : [];
   // Quick answers only on the newest message, and only for the person Alexa asked; tapping one simply says it.
@@ -510,7 +523,8 @@ export function ChatApp() {
 
         <OwnPanel inbox={inbox} updates={updates} busy={busy}
           onAnswer={(scopeId, decision) => act(async () => { await chatApi.answer(session, scopeId, decision); await refreshOwn(session); })}
-          onVerify={(id, digest) => act(async () => { await chatApi.verify(session, id, digest); await refreshOwn(session); })} />
+          onVerify={(id, digest) => act(async () => { await chatApi.verify(session, id, digest); await refreshOwn(session); })}
+          onJoin={(id, accept) => act(async () => { await chatApi.decideJoin(session, id, accept); await refreshOwn(session); await refreshMe(session, true); })} />
       </div>
     </div>
   );

@@ -18,7 +18,8 @@ export interface InvitePreview { group: { id: string; name: string }; invited_by
 export interface Updates { linked: boolean; headline: string | null; updates: string[]; todos: { kind: string; plan: string; text: string; where: string }[]; decisions: { plan: string; what: string; proposed: string; by: string }[] }
 export interface PendingAnswer { scope_id: string; plan: string; plan_id: string; revision: string; activity_id: string | null; text: string; status: string }
 export interface DraftCondition { id: string; plan: string; description: string; status: string; verify_digest: string }
-export interface HumanInbox { pending: PendingAnswer[]; conditions: DraftCondition[] }
+export interface JoinRequest { id: string; group: { id: string; name: string }; invited_by: string }
+export interface HumanInbox { pending: PendingAnswer[]; conditions: DraftCondition[]; joins?: JoinRequest[] }
 export interface DemoPerson { id: string; name: string; color: string; passcode: string; groups: string[] }
 
 const SESSION_KEY = 'groupflow.chat.session';
@@ -90,6 +91,8 @@ export const chatApi = {
     return call<{ outcome: string }>(s, 'POST', '/human/decisions', { challenge_id: ch.challenge_id, nonce: ch.nonce, decision });
   },
   verify: (s: Session, conditionId: string, digest: string) => call<{ outcome: string }>(s, 'POST', '/human/conditions/verify', { condition_id: conditionId, verify_digest: digest }),
+  // A join the person asked Alexa for ("join with code ..."): it waits for their own yes here.
+  decideJoin: (s: Session, id: string, accept: boolean) => call<{ outcome: string }>(s, 'POST', '/human/joins/decide', { id, accept }),
   demoPeople: async (): Promise<DemoPerson[]> => {
     try {
       const cfg = await call<{ scenarios: { members: { id: string; name: string; color: string; demoPasscode?: string; groups: string[] }[] }[] }>(null, 'GET', '/api/config');

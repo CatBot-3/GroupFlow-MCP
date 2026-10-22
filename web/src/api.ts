@@ -40,7 +40,7 @@ export interface ScenarioConfig {
 
 export interface ProviderInfo { id: string; label: string; model: string; ready: boolean; reason: string | null }
 export interface TemplateInfo { id: string; name: string; description: string }
-export interface Config { scenarios: ScenarioConfig[]; templates: TemplateInfo[]; provider: ProviderInfo; mcpUrl: string; serverBase: string; showcase?: { group: string; script: DemoStep[] }; chat?: boolean }
+export interface Config { scenarios: ScenarioConfig[]; templates: TemplateInfo[]; provider: ProviderInfo; mcpUrl: string; serverBase: string; showcase?: { group: string; script: DemoStep[] }; chat?: boolean; sandbox?: boolean }
 
 export interface ToolCallRecord { name: string; args: Record<string, unknown>; ok: boolean; result: unknown; ms: number; prefetched?: boolean; sent_to_model?: boolean; model_content?: unknown }
 export interface LlmTurnStats { calls: { ms: number; inputTokens: number; outputTokens: number; toolCalls: string[] }[]; inputTokens: number; outputTokens: number; ms: number }

@@ -4,7 +4,7 @@ GroupFlow is checked in two ways. The automated tests need no language model and
 
 ## Automated tests
 
-`python -m pytest -q` runs 958 tests (about ten minutes in a Linux container). They cover the engine and its consent rules, the solver (cross-checked against brute force on generated instances), templates, the MCP transport with the official SDK client, OAuth flows, the shared-device default and declared listeners, repeated requests recorded once, the human-only HTTP API, the simulator's agent and providers (with a scripted model), and the evaluation runner itself. Several suites were written by a separate agent that froze its cases before reading the implementation, so they test the behaviour we promised rather than the code we wrote.
+`python -m pytest -q` runs 965 tests (about ten minutes in a Linux container). They cover the engine and its consent rules, the solver (cross-checked against brute force on generated instances), templates, the MCP transport with the official SDK client, OAuth flows, the shared-device default and declared listeners, repeated requests recorded once, the human-only HTTP API, the simulator's agent and providers (with a scripted model), and the evaluation runner itself. Several suites were written by a separate agent that froze its cases before reading the implementation, so they test the behaviour we promised rather than the code we wrote.
 
 The shared-workload tests open eight authenticated MCP sessions against one server and one SQLite file, run four overlapping plans with different roles and scopes on seeded random schedules, and kill and restart the server mid-workload to check that interrupted repair jobs recover and no write is lost or doubled. They are local concurrency and recovery checks, not a production load test.
 
@@ -114,6 +114,6 @@ The project scheduler's scaling check (10 owners, a shared lab of capacity 3, de
 
 1. **Real people.** Every person in every scenario is synthetic; no real people have used GroupFlow yet.
 2. **Real Alexa+.** The Alexa+-like client imitates what Amazon documents an add-on receives; it is not Alexa+.
-3. **Other models.** All reported runs use one DeepSeek model. The demo video's assistant is a Claude agent answering through the relay provider; it played the 25-step story without a failed tool call, but it has not been run through these suites. Amazon Bedrock is a supported provider (`AGENT_PROVIDER=bedrock`), but no Bedrock run has been made because no AWS credentials were available on the evaluation machine.
+3. **Other models.** All reported runs use one DeepSeek model. In the demo video the simulated assistant's decisions were made by a Claude model; it played the 25-step story without a failed tool call, but it has not been run through these suites. Amazon Bedrock is a supported provider (`AGENT_PROVIDER=bedrock`), but no Bedrock run has been made because no AWS credentials were available on the evaluation machine.
 4. **Wording quality.** The checks look for facts and cues, so a reply can pass while sounding awkward when read aloud.
 5. **Latency.** Server calls measured 44 to 128 ms locally, repair included; the turn times above include the model provider and are not a service-level measurement.

@@ -13,7 +13,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _load_dotenv(path: Path) -> None:
-    """Minimal .env reader: KEY=VALUE lines, # comments, no overriding of real env vars."""
+    """Minimal .env reader: KEY=VALUE lines, # comments (also after a value, preceded by a space), no overriding of real env vars.
+    A key left empty counts as not set, so an uncommented but unfilled line changes nothing."""
     if not path.is_file():
         return
     for raw in path.read_text(encoding="utf-8").splitlines():
@@ -24,7 +25,12 @@ def _load_dotenv(path: Path) -> None:
         key, value = key.strip(), value.strip()
         if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
             value = value[1:-1]
-        os.environ.setdefault(key, value)
+        elif value.startswith("#"):
+            value = ""
+        elif " #" in value or "\t#" in value:
+            value = value.replace("\t#", " #").split(" #", 1)[0].strip()
+        if value:
+            os.environ.setdefault(key, value)
 
 
 _load_dotenv(REPO_ROOT / ".env")
@@ -138,10 +144,11 @@ class LlmSettings:
     openai_base_url: str | None = field(default_factory=lambda: env("OPENAI_COMPAT_BASE_URL"))
     openai_api_key: str | None = field(default_factory=lambda: env("OPENAI_COMPAT_API_KEY"))
     openai_model: str | None = field(default_factory=lambda: env("OPENAI_COMPAT_MODEL"))
+    anthropic_api_key: str | None = field(default_factory=lambda: env("ANTHROPIC_API_KEY"))
+    anthropic_base_url: str = field(default_factory=lambda: env("ANTHROPIC_BASE_URL", "https://api.anthropic.com"))
+    anthropic_model: str = field(default_factory=lambda: env("ANTHROPIC_MODEL", "claude-sonnet-5-5"))
     aws_region: str = field(default_factory=lambda: env("AWS_REGION", "us-east-1"))
     bedrock_model_id: str = field(default_factory=lambda: env("BEDROCK_MODEL_ID", "us.amazon.nova-pro-v1:0"))
-    relay_label: str = field(default_factory=lambda: env("RELAY_LABEL", "Relay"))
-    relay_model: str = field(default_factory=lambda: env("RELAY_MODEL", "external agent"))
     timeout_s: float = field(default_factory=lambda: env_int("LLM_TIMEOUT_MS", 45000) / 1000)
     max_steps: int = field(default_factory=lambda: env_int("LLM_MAX_STEPS", 10))
 

@@ -94,7 +94,7 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    api.config().then((cfg) => { setConfig(cfg); if (!cfg.scenarios.some((s) => s.id === 'friends')) setMode('lab'); }).catch((e) => setFatal((e as Error).message));
+    api.config().then((cfg) => { setConfig(cfg); if (cfg.sandbox || !cfg.scenarios.some((s) => s.id === 'friends')) setMode('lab'); }).catch((e) => setFatal((e as Error).message));
     api.health().then((h) => setProtocol(h.mcp?.protocol ?? null)).catch(() => setProtocol(null));
     api.traffic().then(setTraffic).catch(() => undefined);
     void loadTranscripts();
@@ -168,7 +168,8 @@ export function App() {
     );
   }
 
-  const story = mode === 'demo' ? config.scenarios.find((sc) => sc.id === 'friends') : undefined;
+  // The sandbox has no story: its friends group is seeded like every other group, and people make their own in the group chat.
+  const story = mode === 'demo' && !config.sandbox ? config.scenarios.find((sc) => sc.id === 'friends') : undefined;
   if (story) {
     const controls = (
       <>
@@ -192,8 +193,8 @@ export function App() {
         <div className="brand">
           <span className="wordmark">GroupFlow</span>
           <div className="seg" aria-label="Experience">
-            {config.scenarios.some((s) => s.id === 'friends') && <button type="button" onClick={() => setMode('demo')}>Story demo</button>}
-            <button type="button" className="on">Test lab</button>
+            {!config.sandbox && config.scenarios.some((s) => s.id === 'friends') && <button type="button" onClick={() => setMode('demo')}>Story demo</button>}
+            <button type="button" className="on">{config.sandbox ? 'Sandbox' : 'Test lab'}</button>
           </div>
           <div className="seg scenario-switch" role="radiogroup" aria-label="Group">
             {config.scenarios.map((s) => (
@@ -223,6 +224,12 @@ export function App() {
       </header>
 
       {fatal && <div className="banner" role="alert">{fatal}</div>}
+      {config.sandbox && (
+        <div className="banner sandbox-note">
+          This is your sandbox: a database of its own, kept between runs. Talk to any Echo below as one of the demo world's people,
+          or <a href="/chat" target="_blank" rel="noreferrer">open the group chat</a> to make your own account, start a group and invite others.
+        </div>
+      )}
       {!config.provider.ready && (
         <div className="banner" role="alert">Alexa needs an LLM to understand people. {config.provider.reason}</div>
       )}

@@ -168,3 +168,97 @@ async def test_factory_explains_what_is_missing_instead_of_failing_at_startup():
     assert (ds.id, ds.model) == ("deepseek", "deepseek-flash")
     assert create_provider(LlmSettings(**{**base, "provider": "bedrock"})).id == "bedrock"
     assert "Unknown AGENT_PROVIDER" in create_provider(LlmSettings(**{**base, "provider": "nope"})).reason
+    assert create_provider(LlmSettings(**{**base, "provider": "relay"})).reason.endswith("Use deepseek, anthropic, bedrock or openai.")
+
+
+def test_dotenv_lines_copied_from_the_example_mean_what_they_say(tmp_path, monkeypatch):
+    from groupflow.core.settings import _load_dotenv
+    keys = ["GF_T_KEY", "GF_T_EMPTY", "GF_T_INLINE", "GF_T_QUOTED", "GF_T_HASH", "GF_T_REAL"]
+    for k in keys:
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("GF_T_REAL", "from-the-shell")
+    (tmp_path / ".env").write_text("\n".join([
+        "# a comment",
+        "GF_T_KEY=sk-123",
+        "GF_T_EMPTY=",
+        "GF_T_INLINE=open            # open, invite or off",
+        'GF_T_QUOTED="a # b"',
+        "GF_T_HASH=# only a comment",
+        "GF_T_REAL=from-the-file",
+    ]), encoding="utf-8")
+    _load_dotenv(tmp_path / ".env")
+    import os
+    assert os.environ["GF_T_KEY"] == "sk-123"
+    assert "GF_T_EMPTY" not in os.environ and "GF_T_HASH" not in os.environ, "an unfilled line counts as not set"
+    assert os.environ["GF_T_INLINE"] == "open"
+    assert os.environ["GF_T_QUOTED"] == "a # b"
+    assert os.environ["GF_T_REAL"] == "from-the-shell", "a real environment variable wins over the file"
+
+
+ANTHROPIC_TOOL_USE = (200, {
+    "content": [{"type": "text", "text": "Let me check."},
+                {"type": "tool_use", "id": "toolu_1", "name": "propose_fact", "input": {"slot": "party.date", "value": "Sunday"}}],
+    "stop_reason": "tool_use",
+    "usage": {"input_tokens": 200, "cache_read_input_tokens": 1000, "cache_creation_input_tokens": 0, "output_tokens": 30},
+})
+
+
+def claude(transport, **kw):
+    from groupflow.sim.llm.anthropic import AnthropicProvider
+    return AnthropicProvider(api_key=kw.pop("api_key", "k"), model=kw.pop("model", "claude-sonnet-5-5"), transport=transport, retry_delay_s=0, **kw)
+
+
+async def test_anthropic_request_uses_the_messages_api_with_tool_results_in_a_user_turn():
+    seen: list[httpx.Request] = []
+    p = claude(fake([ANTHROPIC_TOOL_USE], seen), api_key="sk-ant-test", base_url="https://api.anthropic.com/")
+    res = await p.complete(REQ)
+    sent = seen[0]
+    assert str(sent.url) == "https://api.anthropic.com/v1/messages"
+    assert sent.headers["x-api-key"] == "sk-ant-test" and sent.headers["anthropic-version"] == "2023-06-01"
+    body = json.loads(sent.content)
+    assert body["model"] == "claude-sonnet-5-5" and "temperature" not in body
+    assert body["system"] == [{"type": "text", "text": "You are a test.", "cache_control": {"type": "ephemeral"}}]
+    assert body["tools"][0]["name"] == "get_briefing" and "$schema" not in body["tools"][0]["input_schema"]
+    assert [m["role"] for m in body["messages"]] == ["user", "assistant", "user"]
+    assert body["messages"][1]["content"] == [{"type": "tool_use", "id": "c1", "name": "get_briefing", "input": {}}]
+    result = body["messages"][2]["content"][0]
+    assert result["type"] == "tool_result" and result["tool_use_id"] == "c1" and result["is_error"] is False
+    assert json.loads(result["content"]) == {"headline": "All caught up."}
+    assert res.stop == "tool_calls" and res.text == "Let me check."
+    assert res.tool_calls[0].name == "propose_fact" and res.tool_calls[0].arguments == {"slot": "party.date", "value": "Sunday"}
+    assert (res.usage.input_tokens, res.usage.cached_input_tokens, res.usage.output_tokens) == (1200, 1000, 30)
+
+
+def test_anthropic_consecutive_tool_results_share_one_user_turn_and_odd_ids_are_mapped():
+    from groupflow.sim.llm.anthropic import to_messages
+    calls = [LlmToolCall(id="a:1", name="explain", arguments={}, raw_arguments="{}"),
+             LlmToolCall(id="b.2", name="search_plan", arguments={"q": "x"}, raw_arguments='{"q":"x"}')]
+    msgs = to_messages([UserMessage(content="Why not 8?"), AssistantMessage(content="", tool_calls=calls),
+                        ToolMessage(tool_call_id="a:1", name="explain", content="blocked", is_error=False),
+                        ToolMessage(tool_call_id="b.2", name="search_plan", content={"error": "no"}, is_error=True)])
+    assert [m["role"] for m in msgs] == ["user", "assistant", "user"]
+    assert [b["id"] for b in msgs[1]["content"]] == ["a_1", "b_2"]
+    assert [(b["tool_use_id"], b["is_error"]) for b in msgs[2]["content"]] == [("a_1", False), ("b_2", True)]
+
+
+async def test_anthropic_overload_is_retried_and_a_rejected_key_is_not_echoed():
+    seen: list[httpx.Request] = []
+    ok = (200, {"content": [{"type": "text", "text": "Hi."}], "stop_reason": "end_turn", "usage": {"input_tokens": 5, "output_tokens": 2}})
+    p = claude(fake([(529, {"type": "error", "error": {"type": "overloaded_error", "message": "Overloaded"}}), ok], seen))
+    res = await p.complete(REQ)
+    assert len(seen) == 2 and res.text == "Hi." and res.stop == "end"
+    seen.clear()
+    bad = claude(fake([(401, {"type": "error", "error": {"type": "authentication_error", "message": "invalid x-api-key"}})], seen), api_key="sk-ant-secret")
+    with pytest.raises(LlmError) as err:
+        await bad.complete(REQ)
+    assert len(seen) == 1 and "ANTHROPIC_API_KEY" in str(err.value) and "sk-ant-secret" not in str(err.value)
+
+
+def test_factory_builds_anthropic_only_with_a_key():
+    base = dict(provider="anthropic", deepseek_api_key=None, deepseek_base_url="https://api.deepseek.com", deepseek_model="deepseek-flash",
+                deepseek_thinking="disabled", anthropic_api_key=None, anthropic_base_url="https://api.anthropic.com",
+                anthropic_model="claude-sonnet-5-5", aws_region="us-east-1", bedrock_model_id="m", timeout_s=1.0)
+    missing = create_provider(LlmSettings(**base))
+    assert isinstance(missing, MissingProvider) and "ANTHROPIC_API_KEY" in missing.reason
+    ready = create_provider(LlmSettings(**{**base, "anthropic_api_key": "sk-ant-x"}))
+    assert (ready.id, ready.label, ready.model) == ("anthropic", "Anthropic", "claude-sonnet-5-5")

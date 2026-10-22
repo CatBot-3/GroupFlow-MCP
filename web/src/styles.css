@@ -157,6 +157,8 @@ a.ghost { color: var(--ink); text-decoration: none; display: inline-flex; align-
 .primary:disabled { background: var(--ink-3); }
 
 .banner { margin: 0 20px 8px; padding: 8px 12px; background: var(--highlight); color: var(--highlight-ink); border-radius: var(--r-paper); }
+.banner.sandbox-note { background: var(--paper, #fff); color: inherit; border: 1px solid var(--line, #d8dde3); }
+.banner.sandbox-note a { color: inherit; font-weight: 700; }
 
 /* ------------------------------------------------------------ guided demo */
 

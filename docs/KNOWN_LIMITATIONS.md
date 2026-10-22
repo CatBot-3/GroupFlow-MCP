@@ -4,7 +4,7 @@ GroupFlow is a hackathon build. These are the boundaries we know about, each wit
 
 ## Scope
 
-1. **The Echo devices are simulated.** The simulator drives a real language model (DeepSeek by default; Amazon Bedrock or any OpenAI-compatible endpoint as options) through real MCP sessions, but it is not Alexa+. The server implements what Amazon documents for add-ons (Streamable HTTP, the two OAuth tiers, account linking), but add-on testing on a device needs Private Preview access, so it has never run on one.
+1. **The Echo devices are simulated.** The simulator drives a real language model (DeepSeek by default; Anthropic, Amazon Bedrock or any OpenAI-compatible endpoint as options) through real MCP sessions, but it is not Alexa+. The server implements what Amazon documents for add-ons (Streamable HTTP, the two OAuth tiers, account linking), but add-on testing on a device needs Private Preview access, so it has never run on one.
 2. **Bookings are simulated.** After a commit, GroupFlow records booking receipts with idempotency keys and a `SIM-` reference for the activity kinds a template marks as bookable. No restaurant, room or ride service is contacted.
 3. **Verified facts come from the demo console.** A closed venue or a changed price becomes verified only when a trusted source reports it; in the demo that source is the console. A member telling the assistant is stored as an unverified report and changes nothing until confirmed.
 4. **Notifications are pulled, not pushed.** Notices, reminders and check-ins wait on the server until the person next talks to their assistant or opens their page; the group chat shows them at once in the person's private thread. We found no documented way for an Alexa+ add-on to start a notification.

@@ -1,6 +1,7 @@
 """Command line entry point.
 
-    python -m groupflow demo        GroupFlow server (8787) and the Alexa+ simulator (8788) together
+    python -m groupflow sandbox     a playground: server and simulator with their own database; make your own accounts and groups
+    python -m groupflow demo        server and simulator, opening on the story from the demo video
     python -m groupflow server      only the MCP server (with the human confirmation API)
     python -m groupflow sim         only the simulator (connects to GROUPFLOW_MCP_URL)
     python -m groupflow reset       reset the demo data (a group such as family or friends, friends:<stage>, or all)
@@ -58,20 +59,29 @@ def _demo_admin_key(settings):
     return replace(settings, admin_key=key, demo_admin=True)
 
 
-def _build_runtime(args: argparse.Namespace, demo: bool = False):
+def _build_runtime(args: argparse.Namespace, demo: bool = False, sandbox: bool = False):
     from groupflow.runtime import build_runtime, log_call
 
     settings = _server_settings(args)
+    if sandbox and not getattr(args, "db", None):
+        from groupflow.core.settings import REPO_ROOT
+
+        # The sandbox keeps what people make in its own file, apart from the story and any other work, across restarts.
+        settings = replace(settings, db_path=str(REPO_ROOT / "data" / "sandbox.db"))
     if demo:
         settings = _demo_admin_key(settings)
     if getattr(args, "fresh", False) and settings.db_path != ":memory:":
-        for suffix in ("", "-wal", "-shm"):
-            Path(settings.db_path + suffix).unlink(missing_ok=True)
+        from groupflow.core.settings import chat_db_for
+
+        # The group chat's store next to it goes too: its accounts and messages belong to the database being replaced.
+        for path in (settings.db_path, chat_db_for(settings.db_path)):
+            for suffix in ("", "-wal", "-shm"):
+                Path(path + suffix).unlink(missing_ok=True)
     Path(settings.db_path).parent.mkdir(parents=True, exist_ok=True)
     stage = getattr(args, "stage", None)
     # The demo opens on the guided story, which starts before the friends group exists (Alice creates it and invites the others)
-    # and with no plan; --stage brings back the seeded group and dinner.
-    stages = {"friday_dinner": stage or "none"} if (stage or demo) else None
+    # and with no plan; --stage brings back the seeded group and dinner. The sandbox seeds the demo world as the server does.
+    stages = {"friday_dinner": stage or "none"} if (stage or (demo and not sandbox)) else None
     if stages is not None and stages["friday_dinner"] == "none":
         stages["group:friends"] = "none"  # the guided story starts before the group exists: Alice creates it and invites the others
     from groupflow.core.db import SchemaMismatch
@@ -127,12 +137,16 @@ def _provider_info(app) -> dict:
     return app.state.agent.provider_info
 
 
-def cmd_demo(args: argparse.Namespace) -> int:
+def cmd_sandbox(args: argparse.Namespace) -> int:
+    return cmd_demo(args, sandbox=True)
+
+
+def cmd_demo(args: argparse.Namespace, sandbox: bool = False) -> int:
     from groupflow.core.serve import run_app, serve_in_background
     from groupflow.core.settings import SimSettings
     from groupflow.sim.app import build_sim_app
 
-    settings, rt = _build_runtime(args, demo=True)
+    settings, rt = _build_runtime(args, demo=True, sandbox=sandbox)
     try:
         bg = serve_in_background(rt.app, host=settings.host, port=settings.port)
     except OSError as err:
@@ -144,8 +158,12 @@ def cmd_demo(args: argparse.Namespace) -> int:
     sim = SimSettings()
     sim = replace(sim, mcp_url=f"{bg.base}/mcp", port=args.sim_port or sim.port, chat_db=env("GROUPFLOW_CHAT_DB") or chat_db_for(settings.db_path),
                   admin_key=settings.admin_key)
-    app = build_sim_app(sim, world_path=settings.world_path)
+    app = build_sim_app(sim, world_path=settings.world_path, sandbox=sandbox)
     _sim_banner(sim, _provider_info(app))
+    if sandbox:
+        print(f"[sandbox] database {settings.db_path} (kept between runs; --fresh starts over)", flush=True)
+        print(f"[sandbox] make your own account and group: http://localhost:{sim.port}/chat", flush=True)
+        print(f"[sandbox] the demo world's people and their Echos: http://localhost:{sim.port}", flush=True)
     try:
         run_app(app, host=sim.host, port=sim.port)
     finally:
@@ -212,6 +230,8 @@ def cmd_check(_args: argparse.Namespace) -> int:
     print(f"provider      {llm.provider}: {'ready, ' + p.label + ' ' + p.model if p.id != 'none' else 'NOT READY - ' + str(p.reason)}")
     if llm.provider == "deepseek":
         print(f"DeepSeek key  {'present' if llm.deepseek_api_key else 'missing'}")
+    elif llm.provider == "anthropic":
+        print(f"Anthropic key {'present' if llm.anthropic_api_key else 'missing'}")
     from groupflow.repair.cpsat import available
     from groupflow.repair.msvc import describe
 
@@ -284,7 +304,14 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--stage", choices=STAGES, default=None, help="starting stage of the Friday dinner when seeding (demo default: none, the guided story makes it; server default: committed)")
         p.add_argument("--fresh", action="store_true", help="start from a fresh database")
 
-    p_demo = sub.add_parser("demo", help="server and simulator together")
+    p_sandbox = sub.add_parser("sandbox", help="a playground with its own database: make your own accounts and groups")
+    p_sandbox.add_argument("--port", type=int, help="server port (default 8787 or GROUPFLOW_PORT)")
+    p_sandbox.add_argument("--db", help="SQLite file (default data/sandbox.db)")
+    p_sandbox.add_argument("--world", help="Demo world YAML (default demo/world.yaml)")
+    p_sandbox.add_argument("--fresh", action="store_true", help="start the sandbox over")
+    p_sandbox.add_argument("--sim-port", type=int)
+    p_sandbox.set_defaults(fn=cmd_sandbox)
+    p_demo = sub.add_parser("demo", help="server and simulator, opening on the story from the demo video")
     server_opts(p_demo)
     p_demo.add_argument("--sim-port", type=int)
     p_demo.set_defaults(fn=cmd_demo)

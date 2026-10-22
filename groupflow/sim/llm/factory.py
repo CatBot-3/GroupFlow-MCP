@@ -3,9 +3,9 @@ from __future__ import annotations
 
 from groupflow.core.settings import LlmSettings
 
+from .anthropic import AnthropicProvider
 from .bedrock import BedrockProvider
 from .openai_compat import OpenAiCompatibleProvider
-from .relay import RelayProvider
 from .types import LlmError, LlmRequest, LlmResponse
 
 
@@ -36,9 +36,10 @@ def create_provider(s: LlmSettings | None = None):
             return MissingProvider("OpenAI-compatible", "Set OPENAI_COMPAT_BASE_URL, OPENAI_COMPAT_MODEL and (if needed) OPENAI_COMPAT_API_KEY in .env.")
         return OpenAiCompatibleProvider(id="openai", label="OpenAI-compatible", base_url=s.openai_base_url, api_key=s.openai_api_key or "",
                                         model=s.openai_model, thinking=None, timeout_s=s.timeout_s)
+    if which == "anthropic":
+        if not s.anthropic_api_key:
+            return MissingProvider("Anthropic", "No Anthropic API key is set. Add ANTHROPIC_API_KEY=... to the .env file in the GroupFlow folder and restart.")
+        return AnthropicProvider(api_key=s.anthropic_api_key, model=s.anthropic_model, base_url=s.anthropic_base_url, timeout_s=s.timeout_s)
     if which == "bedrock":
         return BedrockProvider(model_id=s.bedrock_model_id, region=s.aws_region)
-    if which == "relay":
-        # An outside agent answers each completion over /api/relay (see groupflow/sim/llm/relay.py).
-        return RelayProvider(label=s.relay_label, model=s.relay_model)
-    return MissingProvider(which, f'Unknown AGENT_PROVIDER "{s.provider}". Use deepseek, bedrock, openai or relay.')
+    return MissingProvider(which, f'Unknown AGENT_PROVIDER "{s.provider}". Use deepseek, anthropic, bedrock or openai.')

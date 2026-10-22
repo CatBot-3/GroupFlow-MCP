@@ -28,7 +28,6 @@ from groupflow.core.settings import LlmSettings, SimSettings
 from groupflow.sim.agent import PERSONAL_DEVICE, LlmAgent, compact, format_today
 from groupflow.sim.chat import ChatService, ChatStore, register_chat_routes
 from groupflow.sim.demo_script import SCRIPTS, story_time
-from groupflow.sim.llm.relay import RelayProvider, register_relay_routes
 from groupflow.sim.llm.types import LlmError
 from groupflow.sim.mcp_pool import SessionPool
 from groupflow.sim.memory import memory_map, turn_plan_ids, visible_plan_ids
@@ -84,7 +83,7 @@ def _now() -> str:
 
 
 def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traffic: TrafficLog, mcp_url: str, server_base: str, admin_key: str,
-                   web_dist: str | None = None, demo_passcodes: bool = True, chat_store: ChatStore | None = None) -> FastAPI:
+                   web_dist: str | None = None, demo_passcodes: bool = True, chat_store: ChatStore | None = None, sandbox: bool = False) -> FastAPI:
     from groupflow.templates import get_template
 
     loop_ref: dict[str, asyncio.AbstractEventLoop] = {}
@@ -112,8 +111,6 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
     app.state.chat = chat
     if chat is not None:
         register_chat_routes(app, chat)
-    if isinstance(agent.provider, RelayProvider):
-        register_relay_routes(app, agent.provider)
     real_now = agent.now
     members: dict[str, dict[str, Any]] = {}
     for p in world.people:
@@ -192,7 +189,7 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
 
         templates = [{"id": t.id, "name": t.name, "description": t.description} for t in load_templates().values()]
         return {"scenarios": scenarios, "templates": templates, "provider": agent.provider_info, "mcpUrl": mcp_url, "serverBase": server_base,
-                "showcase": {"group": "friends", "script": SCRIPTS.get("friends", [])}, "chat": chat is not None}
+                **({"sandbox": True} if sandbox else {"showcase": {"group": "friends", "script": SCRIPTS.get("friends", [])}}), "chat": chat is not None}
 
     @app.get("/api/health")
     async def health() -> JSONResponse:
@@ -506,7 +503,7 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
     return app
 
 
-def build_sim_app(sim: SimSettings | None = None, llm: LlmSettings | None = None, world_path: str | None = None) -> FastAPI:
+def build_sim_app(sim: SimSettings | None = None, llm: LlmSettings | None = None, world_path: str | None = None, sandbox: bool = False) -> FastAPI:
     """Wire the simulator from settings: the demo world's people, the provider, sessions and the agent."""
     from groupflow.core.settings import ServerSettings
     from groupflow.sim.llm.factory import create_provider
@@ -521,4 +518,4 @@ def build_sim_app(sim: SimSettings | None = None, llm: LlmSettings | None = None
     sessions = SessionPool(tokens, sim.mcp_url, traffic)
     agent = LlmAgent(sessions=sessions, provider=create_provider(llm), member_names=names, timezone=sim.timezone, max_steps=llm.max_steps)
     return create_sim_app(world=world, agent=agent, sessions=sessions, traffic=traffic, mcp_url=sim.mcp_url, server_base=sim.server_base,
-                          admin_key=sim.admin_key, web_dist=sim.web_dist, chat_store=ChatStore(sim.chat_db))
+                          admin_key=sim.admin_key, web_dist=sim.web_dist, chat_store=ChatStore(sim.chat_db), sandbox=sandbox)

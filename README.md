@@ -20,26 +20,11 @@ That leads to three design decisions, all visible in the demo:
 | Private limits stay private, but still count | Chen tells his own Alexa he can't arrive before 6:15. GroupFlow plans around it, and everyone else only ever hears "a member's earliest time" | People share real constraints only if they are not broadcast to the group |
 | When something changes, only the changed part is asked again | The restaurant closes, GroupFlow finds the smallest change that still fits everyone, and twelve of the sixteen answers stay valid: **4 new confirmations instead of 16** | Asking everyone to re-confirm everything is how plans die |
 
-## How this entry meets the hackathon requirements
+## Run it
 
-From the [official rules](https://amazonappdev2026.devpost.com/rules):
+The demo video plays a prepared story one step at a time. To try GroupFlow yourself, run the **sandbox**: the same server and simulator with a database of its own, where you can make your own accounts, start groups, invite people and plan anything. It keeps what you make between runs.
 
-| Requirement | Where it is met |
-| --- | --- |
-| Alexa+ track: a self-hosted MCP server implementing MCP 2025-11-25 over Streamable HTTP | `groupflow/mcp_server/`, built on the official MCP Python SDK. A captured handshake and tool calls are in [docs/PROTOCOL_EVIDENCE.md](docs/PROTOCOL_EVIDENCE.md) |
-| Simulation path: the simulated Alexa+ experience's source code is in the repository, and the video clearly shows the simulation | The simulator is `groupflow/sim/` (the assistants) and `web/` (the page). The page and the video label it "Simulated Alexa+" |
-| Setup and run instructions; judges can test it | [Try it](#try-it), with [demo sign-ins](#demo-sign-ins) for every person. No hardware is needed |
-| All source code, assets and instructions in the repository | Everything needed to run the demo is here, including a built copy of the web page in `web/dist` |
-| Open-source license, visible in the repository's About section | [MIT](LICENSE) |
-| Product feedback for each tool, API and SDK used | [docs/PRODUCT_FEEDBACK.md](docs/PRODUCT_FEEDBACK.md) |
-| Friction log (bonus of up to 10%) | [docs/FRICTION_LOG.md](docs/FRICTION_LOG.md): each Alexa+ entry has the task, steps, expected and actual result, severity, workaround and suggestion |
-| Demo video under three minutes | *Link added with the Devpost submission* |
-| AWS Builder mini challenge (optional) | Amazon Bedrock is built in as a model provider for the simulated assistant (`groupflow/sim/llm/bedrock.py`). It has not been run with real AWS credentials, so every reported result uses DeepSeek; see product feedback |
-| Open Source mini challenge (optional) | This repository is a new open-source project, started inside the hackathon window |
-
-## Try it
-
-You need Python 3.10 or newer. Node.js is only needed if you want to change the web page.
+You need Python 3.10 or newer and an API key for one language model, which plays the simulated Alexa. The GroupFlow server itself needs no key. Node.js is only needed if you want to change the web page.
 
 1. **Install.**
 
@@ -52,23 +37,48 @@ You need Python 3.10 or newer. Node.js is only needed if you want to change the 
    pip install -e ".[dev]"
    ```
 
-2. **Give the simulated Alexa a language model.** Copy `.env.example` to `.env` and set `DEEPSEEK_API_KEY`, or choose Amazon Bedrock or any OpenAI-compatible service there (see [Configuration](#configuration)). Only the simulated assistant needs a key; the GroupFlow server itself does not. `.env` is ignored by git, and the key is never printed or logged.
-
-3. **Start GroupFlow and the simulator.**
+2. **Edit `.env`.** Copy the example file, then open `.env` in any text editor.
 
    ```bash
-   python -m groupflow demo
+   copy .env.example .env          # Windows Command Prompt
+   Copy-Item .env.example .env     # Windows PowerShell
+   cp .env.example .env            # macOS, Linux
    ```
 
-   The MCP server listens on http://127.0.0.1:8787/mcp and the simulator page is at http://localhost:8788. `python -m groupflow check` shows the configuration (whether the key is present, never the key itself).
+   Fill in one of the four options; the file explains each line.
 
-4. **Play the story.** The page opens on the demo story with no group and no plan. Press **Play step 1** (or the N key) to play one step at a time, or type to any Echo yourself. **Test lab** in the header shows every group of the demo world side by side, a view of exactly what each assistant received over MCP, and a console that plays outside events. A group chat version of the same assistant is at http://localhost:8788/chat.
+   | Model | What to set in `.env` |
+   | --- | --- |
+   | DeepSeek (the default) | Paste your key after `DEEPSEEK_API_KEY=`. Nothing else is needed |
+   | Anthropic (Claude) | `AGENT_PROVIDER=anthropic` and `ANTHROPIC_API_KEY`. `ANTHROPIC_MODEL` is optional (default `claude-sonnet-5-5`) |
+   | Amazon Bedrock | `AGENT_PROVIDER=bedrock`, `AWS_REGION` and `BEDROCK_MODEL_ID` (a model that supports tool use and is enabled for your account in that region; Amazon Nova Pro is the default), plus either `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` or an `AWS_PROFILE` |
+   | Any OpenAI-compatible service | `AGENT_PROVIDER=openai`, `OPENAI_COMPAT_BASE_URL`, `OPENAI_COMPAT_API_KEY` and `OPENAI_COMPAT_MODEL`. The model must support tool calls |
 
-For a recording, use a separate database so the story can be reset without touching other work: `python -m groupflow demo --db data/video.db --fresh`. `python scripts/play_demo.py` plays the whole story against a running demo without the page and prints every reply, which is a quick rehearsal.
+   Then run `python -m groupflow check`. It shows which model will be used and whether its key is present, never the key itself. `.env` is ignored by git, so the key stays on your machine.
 
-## What the demo shows
+3. **Start the sandbox.**
 
-Four friends plan Friday dinner over four days, each talking only to their own Echo. Every step is live: the language model chooses GroupFlow tools over MCP, and each person's answers go through their own screen. The step-by-step table is in [docs/DEMO_FRIENDS.md](docs/DEMO_FRIENDS.md).
+   ```bash
+   python -m groupflow sandbox
+   ```
+
+   The MCP server listens on http://127.0.0.1:8787/mcp and the page is at http://localhost:8788. The sandbox's database is `data/sandbox.db`; `python -m groupflow sandbox --fresh` starts it over.
+
+4. **Try it.**
+
+   | To try | How |
+   | --- | --- |
+   | Your own group | Open http://localhost:8788/chat, choose **Sign up**, and pick a name and passcode. Choose **Link Alexa** when asked, then **+ New group**, and **Invite people** to get an invite link and code |
+   | A second person | Open the invite link in a private window or another browser and sign up there. Each window is one person, so you can play the whole group yourself |
+   | Planning with Alexa | In the group, start a message with **@Alexa**: "@Alexa start a plan for dinner on Saturday at 7". Alexa answers in the group, and anything only you can decide (confirming, joining, a private limit) appears under **Needs your answer** on your own side |
+   | Private limits | In **Alexa (private)**, tell Alexa something the group should not hear: "I have to be home by 10 on Saturday". Confirm it under **Needs your answer**; from then on the plan respects it, and nobody else learns it is yours |
+   | Joining by voice | As someone not yet in the group, tell your private Alexa "join the group with code" followed by the invite code. Nothing happens until you press **Join** |
+   | The demo world | The first page shows the demo world's five groups (family, friends, cottage trip, team, study group) with one Echo per person; type to any Echo to talk as that person. The bar at the bottom shows every MCP call. The group chat's sign-in page also has one button per demo person (their passcodes are in [demo sign-ins](#demo-sign-ins)) |
+   | Your own MCP client | Connect it to http://127.0.0.1:8787/mcp as described in [Connect an MCP client](#connect-an-mcp-client) |
+
+## What the demo video shows
+
+Four friends plan Friday dinner over four days, each talking only to their own Echo. Every step is live: the language model chooses GroupFlow tools over MCP, and each person's answers go through their own screen. The story and how to replay it are in [docs/DEMO_FRIENDS.md](docs/DEMO_FRIENDS.md).
 
 | Day | What happens | What it shows |
 | --- | --- | --- |
@@ -124,7 +134,7 @@ Four friends plan Friday dinner over four days, each talking only to their own E
 
 ## Results
 
-**Automated tests.** `python -m pytest -q` runs 958 tests without any model key: the consent rules over real MCP sessions and the human-only API, the repair search checked against brute force, OAuth flows, shared-device privacy, repeated requests recorded once, eight concurrent MCP sessions on one database with a crash and restart, and every server outcome of the demo story (`tests/sim/test_guided_story.py`). GitHub Actions runs them on every push.
+**Automated tests.** `python -m pytest -q` runs 965 tests without any model key: the consent rules over real MCP sessions and the human-only API, the repair search checked against brute force, OAuth flows, shared-device privacy, repeated requests recorded once, eight concurrent MCP sessions on one database with a crash and restart, and every server outcome of the demo story (`tests/sim/test_guided_story.py`). GitHub Actions runs them on every push.
 
 **With a real language model.** The evaluation plays 57 scenarios that the prompts were never tuned on (slang, typos, requests buried in chatter, people changing their mind, group chats with someone listening), three times each, and checks what the server did, never the exact wording. We ran it two ways, because Alexa+ gives an add-on only two levers, its server instructions and its tool descriptions:
 
@@ -339,8 +349,9 @@ Every setting has a working local default, and `.env.example` lists them. Only t
 
 | Variable | Default | What it sets |
 | --- | --- | --- |
-| `AGENT_PROVIDER` | `deepseek` | The simulated assistant's model: `deepseek`, `bedrock`, `openai` (any compatible service), or `relay` (an outside agent answers each model request; [how](docs/DEMO_FRIENDS.md#recording-with-another-model)) |
+| `AGENT_PROVIDER` | `deepseek` | The simulated assistant's model: `deepseek`, `anthropic`, `bedrock` or `openai` (any compatible service) |
 | `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL` | none, `deepseek-flash` | DeepSeek |
+| `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `ANTHROPIC_BASE_URL` | none, `claude-sonnet-5-5`, `https://api.anthropic.com` | Anthropic's Claude Messages API |
 | `BEDROCK_MODEL_ID`, `AWS_REGION` | `us.amazon.nova-pro-v1:0`, `us-east-1` | Amazon Bedrock (Converse API); credentials come from the standard AWS chain |
 | `OPENAI_COMPAT_BASE_URL`, `OPENAI_COMPAT_API_KEY`, `OPENAI_COMPAT_MODEL` | none | Any OpenAI-compatible service |
 | `GROUPFLOW_HOST`, `GROUPFLOW_PORT` | `127.0.0.1`, `8787` | Where the server listens |
@@ -399,7 +410,7 @@ The Echo devices are simulated, and the add-on has not run on a real Alexa+ devi
 
 | Document | What it covers |
 | --- | --- |
-| [DEMO_FRIENDS.md](docs/DEMO_FRIENDS.md) | The demo story step by step, how to run and record it |
+| [DEMO_FRIENDS.md](docs/DEMO_FRIENDS.md) | The story in the demo video, and how to replay it |
 | [EVALUATION.md](docs/EVALUATION.md) | How GroupFlow is tested with and without a language model, and the results |
 | [PRODUCT_FEEDBACK.md](docs/PRODUCT_FEEDBACK.md) | Feedback on each tool, API and SDK we used, and what we would ask Amazon for |
 | [FRICTION_LOG.md](docs/FRICTION_LOG.md) | Problems we hit with the Alexa+ add-on platform and while building |
