@@ -296,6 +296,9 @@ class CreatePlanResult(BaseModel):
     outcome: Literal["created"]
     message: str
     plan: PlanView
+    suggested_followup: dict[str, Any] | None = Field(default=None, description=(
+        "An optional stop the template offers (\"Do you want dessert after dinner?\"): end the reply with its question and pass the "
+        "answer to answer_followup."))
 
 
 class LinkResult(BaseModel):

@@ -289,3 +289,16 @@ def test_spoken_time_choices_match_only_the_stated_option(words, expected):
     options[0] = {'label': '7pm'}
     picked = Notices._match_option(options, words)
     assert (picked['label'] if picked else None) == ('7pm' if expected == '7:00 pm' else expected)
+
+
+def test_spoken_times_answer_a_time_question():
+    """A voice answer arrives in words ("nine thirty"); it picks the matching option instead of being refused."""
+    from groupflow.engine.notices import Notices
+    pick = Notices._match_option
+    times = [{"label": "8:30 pm"}, {"label": "9:00 pm"}, {"label": "9:30 pm"}]
+    for said, label in [("Nine thirty.", "9:30 pm"), ("nine-thirty", "9:30 pm"), ("half past nine", "9:30 pm"), ("Nine.", "9:00 pm"),
+                        ("nine pm", "9:00 pm"), ("eight thirty please", "8:30 pm"), ("the first one", "8:30 pm")]:
+        assert (pick(times, said) or {}).get("label") == label, said
+    assert pick(times, "quarter to ten") is None, "9:45 is not an option"
+    assert pick([{"label": "6:15 pm"}, {"label": "6:30 pm"}], "quarter past six")["label"] == "6:15 pm"
+    assert pick([{"label": "one table"}, {"label": "two tables"}], "one of them") is None, "an hour word alone in a sentence stays a word"

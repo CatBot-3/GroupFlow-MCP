@@ -96,3 +96,28 @@ def test_every_chapter_of_the_story_has_a_clock_in_order():
     assert times == sorted(times)
     # The check-in skips 26 quiet hours: Tuesday's clock plus 26 hours is about Wednesday's.
     assert abs((times[2] - times[1]).total_seconds() / 3600 - 26) < 0.5
+
+
+@pytest.fixture
+async def no_group_sim():
+    h = start_harness(RelayProvider(), stages={"friday_dinner": "none", "group:friends": "none"})
+    app = create_sim_app(world=h.rt.world, agent=h.agent, sessions=h.sessions, traffic=h.traffic, mcp_url=h.url, server_base=h.bg.base,
+                         admin_key=ADMIN_KEY, web_dist=None)
+    bg = serve_in_background(app)
+    client = httpx.AsyncClient(base_url=bg.base, timeout=60)
+    client.h = h  # type: ignore[attr-defined]
+    yield client
+    await client.aclose()
+    bg.stop()
+    await h.close()
+
+
+async def test_the_story_group_does_not_exist_until_alice_makes_it_and_reset_removes_it(no_group_sim):
+    sim = no_group_sim
+    before = (await sim.get("/api/inspector", params={"scenario": "friends"})).json()
+    assert before["group"] is None and before["plans"] == []
+    sim.h.engine.create_group("alice", "Friends")
+    made = (await sim.get("/api/inspector", params={"scenario": "friends"})).json()
+    assert made["group"]["id"] == "friends" and [m["id"] for m in made["group"]["members"]] == ["alice"]
+    assert (await sim.post("/api/reset", json={"scenario": "friends"})).status_code == 200
+    assert (await sim.get("/api/inspector", params={"scenario": "friends"})).json()["group"] is None

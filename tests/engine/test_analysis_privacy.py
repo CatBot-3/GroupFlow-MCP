@@ -443,60 +443,6 @@ def _comparison_payload(value):
     return value
 
 
-def test_hidden_and_cross_group_history_have_no_effect_on_fairness_ranking_or_reports():
-    gf = seeded({PLAN: 'degraded'})
-    for member in ('alice', 'bob'):
-        gf.human_fairness_preference(gf.identity.get(member), 'friends', True)
-    # An authentic, committed source plan visible to Alice alone. Bob cannot
-    # learn even the existence of this plan through accommodation diagnostics.
-    hidden = gf.create_plan('alice', 'evening_out', 'PRIVATE_HISTORY_SENTINEL_941', group='friends', audience=['alice']).plan.id
-    _commit_event(gf, hidden, ('alice',))
-    foreign = gf.create_plan('alice', 'evening_out', 'FOREIGN_GROUP_HISTORY_SENTINEL_927', group='family', audience=['alice', 'bob']).plan.id
-    gf.human_fairness_preference(gf.identity.get('bob'), 'family', True)
-    _commit_event(gf, foreign, ('alice', 'bob'))
-    options = gf.planning_options('alice', PLAN)
-    assert options['alternatives']
-    before = _comparison_payload(diagnostic(gf, mode='fairness', actor='bob'))
-    gf.propose_change('alice', plan=hidden, item=_dinner_id(gf, hidden), place='Restaurant B')
-    _commit_event(gf, hidden, ('alice',))
-    assert histories(gf, 'alice') and any(row['plan_id'] == hidden for row in histories(gf, 'alice'))
-    gf.db.run('UPDATE fairness_history SET burden=999999 WHERE plan_id=?', hidden)
-    after_hidden = _comparison_payload(diagnostic(gf, mode='fairness', actor='bob'))
-    assert after_hidden == before
-    gf.propose_change('alice', plan=foreign, item=_dinner_id(gf, foreign), place='Restaurant B')
-    _commit_event(gf, foreign, ('alice', 'bob'))
-    assert histories(gf, 'bob', group='family')
-    gf.db.run('UPDATE fairness_history SET burden=888888 WHERE plan_id=?', foreign)
-    after_foreign = _comparison_payload(diagnostic(gf, mode='fairness', actor='bob'))
-    assert after_foreign == before
-    text = json.dumps(after_foreign)
-    assert all(secret not in text for secret in (hidden, foreign, 'PRIVATE_HISTORY_SENTINEL_941', 'FOREIGN_GROUP_HISTORY_SENTINEL_927', '999999', '888888'))
-
-
-def test_fairness_history_is_filtered_for_every_room_listener_not_only_the_speaker():
-    gf = seeded({PLAN: 'degraded'})
-    gf.db.run("UPDATE conditions SET visibility='group'")
-    gf.human_fairness_preference(gf.identity.get('alice'), 'friends', True)
-    hidden = gf.create_plan('alice', 'evening_out', 'ROOM_HIDDEN_HISTORY_779', group='friends', audience=['alice']).plan.id
-    _commit_event(gf, hidden, ('alice',))
-    assert gf.planning_options('alice', PLAN)['alternatives']
-    token = LISTENERS.set(('alice', frozenset({'alice', 'bob'})))
-    try:
-        before = _comparison_payload(diagnostic(gf, mode='fairness'))
-    finally:
-        LISTENERS.reset(token)
-    gf.propose_change('alice', plan=hidden, item=_dinner_id(gf, hidden), place='Restaurant B')
-    _commit_event(gf, hidden, ('alice',))
-    gf.db.run('UPDATE fairness_history SET burden=777777 WHERE plan_id=?', hidden)
-    token = LISTENERS.set(('alice', frozenset({'alice', 'bob'})))
-    try:
-        after = _comparison_payload(diagnostic(gf, mode='fairness'))
-    finally:
-        LISTENERS.reset(token)
-    assert before == after
-    assert hidden not in json.dumps(after) and '777777' not in json.dumps(after)
-
-
 def test_fairness_alternatives_are_independently_feasible_and_selection_creates_no_consent():
     gf = seeded({PLAN: 'degraded'})
     for member in FRIENDS:

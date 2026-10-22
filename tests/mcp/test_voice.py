@@ -57,7 +57,7 @@ async def test_the_voice_surface_is_small_and_honest_about_risk(voice):
         assert hints["lock_in"].destructive_hint and hints["change_plan"].destructive_hint and hints["split_costs"].destructive_hint
         assert not hints["start_plan"].destructive_hint and not hints["catch_up"].destructive_hint
     async with client(voice, "alice", "/mcp/lab") as lab:
-        assert len((await lab.list_tools()).tools) == 35
+        assert len((await lab.list_tools()).tools) == 36
 
 
 async def test_the_repair_journey_by_voice_needs_only_the_changed_confirmations(voice):

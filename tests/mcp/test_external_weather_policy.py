@@ -44,7 +44,7 @@ async def test_real_initialize_exposes_optional_weather_policy_without_claiming_
         assert LOCAL_HOST_CAPABILITIES not in instructions
     async with connect(server, 'avery') as client:
         tools = (await client.list_tools()).tools
-        assert len(tools) == 35
+        assert len(tools) == 36
         assert not any('weather' in tool.name.lower() or 'forecast' in tool.name.lower() for tool in tools)
 
 

@@ -41,7 +41,7 @@ Two parts. First, friction with the Alexa+ add-on platform and its documentation
 * **Expected:** A recognized-speaker or shared-device indication, so a server can choose what is safe to say aloud.
 * **Actual:** One OAuth token per linked account and nothing about the room.
 * **Severity:** High for any add-on with private data.
-* **Workaround:** Room mode: when a host does not declare listeners, GroupFlow leaves plans kept from someone out of summaries and serves them only when named; a host can declare a personal device with `X-GroupFlow-Listeners: me`. Measured cost: in the minimal-host evaluation several failures were requests about a plan the summary had left out (see EVALUATION.md).
+* **Workaround:** A shared-device default: when a host does not say who is listening, GroupFlow leaves plans hidden from someone out of summaries and serves them only when named; a host can declare a personal device with `X-GroupFlow-Listeners: me`. Measured cost: in the evaluation of the Alexa+-like client, most failures were requests about a plan the summary had left out (see EVALUATION.md).
 * **Suggestion:** Pass a shared-device flag (and, when known, the recognized speaker) to add-ons.
 
 ### F5. Device testing needs Private Preview access
@@ -51,7 +51,7 @@ Two parts. First, friction with the Alexa+ add-on platform and its documentation
 * **Expected:** A self-serve test path for hackathon entrants.
 * **Actual:** Add-on testing on devices sits behind Private Preview access.
 * **Severity:** High for the production track (the rules ask to show the server running on the device).
-* **Workaround:** We entered on the simulation path, and built a minimal host that adds nothing GroupFlow-specific so the measured numbers describe what a plain client gets.
+* **Workaround:** We entered on the simulation path, and built an Alexa+-like client that adds nothing GroupFlow-specific, so the measured numbers describe what a plain host gets.
 * **Suggestion:** Give hackathon participants preview access or a hosted test client.
 
 ### F6. The 500 ms requirement does not say what is measured
@@ -81,7 +81,7 @@ Two parts. First, friction with the Alexa+ add-on platform and its documentation
 * **Expected:** Whether initialize instructions reach the model, and whether readOnlyHint and destructiveHint change confirmation behaviour.
 * **Actual:** Not stated.
 * **Severity:** Medium (it decides how much an add-on can rely on).
-* **Workaround:** The voice profile keeps all essential rules on the server and in short tool descriptions; server instructions are under 1,600 characters, and every write is guarded server-side regardless of hints.
+* **Workaround:** The voice tools keep all essential rules on the server and in short tool descriptions; the server instructions are about 1,700 characters, and every write is guarded on the server regardless of hints.
 * **Suggestion:** Document which server fields Alexa+ passes to its model and how it uses tool annotations.
 
 ## Part 2. Engineering notes from the build
@@ -97,13 +97,13 @@ These are in the order we hit them, with what fixed each one.
 5. **Async event hooks.** The SDK uses `httpx2`; on an async client a response hook must be an `async def`.
 6. **Identity per request.** The member goes on the ASGI scope in an auth wrapper and tools read it through the request context; each `mcp-session-id` is bound to the member who opened it.
 7. **Elicitation needs a streamed response.** With one JSON body per request a tool cannot send `elicitation/create` mid-call, so the response mode is a setting and `ask_followup` falls back to a spoken question.
-8. **Advertised schemas are verbose.** Pydantic schemas carry titles, `anyOf` with null and `default: null` for every optional field; for the voice profile we simplify the advertised schema (validation still uses the full signature), which with lean descriptions brought 13 tools to 12.8 KB.
+8. **Advertised schemas are verbose.** Pydantic schemas carry titles, `anyOf` with null and `default: null` for every optional field; for the voice tools we simplify the advertised schema (validation still uses the full signature), which with lean descriptions brought 13 tools to about 13 KB.
 
 ### LLM behaviour (DeepSeek, OpenAI-compatible API)
 
 9. **Thinking mode is on by default** on DeepSeek, which adds seconds per turn; we send it disabled.
 10. **Hedges confirmed as decisions; negations stored as values; permissions guessed by the model; "noted" without a tool call.** Each was fixed in tool descriptions and server rules, and the evaluation counts the last one.
-11. **Host help hides weaknesses.** The simulator's long prompt, forced state read and reply re-check raised scores that a plain host would not get. The minimal host and pass^3 now measure that gap (EVALUATION.md).
+11. **Host help hides weaknesses.** The simulator's long prompt, forced state read and reply re-check raised scores that a plain host would not get. The Alexa+-like client, and counting scenarios that pass all three runs, now measure that gap (EVALUATION.md).
 
 ### Data and platform
 

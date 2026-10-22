@@ -154,6 +154,29 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
     async def admin(method: str, path: str, **kw: Any) -> httpx.Response:
         return await backend_clients["http"].request(method, path, headers={"x-groupflow-admin": admin_key or ""}, **kw)
 
+    async def live_group_info(gid: str | None) -> dict[str, Any] | None:
+        """The demo group as it exists on the server now. The guided story creates the friends group on camera, so before that it
+        does not exist (None), and the id comes from the name Alice gives it, which is matched against the world's group name."""
+        if not gid:
+            return None
+        try:
+            groups = (await admin("GET", "/debug/groups")).json().get("groups", [])
+        except (httpx.HTTPError, ValueError):
+            return {"id": gid, "members": None}
+        for g in groups:
+            if g["id"] == gid:
+                return g
+        try:
+            wanted = world.group(gid)["name"].casefold()
+        except Exception:  # noqa: BLE001 - not a world group
+            return None
+        named = [g for g in groups if g["name"].casefold() in wanted or wanted in g["name"].casefold()]
+        return named[-1] if named else None
+
+    async def live_group(gid: str | None) -> str | None:
+        g = await live_group_info(gid)
+        return g["id"] if g else None
+
     def unreachable() -> JSONResponse:
         return JSONResponse({"error": f"The GroupFlow server is not reachable at {mcp_url}. Start it with: python -m groupflow server"}, status_code=502)
 
@@ -188,10 +211,13 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
             return JSONResponse({"error": "Say something first."}, status_code=400)
         # One member's requests run in order, so "yes" never overtakes the question it answers.
         lock = locks.setdefault(member, asyncio.Lock())
+        info = await live_group_info(body.scenario.split(":", 1)[0]) if body.scenario else None
+        # Someone who has not joined yet (asking their Alexa to join with a code) is not talking about the group's plans.
+        in_group = info is not None and (info.get("members") is None or any(m["id"] == member for m in info["members"]))
+        group = info["id"] if info and in_group else None
         try:
             async with lock:
-                turn = await agent.handle(member, text, plan=body.plan, device=body.device,
-                                          group=body.scenario.split(":", 1)[0] if body.scenario else None)
+                turn = await agent.handle(member, text, plan=body.plan, device=body.device, group=group)
         except LlmError as err:
             log.warning("LLM error: %s", err)
             return JSONResponse({"error": f"Alexa could not answer: {err}"}, status_code=503)
@@ -289,7 +315,10 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
         """Demo inspector: everything in one group, unfiltered, for the narrator (admin-only server endpoint)."""
         params: dict[str, str] = {}
         if scenario:
-            params["group"] = scenario.split(":", 1)[0]
+            group = await live_group(scenario.split(":", 1)[0])
+            if group is None:  # the story has not created the group yet
+                return JSONResponse({"scope": "admin", "group": None, "plans": [], "observations": []})
+            params["group"] = group
         view_as = request.query_params.get("as")
         if view_as:
             params["as"] = view_as
@@ -346,7 +375,7 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
             # A plan made during the run (the guided story starts without one) is not in the world file: use the date of
             # the live plan in this group that has a stop at this place.
             try:
-                state = (await admin("GET", "/debug/state", params={"group": body.group})).json()
+                state = (await admin("GET", "/debug/state", params={"group": await live_group(body.group) or body.group})).json()
             except (httpx.HTTPError, ValueError):
                 state = {}
             place_name = next((pl.name for spec in world.plans_of(body.group) for pl in get_template(spec["template"]).catalog.places
@@ -366,7 +395,7 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
                 g = world.group(body.group)
                 start = resolve_date(spec["start_date"], g.get("timezone", "America/Toronto"))
                 date = (date_cls.fromisoformat(start) + timedelta(days=body.day or 0)).isoformat()
-        payload = {"group_id": body.group, "kind": body.kind, "place_id": body.place_id, "start": body.start, "end": body.end, "date": date, "price": body.price}
+        payload = {"group_id": await live_group(body.group) or body.group, "kind": body.kind, "place_id": body.place_id, "start": body.start, "end": body.end, "date": date, "price": body.price}
         try:
             r = await admin("POST", "/debug/observations", json=payload)
         except httpx.HTTPError:
@@ -394,7 +423,7 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
     async def demo_skip_ahead(body: SkipBody) -> JSONResponse:
         """Demo console: what the server's worker does after this many quiet hours (reminders due by then, check-ins on stuck plans)."""
         try:
-            r = await admin("POST", "/debug/skip-ahead", json={"hours": body.hours, "group": body.group})
+            r = await admin("POST", "/debug/skip-ahead", json={"hours": body.hours, "group": await live_group(body.group) or body.group})
         except httpx.HTTPError:
             return unreachable()
         data = r.json()

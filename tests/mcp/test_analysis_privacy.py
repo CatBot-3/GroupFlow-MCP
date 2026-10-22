@@ -125,7 +125,7 @@ async def test_new_diagnostics_add_no_mcp_consent_tools_or_preference_write(serv
     async with client_for(server, 'alice') as client:
         tools = (await client.list_tools()).tools
         assert [tool.name for tool in tools] == NAMES
-        assert len(tools) == 35
+        assert len(tools) == 36
         assert not any(word in tool.name for tool in tools for word in ('fairness_preference', 'fallback_approve', 'approve_for'))
         before = engine.db.all('SELECT * FROM fairness_preferences')
         await call(client, 'planning_options', {'plan': PLAN, 'mode': 'fairness', 'enabled': True, 'member_id': 'bob'})

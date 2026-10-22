@@ -5,7 +5,7 @@
 export interface Member { id: string; name: string; color: string; groups: string[]; label?: string | null; role?: string; demoPasscode?: string }
 
 export interface DemoStep {
-  kind: 'say' | 'event' | 'phones' | 'verify' | 'skip';
+  kind: 'say' | 'join' | 'deliver' | 'event' | 'confirm' | 'verify' | 'skip';
   member?: string;
   text?: string;
   note: string;
@@ -159,6 +159,8 @@ export interface BoardModel {
   refused?: string | null;
   /** The plan a member view was asked about. */
   focus?: string | null;
+  /** Inspector only: the group as it is on the server (null before the guided story creates it). */
+  group?: InspectorView['group'];
 }
 
 // ------------------------------------------------------------------ fetchers
@@ -195,7 +197,7 @@ export const api = {
 
   inspector: async (group: string): Promise<BoardModel> => {
     const r = await json<InspectorView>(await fetch(`/api/inspector?scenario=${encodeURIComponent(group)}`));
-    return { source: 'inspector', member: null, plans: r.plans, context: null };
+    return { source: 'inspector', member: null, plans: r.plans, context: null, group: r.group };
   },
   view: async (member: string, plan?: string): Promise<BoardModel> => {
     const q = plan ? `?plan=${encodeURIComponent(plan)}` : '';
@@ -230,7 +232,10 @@ export interface Inbox {
   action_receipts?: ActionReceipt[];
   calendar_links?: { id: string; created_at: string }[];
   groups?: { id: string; name: string }[];
+  /** Joins the person asked their Alexa for, waiting for their own yes. */
+  joins?: JoinRequest[];
 }
+export interface JoinRequest { id: string; group: { id: string; name: string }; invited_by: string }
 export interface ActionReceipt { id: string; actor: string; subjects: string[]; operation: string; plans: string[]; outcome: string; message: string; reversible: boolean; created_at: string }
 export interface DecisionCard { plan: string; title: string; version_token: string; version: number; update_count: number; updates: string[]; changed_since: string | null; preferences: { muted?: number; digest?: number; quiet_start?: number | null; quiet_end?: number | null; timezone?: string }; actions: { kind: string; id: string; text: string; why: string; effect: string; options?: string[] }[] }
 export interface PlanningChoices { message: string; status?: string; outcome?: string; alternatives?: { candidate: string; label: string; changes: string[]; unchanged: string[]; cost_each_after: string }[]; suggestions?: { changes: string[]; hypothetical: boolean }[]; facts?: { id: string; kind: string; place_id?: string; source: string; freshness: string; verified_at: string | null; valid_until: string | null; value: unknown }[] }
@@ -360,6 +365,8 @@ export class HumanClient {
     return this.call<{ outcome: string; receipt_id: string; plan_status: string }>('POST', '/human/decisions', { challenge_id: ch.challenge_id, nonce: ch.nonce, decision, ...extra });
   }
   verify(conditionId: string, verifyDigest: string) { return this.call<{ outcome: string }>('POST', '/human/conditions/verify', { condition_id: conditionId, verify_digest: verifyDigest }); }
+  decideJoin(id: string, accept: boolean) { return this.call<{ outcome: string; message: string; group?: { id: string; name: string } }>('POST', '/human/joins/decide', { id, accept }); }
+  acceptInvite(code: string) { return this.call<{ outcome: string; message: string; group: { id: string; name: string } }>('POST', '/human/invites/accept', { code }); }
   setCondition(planId: string, kind: string, value: Record<string, unknown>) { return this.call<{ outcome: string }>('POST', '/human/conditions', { kind, value, plan_id: planId }); }
   revoke(receiptId: string) { return this.call<{ outcome: string }>('POST', '/human/revoke', { receipt_id: receiptId }); }
   vote(poll: string, choice: string, opts: { reason?: string; decide?: boolean } = {}) { return this.call<{ outcome: string; message: string }>('POST', '/human/polls/vote', { poll, choice, ...opts }); }

@@ -117,7 +117,7 @@ PROJECT_WORKFLOW = ("\n\nProject workflow: use get_project to page work and read
                     "If a project schedule is stale, prepare a fresh repair; report a timeout as unproven optimality.")
 
 WRITE_TOOLS = {"propose_change", "decide_change", "link_items", "set_my_conditions", "report_observation", "request_confirmations", "find_alternatives",
-               "commit_plan", "create_plan", "configure_project", "upsert_work", "manage_recurrence", "repair_project", "create_group", "invite_to_group",
+               "commit_plan", "create_plan", "configure_project", "upsert_work", "manage_recurrence", "repair_project", "create_group", "invite_to_group", "join_group",
                "notify_people", "answer_followup", "set_reminder", "review_plan", "poll", "rsvp", "bring_list", "costs"}
 PROJECT_WRITES = {"configure_project", "upsert_work", "manage_recurrence", "repair_project"}
 PREFETCH = ("get_context",)

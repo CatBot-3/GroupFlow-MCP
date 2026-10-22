@@ -220,6 +220,54 @@ class Membership:
                     "message": f"You joined {g['name']}. Plans shared with the whole group are now visible to you."}
         return self.db.tx(write)
 
+    def request_join(self, actor_id: str, code: str) -> dict[str, Any]:
+        """Asked by voice ("join Alice's group, the code is 4F7K-29QD"): the join waits for the person's own confirmation on their
+        page, shown by their assistant's screen. Nobody joins a group because a model said so."""
+        self._rate_limit(actor_id)
+
+        def write() -> dict[str, Any]:
+            row = self._usable_invite(code)
+            g = self._group(row["group_id"])
+            invited_by = self.name(row["created_by"])
+            if actor_id in self._active_member_ids(g["id"]):
+                return {"outcome": "already_member", "group": self._group_brief(g["id"]), "message": f"You are already in {g['name']}."}
+            pending = self.db.get("SELECT id FROM join_requests WHERE member_id = ? AND group_id = ? AND status = 'pending'", actor_id, g["id"])
+            if not pending:
+                self.db.run("INSERT INTO join_requests (id, member_id, invite_id, group_id, status, created_at) VALUES (?, ?, ?, ?, 'pending', ?)",
+                            new_id("join"), actor_id, row["id"], g["id"], iso_now())
+            return {"outcome": "awaiting_confirmation", "group": {"id": g["id"], "name": g["name"]}, "invited_by": invited_by,
+                    "members": len(self._active_member_ids(g["id"])),
+                    "message": f"{invited_by} invited them to {g['name']}. They join only when they confirm it themselves on their own GroupFlow "
+                               "page; you cannot confirm it for them. Tell them which group and who invited them."}
+        return self.db.tx(write)
+
+    def human_join_requests(self, member: Any) -> list[dict[str, Any]]:
+        """Joins the person asked for by voice, waiting for their own yes."""
+        rows = self.db.all("SELECT jr.id, jr.group_id, g.name AS group_name, gi.created_by FROM join_requests jr JOIN groups g ON g.id = jr.group_id "
+                           "JOIN group_invites gi ON gi.id = jr.invite_id WHERE jr.member_id = ? AND jr.status = 'pending' ORDER BY jr.created_at", member.id)
+        return [{"id": r["id"], "group": {"id": r["group_id"], "name": r["group_name"]}, "invited_by": self.name(r["created_by"])} for r in rows]
+
+    def human_decide_join(self, member: Any, request_id: str, accept: bool) -> dict[str, Any]:
+        """The person's own answer to a join they asked for by voice."""
+        def write() -> dict[str, Any]:
+            jr = self.db.get("SELECT * FROM join_requests WHERE id = ? AND member_id = ?", request_id, member.id)
+            if not jr or jr["status"] != "pending":
+                raise DomainError("NOT_FOUND", "There is no join waiting for you.")
+            if not accept:
+                self.db.run("UPDATE join_requests SET status = 'declined', decided_at = ? WHERE id = ?", iso_now(), request_id)
+                return {"outcome": "declined", "message": "You did not join."}
+            invite = self.db.get("SELECT * FROM group_invites WHERE id = ?", jr["invite_id"])
+            if not invite or invite["revoked_at"] or invite["expires_at"] < iso_now() or invite["uses"] >= invite["max_uses"] or not self._group(jr["group_id"]):
+                self.db.run("UPDATE join_requests SET status = 'expired', decided_at = ? WHERE id = ?", iso_now(), request_id)
+                raise DomainError("NOT_FOUND", "That invite is not valid any more. Ask an organizer for a new one.")
+            g = self._group(jr["group_id"])
+            if member.id not in self._active_member_ids(g["id"]):
+                self._join(member.id, invite)
+            self.db.run("UPDATE join_requests SET status = 'joined', decided_at = ? WHERE id = ?", iso_now(), request_id)
+            return {"outcome": "joined", "group": self._group_brief(g["id"]),
+                    "message": f"You joined {g['name']}. Plans shared with the whole group are now visible to you."}
+        return self.db.tx(write)
+
     def _join(self, member_id: str, invite: Row) -> None:
         gid = invite["group_id"]
         existing = self.db.get("SELECT * FROM group_members WHERE group_id = ? AND member_id = ?", gid, member_id)

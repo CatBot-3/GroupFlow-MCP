@@ -256,8 +256,8 @@ async def capture() -> str:
             f"Captured {datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')} by `python -m groupflow evidence` "
             f"(Python {platform.python_version()}, MCP Python SDK {getattr(mcp, '__version__', '2.3.0')}, {platform.system()}).", "",
             "GroupFlow is a remote MCP server: Streamable HTTP on `/mcp`, JSON-RPC 2.0, protocol version **2025-11-25**, bearer-token identity. "
-            "This capture serves the full lab tool set on `/mcp` (`GROUPFLOW_TOOL_PROFILE=lab`); by default `/mcp` serves the 13 voice tools "
-            "and the lab set is on `/mcp/lab`, with the same engine and rules behind both. "
+            "This capture serves all 36 tools on `/mcp` (`GROUPFLOW_TOOL_PROFILE=lab`); by default `/mcp` serves the 13 voice tools "
+            "and all 36 are on `/mcp/lab`, with the same engine and rules behind both. "
             "Everything below is the real traffic of one run against a throwaway database; only the tokens are redacted.", ""]
     return "\n".join(head + rec.parts) + "\n"
 

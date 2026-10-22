@@ -549,7 +549,7 @@ class Momentum:
         title, quiet_text = plan["title"], _ago(quiet)
         if b["kind"] == "confirm":
             return (f"Check-in on {title}: it has been waiting {quiet_text} for a few answers, yours included. Please confirm or decline on your "
-                    "GroupFlow page; a no helps just as much as a yes.")
+                    "own screen; a no helps just as much as a yes.")
         if b["kind"] == "decide":
             return f"Check-in on {title}: {b['what']} has waited {quiet_text} for your decision. Tell Alexa yes or no; either answer lets the others plan."
         if b["kind"] == "commit":

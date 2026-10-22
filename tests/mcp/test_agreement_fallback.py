@@ -154,7 +154,7 @@ async def test_mcp_identity_cannot_be_used_as_human_permission_grant(agreement_s
         assert state(server.rt.services.engine) == before
     async with mcp_client(server, "amir") as client:
         tools = (await client.list_tools()).tools
-        assert len(tools) == 35
+        assert len(tools) == 36
         assert not any(part in tool.name for tool in tools for part in ("fallback_approve", "human_fallback", "approve_for"))
         before = state(server.rt.services.engine)
         out = await call(client, "action_receipts", {"action": "apply", "tool": "human_fallback_decide", "arguments": {

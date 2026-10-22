@@ -145,7 +145,7 @@ def annotations(read_only: bool, idempotent: bool = False, destructive: bool = F
 # plan, a claim, an expense); "additive" tools only add records. No tool reaches outside GroupFlow (openWorldHint false).
 READ_ONLY = {"resolve_action", "search_plan", "get_alternatives", "explain", "get_history", "list_templates", "get_template", "get_project",
              "ask_about"}
-ADDITIVE = {"create_plan", "create_group", "invite_to_group", "notify_people", "ask_followup", "report_observation", "find_alternatives",
+ADDITIVE = {"create_plan", "create_group", "invite_to_group", "join_group", "notify_people", "ask_followup", "report_observation", "find_alternatives",
             "repair_project", "get_context", "catch_up", "start_plan", "invite_people", "search_brief"}
 IDEMPOTENT = {"get_context", "catch_up", "link_items", "rsvp", "review_plan", "search_plan", "get_alternatives", "explain", "get_history",
               "list_templates", "get_template", "get_project", "resolve_action", "ask_about", "search_brief"}

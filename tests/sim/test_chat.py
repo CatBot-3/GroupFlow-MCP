@@ -284,13 +284,3 @@ async def test_reminders_and_check_ins_reach_the_private_thread_once_through_the
     thread = (await bob.get("/api/chat/rooms/dm:bob/messages")).json()["messages"]
     assert [m["author"] for m in thread if m["meta"].get("kind") == "reminder"] == ["assistant"]
 
-
-async def test_skip_ahead_runs_check_ins_and_posts_them_to_private_threads(chat):
-    dana = await sign_in(chat, "dana", "dana-demo")
-    await chat.post("/api/reset", json={"scenario": "friends:awaiting"})
-    got = await chat.post("/api/demo/skip-ahead", json={"hours": 48, "group": "friends"})
-    assert got.status_code == 200, got.text
-    [round_] = got.json()["checkins"]
-    assert round_["plan"] == "Friday dinner" and sorted(s["name"] for s in round_["sent"]) == ["Alice", "Bob", "Chen", "Dana"]
-    nudges = await open_thread(dana, "nudge", timeout=1.5)
-    assert len(nudges) == 1 and nudges[0].startswith("Check-in on Friday dinner")

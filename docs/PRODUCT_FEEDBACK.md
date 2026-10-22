@@ -8,10 +8,10 @@ The submission asks, for every tool, API and SDK we used: what we used it for, w
 
 | | |
 | --- | --- |
-| **Used for** | The target host. Its design guide shaped the voice profile (one customer intent per tool, every constraint in one call, lean results), and its authentication and account-linking pages shaped GroupFlow's two OAuth tiers (client credentials for the service, authorization code with PKCE and refresh tokens for each person) |
-| **What worked** | The design guide's advice was concrete and measurably right for us: folding 35 overlapping tools into 13 intent-shaped ones cut the tool definitions from 81 KB to 12.8 KB. The two-tier sign-in model is clear about what a service token may do before a person links |
+| **Used for** | The target host. Its design guide shaped the 13 voice tools (one customer intent per tool, every constraint in one call, lean results), and its authentication and account-linking pages shaped GroupFlow's two OAuth tiers (client credentials for the service, authorization code with PKCE and refresh tokens for each person) |
+| **What worked** | The design guide's advice was concrete and measurably right for us: folding 35 overlapping tools into 13 voice tools cut the tool definitions from 81 KB to about 13 KB. The two-tier sign-in model is clear about what a service token may do before a person links |
 | **What needs work** | The documented client initializes with protocol 2025-03-26 while the hackathon requires 2025-11-25; `WWW-Authenticate` is listed as unsupported although MCP authorization discovery relies on it; the person scope appears as both `mcp:resource` and `mcp:resources`; nothing tells an add-on who is speaking or who else is in the room; the 500 ms requirement does not say what is measured; and it is not documented which server fields (instructions, annotations, output schemas) reach the model. Each is a friction log entry with steps and a suggestion |
-| **Onboarding** | Reading was easy; testing was not. Add-on testing on a device sits behind Private Preview access, so we built a simulator and a minimal host that adds nothing of ours, to measure what a plain client would get |
+| **Onboarding** | Reading was easy; testing was not. Add-on testing on a device sits behind Private Preview access, so we built a simulator, and an Alexa+-like client that adds nothing of ours, to measure what a plain host would get |
 | **Build again?** | Yes. Voice is where group plans actually get mentioned ("what's new with Friday?"), and the add-on model fits a server that keeps the rules itself. A self-serve test path would change the most for us |
 
 ### Model Context Protocol 2025-11-25 and the official Python SDK 2.3.0
@@ -80,7 +80,7 @@ When a plan breaks (a venue closes, someone withdraws), the affected people shou
 
 ### 4. Clear protocol and capability support (important)
 
-**Ask:** document which MCP protocol versions Alexa+ negotiates, whether it reads `outputSchema` and `structuredContent`, whether it caches `tools/list` per account or per person, and whether it honours tool annotations such as `readOnlyHint` and `destructiveHint`. GroupFlow's first build returned different tools to different members; the current build gives every member the same tools (13 on `/mcp`, 35 on `/mcp/lab`) and filters the returned data instead, partly because we could not tell how a client would cache a per-person tool list.
+**Ask:** document which MCP protocol versions Alexa+ negotiates, whether it reads `outputSchema` and `structuredContent`, whether it caches `tools/list` per account or per person, and whether it honours tool annotations such as `readOnlyHint` and `destructiveHint`. GroupFlow's first build returned different tools to different members; the current build gives every member the same tools (13 on `/mcp`, 36 on `/mcp/lab`) and filters the returned data instead, partly because we could not tell how a client would cache a per-person tool list.
 
 ### 5. What an elicitation answer means (important)
 

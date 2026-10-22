@@ -10,3 +10,4 @@ from groupflow.engine import product_schema as _product  # noqa: F401
 from groupflow.engine import reliability_schema as _reliability  # noqa: F401
 from groupflow.engine import coordination_schema as _coordination  # noqa: F401
 from groupflow.engine import hardening_schema as _hardening  # noqa: F401
+from groupflow.engine import joins_schema as _joins  # noqa: F401

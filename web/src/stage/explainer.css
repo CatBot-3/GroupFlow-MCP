@@ -50,7 +50,7 @@
 .x-note { margin: 0; font-size: clamp(18px, 1.45vw, 26px); line-height: 1.3; font-weight: 600; }
 .x-next { margin: 6px 0 0; font-size: 14px; color: var(--x-text-2); }
 .x-next > span:first-child { color: var(--x-text-3); margin-right: 4px; }
-.x-next q { font-variation-settings: var(--speech); }
+.x-next q { color: var(--x-text); }
 .x-play { display: grid; justify-items: end; gap: 10px; }
 .x-dots { display: flex; gap: 5px; }
 .x-dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--x-line); }
@@ -64,7 +64,7 @@
 /* --- layout ------------------------------------------------------------------------------------------- */
 .x-main { display: grid; grid-template-columns: minmax(380px, .95fr) 1.55fr; gap: 18px; padding: 0 28px 24px; min-height: 0; }
 .x-left, .x-right { display: grid; gap: 14px; min-height: 0; }
-.x-left { grid-template-rows: auto minmax(0, 1fr) auto; }
+.x-left { grid-template-rows: auto minmax(0, 1fr); }
 .x-right { grid-template-rows: auto minmax(0, 1fr); }
 .x-bottom { display: grid; grid-template-columns: 1.15fr 1fr; gap: 14px; min-height: 0; }
 .x-card { background: var(--x-card); border: 1px solid var(--x-line); border-radius: var(--x-r); padding: 16px 18px; min-height: 0; overflow: hidden; }
@@ -77,50 +77,125 @@
 .x-empty { color: var(--x-text-3); margin: 6px 0; }
 .x-empty.big { font-size: 18px; padding: 28px 0; }
 
-/* --- people ------------------------------------------------------------------------------------------- */
-.x-people { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-.x-people button { position: relative; display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: var(--x-card); border: 1px solid var(--x-line); border-radius: 12px; cursor: pointer; font-size: 16px; font-weight: 600; color: var(--x-text-2); }
+/* --- people: only who is in the group, popping in as they join --------------------------------------- */
+.x-people { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; align-items: center; min-height: 50px; }
+.x-people button { position: relative; display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: var(--x-card); border: 1px solid var(--x-line); border-radius: 12px; cursor: pointer; font-size: 16px; font-weight: 600; color: var(--x-text-2); animation: x-pop .5s cubic-bezier(.2, 1.5, .4, 1) both; }
 .x-people button.on { border-color: var(--tone); color: var(--x-text); background: var(--x-card-2); box-shadow: inset 0 -3px 0 var(--tone); }
+.x-people-note { grid-column: 2 / -1; font-size: 13px; color: var(--x-text-3); padding-left: 6px; }
 .x-avatar { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--tone); color: #0d1016; font-weight: 800; }
-.x-badge { position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--x-blue); color: #04141a; font-size: 12px; font-weight: 800; display: grid; place-items: center; }
+.x-badge { position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--x-yellow); color: #1a1600; font-size: 12px; font-weight: 800; display: grid; place-items: center; }
+@keyframes x-pop { from { opacity: 0; transform: scale(.6); } }
 
-/* --- the Echo ----------------------------------------------------------------------------------------- */
-.x-echo { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto auto; border-top: 3px solid var(--tone); }
+/* --- the Echos: one person, or several in a column ----------------------------------------------------- */
+.x-echos { display: grid; grid-template-rows: minmax(0, 1fr); gap: 10px; min-height: 0; }
+.x-echos.stacked { grid-template-rows: repeat(var(--rows), minmax(0, 1fr)); }
+.x-echo { display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; border-top: 3px solid var(--tone); animation: x-in .3s ease-out both; }
 .x-echo h3 { color: var(--tone); }
-.x-ring { width: 12px; height: 12px; border-radius: 50%; border: 3px solid var(--tone); align-self: center; }
+.x-ring { width: 12px; height: 12px; border-radius: 50%; border: 3px solid var(--tone); align-self: center; transition: background .2s, border-color .2s; }
 .x-echo.busy .x-ring { animation: x-pulse 1.1s ease-in-out infinite; }
 @keyframes x-pulse { 50% { box-shadow: 0 0 0 7px rgba(88, 196, 221, .25); } }
-.x-incoming { margin: 0 0 10px; padding: 9px 12px; border-left: 3px solid var(--x-blue); background: rgba(88, 196, 221, .08); border-radius: 6px; font-size: 14px; color: var(--x-text-2); }
-.x-incoming b { color: var(--x-blue); }
-.x-talk { display: flex; flex-direction: column; justify-content: flex-end; gap: 12px; overflow: hidden; }
-.x-said { align-self: flex-end; max-width: 92%; margin: 0; padding: 10px 14px; border-radius: 14px 14px 4px 14px; background: var(--x-card-2); font-size: clamp(17px, 1.25vw, 22px); line-height: 1.35; font-variation-settings: var(--speech); }
-.x-said.typing { opacity: .8; }
+.x-echo.listening .x-ring { background: var(--tone); box-shadow: 0 0 0 6px color-mix(in srgb, var(--tone) 25%, transparent); }
+/* A message arriving: the Echo's light turns yellow and pulses, the way the device shows a notification. */
+.x-echo.notify .x-ring { background: var(--x-yellow); border-color: var(--x-yellow); animation: x-notify 1.2s ease-out 2; }
+@keyframes x-notify { 0% { box-shadow: 0 0 0 0 rgba(244, 211, 94, .6); } 100% { box-shadow: 0 0 0 12px rgba(244, 211, 94, 0); } }
+.x-talk { display: flex; flex-direction: column; justify-content: flex-end; gap: 12px; overflow: hidden; min-height: 0;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 48px); mask-image: linear-gradient(to bottom, transparent 0, #000 48px); }
+.x-talk > * { flex: none; }
+/* What people say, what Alexa says and what GroupFlow sends use the same type; the bubble and its side tell them apart. */
+.x-said { align-self: flex-end; max-width: 92%; margin: 0; padding: 10px 14px; border-radius: 14px 14px 4px 14px; background: var(--x-card-2); border: 1px solid color-mix(in srgb, var(--tone) 45%, transparent); font-size: clamp(15px, 1.05vw, 19px); line-height: 1.45; }
+.x-caret { display: inline-block; width: 2px; height: 1.05em; margin-left: 3px; vertical-align: -2px; background: var(--tone); animation: x-blink .9s steps(1) infinite; }
+@keyframes x-blink { 50% { opacity: 0; } }
 .x-reply { margin: 0; font-size: clamp(15px, 1.05vw, 19px); line-height: 1.45; color: var(--x-text); }
 .x-reply::before { content: 'Alexa'; display: block; margin-bottom: 3px; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--x-blue); }
-.x-talk .old { opacity: .38; font-size: 14px; }
+/* A message from GroupFlow, read out by Alexa: Alexa is still the only voice, the tag says where it came from. */
+.x-gf { margin: 0; padding: 9px 12px 10px; border-left: 3px solid var(--x-blue); background: rgba(88, 196, 221, .07); border-radius: 4px 10px 10px 4px; font-size: clamp(14px, .98vw, 18px); line-height: 1.45; color: var(--x-text); animation: x-in .4s ease-out both; }
+.x-gf-tag { display: block; margin-bottom: 3px; font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--x-blue); }
+.x-gf.k-nudge, .x-gf.k-reminder, .x-gf.k-conflict { border-left-color: var(--x-yellow); background: rgba(244, 211, 94, .07); }
+.x-gf.k-nudge .x-gf-tag, .x-gf.k-reminder .x-gf-tag, .x-gf.k-conflict .x-gf-tag { color: var(--x-yellow); }
+.x-gf.k-degraded, .x-gf.k-observation { border-left-color: var(--x-red); background: rgba(252, 98, 85, .07); }
+.x-gf.k-degraded .x-gf-tag, .x-gf.k-observation .x-gf-tag { color: var(--x-red); }
+.x-gf.k-committed, .x-gf.k-ready, .x-gf.k-carried, .x-gf.k-member_joined { border-left-color: var(--x-green); background: rgba(131, 193, 103, .07); }
+.x-gf.k-committed .x-gf-tag, .x-gf.k-ready .x-gf-tag, .x-gf.k-carried .x-gf-tag, .x-gf.k-member_joined .x-gf-tag { color: var(--x-green); }
+/* What the person answered on the screen stays in the history as a small receipt. */
+.x-receipt { align-self: center; display: flex; align-items: center; gap: 10px; margin: 0; padding: 6px 14px 6px 6px; border-radius: 999px; background: rgba(131, 193, 103, .1); border: 1px solid rgba(131, 193, 103, .35); font-size: 14px; font-weight: 600; color: #d5ecc8; animation: x-in .35s ease-out both; max-width: 96%; }
+.x-receipt small { display: block; font-size: 11px; font-weight: 600; color: var(--x-text-3); }
+.x-talk .old { opacity: .5; }
+.x-talk .x-said.old, .x-talk .x-reply.old { font-size: 15px; }
+.x-talk .x-gf.old { font-size: 14px; }
 .x-thinking { margin: 0; color: var(--x-blue); font-size: 15px; }
 .x-tools { margin: 10px 0 0; font-size: 12px; color: var(--x-text-3); font-variation-settings: var(--mono); }
 .x-input input { width: 100%; margin-top: 10px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--x-line); background: var(--x-bg); color: var(--x-text); font: inherit; font-size: 14px; }
 
-/* --- the own page ------------------------------------------------------------------------------------- */
-.x-page { border-top: 3px solid var(--tone); background: #f4f6f8; color: #18202b; }
-.x-page h3 { color: #18202b; }
-.x-page .x-sub { color: #5b6676; }
-.x-page ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 10px; }
-.x-page li { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: white; border-radius: 10px; border: 1px solid #dfe4ea; font-size: 17px; animation: x-in .35s ease-out both; }
-.x-page .x-empty { border: 0; background: none; }
+/* Several Echos in a column: the same parts, smaller. */
+.x-echo.mini { padding: 10px 14px; }
+.x-echo.mini > header { margin-bottom: 6px; }
+.x-echo.mini h3 { font-size: 12px; }
+.x-echo.mini .x-talk { gap: 7px; -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 28px); mask-image: linear-gradient(to bottom, transparent 0, #000 28px); }
+.x-echo.mini .x-said, .x-echo.mini .x-reply { font-size: 15px; line-height: 1.38; }
+.x-echo.mini .x-said { padding: 7px 11px; }
+.x-echo.mini .x-gf { font-size: 14px; line-height: 1.38; padding: 6px 10px 7px; }
+.x-echo.mini .x-gf-tag, .x-echo.mini .x-reply::before { font-size: 10px; margin-bottom: 1px; }
+.x-echo.mini .x-talk .old { font-size: 13px; }
+.x-echo.mini .x-receipt { font-size: 13px; padding: 4px 12px 4px 4px; }
+.x-echo.mini .x-receipt .x-tick { width: 22px; height: 22px; font-size: 12px; }
+.x-echo.mini .x-thinking { font-size: 14px; }
+
+/* --- the question on the Echo's screen, docked under the conversation like a follow-up question ---------- */
+.x-sheet { margin-top: 10px; padding: 14px 16px 12px; border-radius: 14px; background: #1f2735; border: 1px solid #3a4558; box-shadow: 0 -14px 34px rgba(0, 0, 0, .5); animation: x-sheet-up .35s cubic-bezier(.2, .9, .3, 1) both; }
+.x-sheet.closing { animation: x-sheet-down .3s ease-in both; }
+@keyframes x-sheet-up { from { opacity: 0; transform: translateY(24px); } }
+@keyframes x-sheet-down { to { opacity: 0; transform: translateY(24px); } }
+.x-sheet > header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.x-sheet-tag { font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--x-blue); }
+.x-sheet-who { font-size: 12px; color: var(--x-text-3); }
+.x-sheet-q { margin: 0 0 10px; font-size: 18px; font-weight: 700; line-height: 1.3; }
+.x-sheet-item { display: grid; gap: 2px; margin-bottom: 8px; padding: 9px 12px; border-radius: 10px; background: var(--x-card); border: 1px solid var(--x-line); animation: x-in .3s ease-out both; }
+.x-sheet-item b { font-size: 17px; }
+.x-sheet-item span { font-size: 14px; color: var(--x-text-2); }
+.x-options { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.x-options button { position: relative; width: 100%; display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 10px; border: 1px solid transparent; background: none; text-align: left; font-size: 16px; font-weight: 600; cursor: pointer; transition: background .15s, border-color .15s; }
+.x-options button:hover:not(:disabled) { background: var(--x-card-2); }
+.x-options button:disabled { cursor: default; }
+.x-options kbd { width: 24px; height: 24px; flex: none; display: grid; place-items: center; border-radius: 6px; border: 1px solid #4a566b; font: inherit; font-size: 12px; font-weight: 700; color: var(--x-text-2); }
+.x-options i { margin-left: auto; font-style: normal; font-weight: 800; }
+.x-options button.pressing { background: rgba(131, 193, 103, .16); border-color: var(--x-green); transform: scale(.985); }
+.x-options button.pressing::after { content: ''; position: absolute; inset: -4px; border-radius: 13px; border: 2px solid var(--x-green); animation: x-tap .5s ease-out both; }
+@keyframes x-tap { from { opacity: .9; transform: scale(.97); } to { opacity: 0; transform: scale(1.03); } }
+.x-options button.chosen.yes { background: rgba(131, 193, 103, .2); border-color: var(--x-green); color: #e2f3d8; }
+.x-options button.chosen.yes kbd { border-color: var(--x-green); color: var(--x-green); }
+.x-options button.chosen.yes i { color: var(--x-green); }
+.x-options button.chosen.no { background: rgba(252, 98, 85, .14); border-color: var(--x-red); }
+.x-options button.chosen.no i { color: var(--x-red); }
+.x-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: -2px 0 9px; }
+.x-chip { padding: 3px 10px; border-radius: 999px; border: 1px solid var(--x-line); font-size: 12px; font-weight: 700; color: var(--x-text-3); transition: background .2s, border-color .2s, color .2s; }
+.x-chip.now { border-color: var(--x-yellow); color: var(--x-yellow); }
+.x-chip.yes { border-color: var(--x-green); background: rgba(131, 193, 103, .18); color: var(--x-green); }
+.x-chip.no { border-color: var(--x-red); color: var(--x-red); }
+.x-sheet-note { margin: 8px 0 0; font-size: 13px; color: var(--x-text-3); }
+.x-other { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.x-other label { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--x-text-2); }
+.x-other input { width: 120px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--x-line); background: var(--x-bg); color: var(--x-text); font: inherit; }
+.x-other-note { margin: 0; font-size: 14px; color: var(--x-text-2); }
+.x-btn { padding: 6px 14px; border-radius: 999px; border: 1px solid var(--x-line); background: var(--x-card-2); font-size: 14px; font-weight: 700; cursor: pointer; }
+.x-btn.yes { background: #2f8a57; border-color: #2f8a57; color: white; }
+.x-btn:disabled { opacity: .5; cursor: default; }
 .x-tick { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: #2f8a57; color: white; font-weight: 800; font-size: 14px; flex: none; }
 @keyframes x-in { from { opacity: 0; transform: translateY(6px); } }
 
-/* --- messages ----------------------------------------------------------------------------------------- */
-.x-feed ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.x-feed li { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; padding: 8px 10px; border-radius: 8px; background: var(--x-card-2); font-size: 14px; animation: x-in .35s ease-out both; }
-.x-kind { grid-row: span 2; align-self: start; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; background: rgba(88, 196, 221, .15); color: var(--x-blue); }
-.k-nudge .x-kind { background: rgba(244, 211, 94, .15); color: var(--x-yellow); }
-.k-degraded .x-kind, .k-observation .x-kind { background: rgba(252, 98, 85, .15); color: var(--x-red); }
-.k-committed .x-kind, .k-carried .x-kind, .k-ready .x-kind { background: rgba(131, 193, 103, .15); color: var(--x-green); }
-.x-to { color: var(--x-text-3); font-size: 12px; }
-.x-text { color: var(--x-text-2); line-height: 1.35; }
+/* In a column of Echos the question is one line of options, so the history above it stays in view. */
+.x-sheet.compact { margin-top: 6px; padding: 9px 12px 9px; border-radius: 12px; }
+.x-sheet.compact > header { margin-bottom: 3px; }
+.x-sheet.compact .x-sheet-q { margin-bottom: 6px; font-size: 15px; }
+.x-sheet.compact .x-sheet-item { margin-bottom: 6px; padding: 5px 10px; grid-template-columns: auto 1fr; align-items: baseline; column-gap: 10px; }
+.x-sheet.compact .x-sheet-item b { font-size: 15px; }
+.x-sheet.compact .x-sheet-item span { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.x-sheet.compact .x-options { display: flex; gap: 6px; }
+.x-sheet.compact .x-options li { flex: 1 1 0; min-width: 0; }
+.x-sheet.compact .x-options li:last-child { flex: 1.6 1 0; }
+.x-sheet.compact .x-options button { padding: 5px 8px; gap: 8px; font-size: 14px; border-color: var(--x-line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.x-sheet.compact .x-options kbd { width: 20px; height: 20px; font-size: 11px; }
+.x-sheet.compact .x-chips { margin-bottom: 6px; }
+.x-sheet.compact .x-sheet-note { display: none; }
 
 /* --- the plan ----------------------------------------------------------------------------------------- */
 .x-status { padding: 4px 12px; border-radius: 999px; font-size: 14px; color: var(--x-text-2); border: 1px solid var(--x-line); }
@@ -140,7 +215,7 @@
 .x-lane.agreed:only-of-type .x-block, .x-lane.agreed .x-block.broken { opacity: 1; }
 .x-track { position: relative; height: 86px; border-radius: 10px; background: var(--x-bg); }
 .x-grid { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--x-line); opacity: .6; }
-.x-block { position: absolute; top: 7px; bottom: 7px; min-width: 96px; margin-left: 2px; padding: 6px 9px; border-radius: 8px; background: var(--x-card-2); border: 1.5px solid var(--x-text-3); display: grid; align-content: center; gap: 1px; overflow: hidden; transition: left .6s ease, width .6s ease; }
+.x-block { animation: x-in .4s ease-out both; position: absolute; top: 7px; bottom: 7px; min-width: 96px; margin-left: 2px; padding: 6px 9px; border-radius: 8px; background: var(--x-card-2); border: 1.5px solid var(--x-text-3); display: grid; align-content: center; gap: 1px; overflow: hidden; transition: left .6s ease, width .6s ease; }
 .x-block b { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .x-block span { font-size: 13px; color: var(--x-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .x-block em { font-style: normal; font-size: 12px; color: var(--x-text-3); white-space: nowrap; }
@@ -181,6 +256,9 @@
 .x-lock small { color: var(--x-text-3); font-size: 11px; }
 .x-none { color: var(--x-text-3); font-size: 14px; }
 
+/* Things that appear once their moment comes (the grid of answers, a new person's row). */
+.x-pop-in { animation: x-in .45s ease-out both; }
+
 /* --- smaller screens: stack, and let the page scroll ------------------------------------------------- */
 @media (max-width: 1100px) {
   .x-app { height: auto; overflow: visible; }
@@ -192,5 +270,6 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .x-block, .x-cell { transition: none; }
-  .x-page li, .x-feed li, .x-lock { animation: none; }
+  .x-lock, .x-gf, .x-receipt, .x-sheet, .x-sheet-item, .x-echo, .x-people button, .x-pop-in, .x-block { animation: none; }
+  .x-options button.pressing::after, .x-echo.notify .x-ring, .x-caret { animation: none; }
 }

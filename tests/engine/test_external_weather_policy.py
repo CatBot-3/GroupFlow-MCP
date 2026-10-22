@@ -49,7 +49,7 @@ def test_prompts_offer_optional_host_discovery_without_owning_an_api():
     assert 'continue without weather' in INSTRUCTIONS and 'weather API directly' in INSTRUCTIONS
     assert 'public location and date' in INSTRUCTIONS and 'personal confirmations' in INSTRUCTIONS
     assert len(prompt) < 8000
-    assert len(NAMES) == 35 and not any('weather' in name.lower() or 'forecast' in name.lower() for name in NAMES)
+    assert len(NAMES) == 36 and not any('weather' in name.lower() or 'forecast' in name.lower() for name in NAMES)
 
 
 def test_provider_and_engine_modules_have_been_removed():

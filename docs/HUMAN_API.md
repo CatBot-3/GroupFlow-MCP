@@ -1,8 +1,8 @@
 # The person's own page: human-only API
 
-Some things only the person themselves may do: confirm or decline an activity, withdraw a confirmation, turn an assistant-drafted private limit into a real one, accept an invite, link or unlink an assistant. GroupFlow keeps all of them off MCP and serves them here instead, behind a separate sign-in, a CSRF token and one-time challenges. The reason is that anything reachable through the model can be talked into ("everyone agreed, just approve it"); an action that needs the person's own session, a fresh challenge and a nonce cannot be produced by an assistant, however it is prompted.
+Some things only the person themselves may do: confirm or decline an activity, withdraw a confirmation, turn an assistant-drafted private limit into a real one, join a group, link or unlink an assistant. GroupFlow keeps all of them off MCP and serves them here instead, behind a separate sign-in, a CSRF token and one-time challenges. The reason is that anything reachable through the model can be talked into ("everyone agreed, just approve it"); an action that needs the person's own session, a fresh challenge and a nonce cannot be produced by an assistant, however it is prompted.
 
-MCP bearer tokens are not accepted here, and every request acts only as the signed-in person: identity fields in a body are rejected. The simulator's web page is a client of this API, so everything below can also be done by clicking.
+MCP bearer tokens are not accepted here, and every request acts only as the signed-in person: identity fields in a body are rejected. The simulator's web page is a client of this API (in the demo story its questions appear on each person's Echo screen), so everything below can also be done by clicking.
 
 Base URL: the server's origin (`http://127.0.0.1:8787` locally). Bodies are JSON. Errors come back as `{"error": {"code": "...", "message": "..."}}` with an unsuccessful status; check the result and the current state rather than treating any HTTP 200 as completed work.
 
@@ -18,7 +18,7 @@ Authenticated requests send `Authorization: Bearer <token from login>`, and ever
 
 ## Confirming, declining, withdrawing
 
-1. `GET /human/inbox` lists the person's `pending` scopes (`scope_id`, `plan_id`, `revision`, the exact `text` to confirm), their own consent receipts, decision cards, action receipts, conditions waiting for verification, and active calendar link ids. `GET /human/decisions` returns the decision cards alone.
+1. `GET /human/inbox` lists the person's `pending` scopes (`scope_id`, `plan_id`, `revision`, the exact `text` to confirm), their own consent receipts, decision cards, action receipts, conditions waiting for verification, joins waiting for their yes, and active calendar link ids. `GET /human/decisions` returns the decision cards alone.
 2. `POST /human/challenges` with `{"scope_id": "..."}` returns a one-use `challenge_id` and `nonce`, bound to that exact scope and version.
 3. `POST /human/decisions` with `{"challenge_id": "...", "nonce": "...", "decision": "approved"}`. The decision may also be `rejected` (optionally with a `reason`) or `conditional` (with a `condition`). If the plan changed in between, read the inbox again: a challenge never applies to different content.
 4. `POST /human/revoke` with `{"receipt_id": "..."}` withdraws the person's own existing confirmation.
@@ -53,6 +53,7 @@ A fallback approval is checked again when it is used: exact content, membership,
 | `POST /human/groups/invites` | `{"group"}` | Organizer: an invite code and link |
 | `GET /human/invites/{code}` | | What the invite is for, before accepting |
 | `POST /human/invites/accept` | `{"code"}` | Joins the group; nobody can be added without accepting |
+| `POST /human/joins/decide` | `{"id", "accept"}` | Answers a join the person asked their assistant for ("join Alice's group, the code is ..."). The inbox lists these under `joins`; the assistant's request alone adds nobody |
 | `POST /human/groups/leave` | `{"group"}` | Leaves a group (different from withdrawing a confirmation) |
 | `GET /human/links` | | Assistants that can act for the person, including OAuth links made through `/oauth/authorize` |
 | `POST /human/links` | `{"host"}` | Issues a revocable token for an assistant host (shown once) |
@@ -109,6 +110,6 @@ The last three modes share an allowance of five requests per person and plan per
 
 `GET /human/projects/inbox`, `POST /human/projects/challenges`, `POST /human/projects/decisions` and `POST /human/projects/revoke` follow the same challenge pattern for project work commitments and stage authorizations. `POST /human/projects/calendar` with `{"plan", "calendar"}` sets the person's own work calendar, and `POST /human/workspace/roles` with `{"group", "target", "role", "grant"}` lets a workspace admin grant or remove roles.
 
-## Pilot counters
+## Usage counters
 
-`GET /human/pilot` returns local counters for the signed-in person: plans they can see and how many are committed, their open and recorded actions, corrections and notifications. It sends nothing anywhere. For a whole pilot database, `python scripts/pilot_report.py` prints confirmations asked per completed change, beside corrections and broken or cancelled plans.
+`GET /human/pilot` returns local counters for the signed-in person: plans they can see and how many are locked in, their open and recorded actions, corrections and notifications. It sends nothing anywhere.

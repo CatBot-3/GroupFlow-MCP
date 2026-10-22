@@ -1,71 +1,47 @@
 # GroupFlow
 
-GroupFlow is a self-hosted MCP server that lets a voice assistant keep a group's shared plans: what was agreed, who may change what, who still has to answer, and who may hear about it. It is our entry to the **Alexa+ track** of the *Build, Ship, Shape: Amazon Developer Hackathon 2026*, on the simulation path: the server speaks **MCP 2025-11-25 over Streamable HTTP**, and a web simulator drives it with a real language model the way Alexa+ would.
+GroupFlow helps a group of people plan something together, each by talking to their own voice assistant. It is an MCP server: Alexa+, or any assistant that speaks the Model Context Protocol, connects to it, and GroupFlow keeps the group's plan, who has agreed to which part of it, and the limits each person told only their own assistant.
 
-Version 0.1.0 · MIT license · Python 3.10 or newer
+We built it for the **Alexa+ track** of *Build, Ship, Shape: Amazon Developer Hackathon 2026*, on the **simulation path**. The server speaks **MCP 2025-11-25 over Streamable HTTP**. Because we could not test on a real Alexa+ device, this repository also contains a web simulator in which each person's Echo is played by a real language model that connects to GroupFlow exactly as an assistant would.
 
-## The one idea
+Version 0.1.0 · MIT license · Python 3.10 or newer · Demo video: *link added with the Devpost submission*
 
-When something changes, keep every agreement that still holds and ask only the people it affects.
+![Friday in the demo: the restaurant has closed, Alice's Alexa sends out a fix that moves only the dinner, and on the right twelve earlier answers still count while only the dinner is asked again](docs/img/story-friday.png)
 
-Four friends agreed on a Friday evening of four stops (meet-up, dinner, dessert, ride home). Four people confirming four stops is sixteen confirmations. Then the restaurant closes. GroupFlow finds the smallest change that still meets everyone's private limits (home time, budget, diet) without saying whose limit is whose, moves only the dinner, keeps the twelve confirmations that still apply, and asks the four friends about the new dinner only: **4 new confirmations instead of 16**.
+## Why GroupFlow exists
 
-The assistant can propose, repair and lock in a plan, but it can never give anyone's consent. Each person confirms on their own page, bound to the exact version they saw. The reason is simple: anything that passes through the model can be talked into it ("everyone agreed in the group chat, just approve it"), so consent must not pass through the model at all.
+Planning in a group chat goes wrong in four familiar ways: people keep their limits to themselves, messages are vague, someone goes quiet, and the plan changes after everyone agreed. An assistant could help with all four, but only if two things can never happen: it must never say yes on someone's behalf, and it must never repeat what someone told it privately. A language model can be talked into almost anything ("everyone agreed in the chat, just approve it"), so GroupFlow does not leave these rules to the model. They live on the server, and no tool exists that could break them.
 
-![The demo page on Friday: the restaurant cancelled, only the dinner is asked again, and twelve answers still count](docs/img/story-friday.png)
+That leads to three design decisions, all visible in the demo:
 
-## What a plain Alexa+ host gets
-
-Alexa+ gives an add-on only two levers: its server instructions and its tool descriptions. It does not run our prompt. So the headline numbers come from a **minimal host**: a one-line system prompt plus GroupFlow's own server instructions and the 13 voice tools, with nothing GroupFlow-specific added and no declaration of who is listening.
-
-| DeepSeek `deepseek-flash`, 57 held-out scenarios, 3 runs each | Minimal host (Alexa+-like) | Simulator's own host |
+| Decision | What it means | Why |
 | --- | --- | --- |
-| pass^1 (mean single-run pass rate) | 81.9% | 98.8% |
-| pass^3 (scenarios that passed in all three runs) | 41 of 57 | 55 of 57 |
-| Safety counters (8 kinds: wrong confirmations, hidden-plan disclosures, approvals by the assistant, private leaks, ...) | zero in every run | zero in every run |
-| Cross-user prompt injection (5 scenarios, 3 runs) | 15 of 15 | 15 of 15 |
+| The assistant can never agree for anyone | Each person confirms each part of a plan on a screen only they can use (GroupFlow's human-only page). Their answer is tied to the exact version they saw | If the assistant had a "confirm" tool, someone could talk it into using it |
+| Private limits stay private, but still count | Chen tells his own Alexa he can't arrive before 6:15. GroupFlow plans around it, and everyone else only ever hears "a member's earliest time" | People share real constraints only if they are not broadcast to the group |
+| When something changes, only the changed part is asked again | The restaurant closes, GroupFlow finds the smallest change that still fits everyone, and twelve of the sixteen answers stay valid: **4 new confirmations instead of 16** | Asking everyone to re-confirm everything is how plans die |
 
-Most of the gap is a privacy choice, not a bug: a device that does not say who is listening gets summaries without the plans that are kept from someone (a surprise party), and the model then sometimes said it could not find such a plan instead of looking it up by name. No hidden plan was disclosed in any run. Method, raw reports and what was changed afterwards are in [docs/EVALUATION.md](docs/EVALUATION.md).
+## How this entry meets the hackathon requirements
 
-## Contents
+From the [official rules](https://amazonappdev2026.devpost.com/rules):
 
-1. [What GroupFlow does](#what-groupflow-does)
-2. [Quick start: run the demo](#quick-start-run-the-demo)
-3. [Using the MCP server](#using-the-mcp-server)
-4. [Connecting GroupFlow to Alexa+](#connecting-groupflow-to-alexa)
-5. [Tool reference](#tool-reference)
-6. [How it works](#how-it-works)
-7. [The Alexa+ simulator](#the-alexa-simulator)
-8. [Configuration](#configuration)
-9. [Tests and evaluation](#tests-and-evaluation)
-10. [Project layout](#project-layout)
-11. [Hackathon submission](#hackathon-submission)
-12. [Limitations](#limitations)
+| Requirement | Where it is met |
+| --- | --- |
+| Alexa+ track: a self-hosted MCP server implementing MCP 2025-11-25 over Streamable HTTP | `groupflow/mcp_server/`, built on the official MCP Python SDK. A captured handshake and tool calls are in [docs/PROTOCOL_EVIDENCE.md](docs/PROTOCOL_EVIDENCE.md) |
+| Simulation path: the simulated Alexa+ experience's source code is in the repository, and the video clearly shows the simulation | The simulator is `groupflow/sim/` (the assistants) and `web/` (the page). The page and the video label it "Simulated Alexa+" |
+| Setup and run instructions; judges can test it | [Try it](#try-it), with [demo sign-ins](#demo-sign-ins) for every person. No hardware is needed |
+| All source code, assets and instructions in the repository | Everything needed to run the demo is here, including a built copy of the web page in `web/dist` |
+| Open-source license, visible in the repository's About section | [MIT](LICENSE) |
+| Product feedback for each tool, API and SDK used | [docs/PRODUCT_FEEDBACK.md](docs/PRODUCT_FEEDBACK.md) |
+| Friction log (bonus of up to 10%) | [docs/FRICTION_LOG.md](docs/FRICTION_LOG.md): each Alexa+ entry has the task, steps, expected and actual result, severity, workaround and suggestion |
+| Demo video under three minutes | *Link added with the Devpost submission* |
+| AWS Builder mini challenge (optional) | Amazon Bedrock is built in as a model provider for the simulated assistant (`groupflow/sim/llm/bedrock.py`). It has not been run with real AWS credentials, so every reported result uses DeepSeek; see product feedback |
+| Open Source mini challenge (optional) | This repository is a new open-source project, started inside the hackathon window |
 
-## What GroupFlow does
+## Try it
 
-| Capability | What it means for a group | Why it is built this way |
-| --- | --- | --- |
-| Consent the model cannot give | Activities people attend together count only after each person confirms them on their own page; a confirmation is bound to a digest of the exact version they saw | An assistant that can approve for people can be talked into approving for people |
-| Smallest repair | When a fact breaks a plan (a venue closes, a price changes, someone gets busy) the solver finds the change that disturbs the fewest agreements, and unchanged answers carry forward | People should not be asked again about things that did not change |
-| Private limits | Each person can set a home time, budget, diet or busy window; the solver respects it and explanations name its kind, never its owner | "Why not Restaurant C?" deserves an answer that does not expose Dana's budget |
-| Visibility by space | Every plan lives in a space that decides who can see it; a surprise party is a plan whose space leaves out the guest of honour | Privacy is decided once, on the server, so no tool result can leak a plan to someone outside it |
-| Room mode | When a device does not say who is listening, summaries leave out plans kept from someone until the speaker names them | Alexa+ does not tell an add-on who is in the kitchen |
-| Ownership | Each detail has an owner; a change from someone else becomes a request the owner decides | "Who gets to decide this?" becomes a rule instead of a guess |
-| Telling people | The server picks who to tell by their role in a plan, writes the facts from the plan itself, and never tells someone about a plan kept from them | News that does not reach the people it affects is how people turn up at the wrong time |
-| Asking first | Clarifying questions and the exact action behind each answer are kept on the server, so "the 7:30 one" runs exactly what was offered, even after the assistant's chat memory is lost | A guess ("a bit later" becoming 8:30) is worse than a question |
-| Reminders and check-ins | Reminders in the speaker's words ("the day before", "in 2 hours"); plans that go quiet while something waits get one gentle nudge to exactly the people it waits on | Plans stall when nobody wants to chase |
-| Deciding together | Votes, "unless someone objects by Thursday" defaults, RSVPs with plus-ones, a bring list, shared costs and balances | These are the parts a group otherwise still does in a separate chat |
-| Outside data stays outside | Weather, places and reviews come from other tools; GroupFlow gives them a search brief without names or budgets and checks what they find as meets, breaks or not confirmed | Private limits should not travel into third-party queries, and review text should not enter other people's model context |
-| Safe by default | A resent write is recorded once, reading never marks news as heard, risk hints say which tools overwrite, and text other people wrote is marked as data | Hosts retry, voice turns fail half way, and stored text can carry instructions |
+You need Python 3.10 or newer. Node.js is only needed if you want to change the web page.
 
-Plans come from YAML templates (gathering, trip, meeting, shared tasks, evening out, study group, general event, and a structured project template with workstreams and resources), so the same tools serve a surprise party, a cottage weekend and a team meeting.
-
-## Quick start: run the demo
-
-You need Python 3.10 or newer. Node is only needed to change the web page; a built copy is in `web/dist`.
-
-1. Clone and install:
+1. **Install.**
 
    ```bash
    git clone https://github.com/CatBot-3/Hackathon26.git
@@ -76,100 +52,143 @@ You need Python 3.10 or newer. Node is only needed to change the web page; a bui
    pip install -e ".[dev]"
    ```
 
-2. Give the simulated Alexa a language model. Copy `.env.example` to `.env` and set `DEEPSEEK_API_KEY`, or choose Amazon Bedrock or any OpenAI-compatible endpoint there (see [Configuration](#configuration)). The file is git-ignored and the key is never printed or logged. The MCP server itself needs no key; only the simulated assistant does.
+2. **Give the simulated Alexa a language model.** Copy `.env.example` to `.env` and set `DEEPSEEK_API_KEY`, or choose Amazon Bedrock or any OpenAI-compatible service there (see [Configuration](#configuration)). Only the simulated assistant needs a key; the GroupFlow server itself does not. `.env` is ignored by git, and the key is never printed or logged.
 
-3. Start the GroupFlow server and the simulator together:
+3. **Start GroupFlow and the simulator.**
 
    ```bash
    python -m groupflow demo
    ```
 
-   The MCP server listens on http://127.0.0.1:8787/mcp and the simulator page opens at http://localhost:8788. `python -m groupflow check` shows the configuration (whether the key is present, never its value).
+   The MCP server listens on http://127.0.0.1:8787/mcp and the simulator page is at http://localhost:8788. `python -m groupflow check` shows the configuration (whether the key is present, never the key itself).
 
-4. The page opens on the demo story: four friends plan Friday dinner from Monday to Friday, starting with no plan. Press **Play step 1** (or the N key) to play it one step at a time, or type to the speaker yourself. **Test lab** has every group, all four Echos and own pages side by side, the memory explorer and the demo console. The group chat is at http://localhost:8788/chat.
+4. **Play the story.** The page opens on the demo story with no group and no plan. Press **Play step 1** (or the N key) to play one step at a time, or type to any Echo yourself. **Test lab** in the header shows every group of the demo world side by side, a view of exactly what each assistant received over MCP, and a console that plays outside events. A group chat version of the same assistant is at http://localhost:8788/chat.
 
-For a recording, use a separate database so the story can be reset without touching other work: `python -m groupflow demo --db data/video.db --fresh`. The step-by-step walkthrough is in [docs/DEMO_FRIENDS.md](docs/DEMO_FRIENDS.md), and `python scripts/play_demo.py` plays the story against a running demo and prints each reply, as a rehearsal.
+For a recording, use a separate database so the story can be reset without touching other work: `python -m groupflow demo --db data/video.db --fresh`. `python scripts/play_demo.py` plays the whole story against a running demo without the page and prints every reply, which is a quick rehearsal.
 
-### Demo identities
+## What the demo shows
 
-The demo world has thirteen people in five groups. These credentials are synthetic and only for the local demo. The **token** is what an assistant uses on `/mcp` (it decides who is speaking); the **passcode** signs that person in to their own confirmation page and to the OAuth sign-in page.
+Four friends plan Friday dinner over four days, each talking only to their own Echo. Every step is live: the language model chooses GroupFlow tools over MCP, and each person's answers go through their own screen. The step-by-step table is in [docs/DEMO_FRIENDS.md](docs/DEMO_FRIENDS.md).
 
-| Member id | Token for `/mcp` | Passcode | Groups |
-| --- | --- | --- | --- |
-| `alice` | `gf_demo_alice_7f3k` | `alice-demo` | Family, Friday friends |
-| `bob` | `gf_demo_bob_2m9q` | `bob-demo` | Family, Friday friends |
-| `charlie` | `gf_demo_charlie_8d1x` | `charlie-demo` | Family |
-| `linda` | `gf_demo_linda_5p0w` | `linda-demo` | Family (the surprise party is hidden from her) |
-| `chen` | `gf_demo_chen_k3v6` | `chen-demo` | Friday friends, Cottage crew, CS 341 study group |
-| `dana` | `gf_demo_dana_m9x1` | `dana-demo` | Friday friends, Cottage crew |
-| `omar` | `gf_demo_omar_r5t2` | `omar-demo` | Cottage crew |
-| `priya` | `gf_demo_priya_h8c4` | `priya-demo` | Cottage crew, Product team |
-| `marcus` | `gf_demo_marcus_w2p7` | `marcus-demo` | Product team |
-| `jun` | `gf_demo_jun_b6n3` | `jun-demo` | Product team, CS 341 study group |
-| `sofia` | `gf_demo_sofia_e4k9` | `sofia-demo` | Product team |
-| `sam` | `gf_demo_sam_t7m1` | `sam-demo` | CS 341 study group |
-| `noor` | `gf_demo_noor_q3z8` | `noor-demo` | CS 341 study group |
-
-| Group | Plans | What it shows |
+| Day | What happens | What it shows |
 | --- | --- | --- |
-| Friday friends | Friday dinner, made during the demo story | Private limits used without names, a refused draft and its fix, a check-in after a quiet day, a rumour that changes nothing, then a closure where only the dinner is asked again and Bob cannot approve for everyone |
-| Family | Linda's surprise party (hidden from Linda), Home chores | Charlie's date change waits for Alice; "maybe an ice cream cake" stays an idea; Linda hears nothing about her party |
-| Cottage crew | Cottage weekend (three days) | The draft breaks Priya's private busy morning, so it is not sent; the fix moves only the hike by an hour |
-| Product team | Design review | Marcus's private dentist appointment moves the meeting; "why not Birch?" says someone needs video, not who |
-| CS 341 study group | CS 341 midterm prep, post-midterm potluck | An unverified "the room is closed" waits for a trusted source; the potluck shows RSVPs, a bring list, a cost split and a vote |
+| Monday | Alice asks Alexa to start a group. Bob, Chen and Dana each say her invite code to their own Echo and tap Yes on its screen. Alice starts the plan; Alexa asks before adding dessert. Alice tells everyone and asks what works | Nobody is added to a group or a plan without their own yes. The assistant asks instead of assuming |
+| Monday | Chen can't arrive before 6:15; Dana is vegetarian and has to be home by 9:30. Each tells only their own Alexa and confirms it on their screen | Private limits count, but are never shared |
+| Tuesday | Alice hears that the draft no longer fits everyone, without being told whose limit it breaks. She asks for the smallest change: 256 of 256 combinations checked in a few milliseconds | The plan is checked against every limit, and the explanation names no one |
+| Tuesday to Wednesday | Sixteen answers are needed. Three friends answer; Dana goes quiet. A day later Alexa reminds her on its own, and Alice is told who was reminded | Plans keep moving without anyone chasing |
+| Friday | Bob hears a rumour that the restaurant is closed: nothing changes. The restaurant itself confirms it: only the dinner moves, twelve answers still count, four are asked again. Bob asks Alexa to approve it for everyone, and it can't | Rumours don't move plans; changes ask only who they affect; consent can't be delegated to the model |
+
+![Bob, Chen and Dana each ask their own Alexa to join Alice's group, then answer on their own screen](docs/img/story-join.png)
+
+![Dana's Echo: GroupFlow's reminder above, and a question only she can answer, one stop at a time](docs/img/story-confirm.png)
+
+## How it works
+
+```
+ Simulator (:8788)                                  GroupFlow server (:8787)
+ +---------------------------+   MCP 2025-11-25    +----------------------------------------+
+ | Alice's Echo  (LLM agent) +--- Streamable HTTP ->| /mcp       13 tools made for voice     |
+ | Bob's Echo    (LLM agent) |   one session per   | /mcp/lab   all 36 tools                |
+ | group chat                |   person; the token |            token = who is speaking     |
+ +---------------------------+   says who speaks   |                                        |
+ +---------------------------+   human-only HTTP   | Plans      groups, plans, items,       |
+ | Each person's own screen  +--- /human --------->|            votes, costs, reminders     |
+ | (sign-in, one-time codes) |   no assistant      | Agreement  versions, private limits,   |
+ +---------------------------+   can reach it      |            confirmations, final check  |
+ +---------------------------+   OAuth             | Repair     exact search, or OR-Tools   |
+ | Alexa+ (add-on)           +--- /oauth --------->|            CP-SAT for large searches   |
+ +---------------------------+                     | SQLite     one database file           |
+                                                   +----------------------------------------+
+```
+
+**Two kinds of access.** Assistants use MCP, and the bearer token on each request decides who is speaking. People use a separate human-only HTTP API for anything that needs their own yes: confirming or declining, turning a limit their assistant drafted into a real one, joining a group, linking an assistant. That API needs the person's own sign-in and a one-time code for each answer, so no assistant can produce an answer, however it is prompted. In the demo this page appears on each person's Echo screen as a question panel under the conversation.
+
+**What a plan is made of.**
+
+| Part | What it is | Why |
+| --- | --- | --- |
+| Group | The people who plan together | Membership is the first privacy boundary |
+| Plan | One thing being planned, made from a template, with an organizer. A plan can be hidden from some members (a surprise party) | The same tools work for a dinner, a trip or a meeting; the template supplies the words |
+| Detail | One agreed value, such as the party date, with an owner | Someone else's change becomes a request the owner decides, so "who gets to decide?" is a rule, not a guess |
+| Task | Something one person does, with a status and what it waits on | Dependencies show what blocks what |
+| Activity | Something people attend together, with a time, a place and the people taking part | Each person taking part confirms it themselves |
+| Private limit | A home time, budget, diet or busy time that one person set | GroupFlow plans around it and names only its kind in explanations, never its owner |
+
+**Agreeing.** A plan goes from draft to sent, to everyone answered, to locked in. Each answer is tied to a fingerprint of the exact version the person saw, so it can never be applied to changed content. When a new version leaves a stop unchanged, earlier answers about that stop still count, after GroupFlow checks again that the content, the person's limits and their membership are unchanged. Locking in checks everything once more.
+
+**Repairing.** When a fact breaks a plan (a venue closes, a price changes, someone becomes busy), GroupFlow searches the options its template allows (other places of the same kind, nearby times) for the change that disturbs the fewest agreements. It ranks options in this order: how many stops change, the biggest change for any one person, the total change, how many people must answer again, preferences missed, and added cost. Below 16,384 combinations it checks every one; above that it uses Google OR-Tools CP-SAT. Every call measured 44 to 128 ms locally, repair included, well under the 500 ms Alexa+ asks for.
+
+**Privacy.** Every read starts from what the speaker is allowed to see, so a plan hidden from someone is never even loaded for them. Asking for it by name gets the same answer as asking for a plan that does not exist.
+
+**Shared devices.** An Echo in a kitchen can be overheard, and Alexa+ does not tell an add-on who is in the room. So unless the assistant says otherwise, GroupFlow assumes others may hear the reply: summaries leave out plans that are hidden from someone in the group, and the speaker's private limits are not read out. An assistant on a personal device can say so with the `X-GroupFlow-Listeners` header described below.
+
+## Results
+
+**Automated tests.** `python -m pytest -q` runs 958 tests without any model key: the consent rules over real MCP sessions and the human-only API, the repair search checked against brute force, OAuth flows, shared-device privacy, repeated requests recorded once, eight concurrent MCP sessions on one database with a crash and restart, and every server outcome of the demo story (`tests/sim/test_guided_story.py`). GitHub Actions runs them on every push.
+
+**With a real language model.** The evaluation plays 57 scenarios that the prompts were never tuned on (slang, typos, requests buried in chatter, people changing their mind, group chats with someone listening), three times each, and checks what the server did, never the exact wording. We ran it two ways, because Alexa+ gives an add-on only two levers, its server instructions and its tool descriptions:
+
+| DeepSeek `deepseek-flash`, 57 scenarios, 3 runs each | Alexa+-like client: a one-line prompt, GroupFlow's own instructions and the 13 voice tools | The simulator's client: a long prompt, a state read before every turn and a re-check of its replies |
+| --- | --- | --- |
+| Runs that passed | 81.9% (140 of 171) | 98.8% (169 of 171) |
+| Scenarios that passed in all three runs | 41 of 57 | 55 of 57 |
+| Safety mistakes, such as confirming for someone, revealing a hidden plan or changing something nobody asked for (eight kinds, counted in every run) | 0 | 0 |
+| Instructions planted in text another member wrote, followed by the model | 0 of 15 runs | 0 of 15 runs |
+
+The Alexa+-like number is the honest one for a plain host. Most of its failures came from the shared-device default: summaries leave out plans hidden from someone, and the model then sometimes said it could not find such a plan instead of looking it up by name. No hidden plan was revealed in any run. The method, the raw reports and what we changed afterwards are in [docs/EVALUATION.md](docs/EVALUATION.md).
+
+**Four instead of sixteen.** `python scripts/compare_confirmation_policies.py` runs the Friday dinner repair twice, once asking everyone again and once keeping the answers about unchanged stops, and both pass the final check: 16 new confirmations against 4. This counts requests, not time saved for real people, because no real people have used GroupFlow yet.
 
 ## Using the MCP server
 
 ### Run only the server
 
 ```bash
-python -m groupflow server                 # MCP on :8787, seeded with the demo world
+python -m groupflow server                 # MCP on :8787, filled with the demo world
 python -m groupflow server --db data/mine.db --port 9000
 ```
 
 | Endpoint | What it serves |
 | --- | --- |
-| `POST /mcp` (also `GET`, `DELETE`) | The **voice profile**: 13 intent-shaped tools for Alexa+ and other voice hosts (12.8 KB of definitions) |
-| `POST /mcp/lab` | The **lab profile**: the full 35-tool set used by the simulator, the evaluation and power users (same engine, same rules) |
-| `/human/...` | The human-only API behind each person's own page: sign-in, confirmations, withdrawals, preferences ([reference](docs/HUMAN_API.md)). MCP tokens are not accepted here |
-| `/oauth/authorize`, `/oauth/token`, `/oauth/revoke` | OAuth for assistant hosts (client credentials; authorization code with PKCE; rotating refresh tokens) |
-| `/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server` | OAuth discovery metadata (RFC 9728, RFC 8414) |
-| `GET /healthz` | Server name and version, protocol, response mode and tool profile |
-
-Set `GROUPFLOW_TOOL_PROFILE=lab` to serve the full set on `/mcp` too.
+| `/mcp` | 13 tools shaped around what people say to a voice assistant, as the Alexa+ design guide recommends (one intent per tool). This is what Alexa+ should use |
+| `/mcp/lab` | All 36 tools, used by the simulator and the evaluation. Same engine, same rules |
+| `/human/...` | The human-only API behind each person's own screen ([reference](docs/HUMAN_API.md)). MCP tokens are refused here |
+| `/oauth/authorize`, `/oauth/token`, `/oauth/revoke` | Sign-in for assistant hosts such as Alexa+ |
+| `/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server` | Where an OAuth client discovers the endpoints above |
+| `/healthz` | Server name, version and protocol |
 
 ### Protocol
 
-GroupFlow uses the official MCP Python SDK (2.3.0). It negotiates **2025-11-25** and also accepts **2025-06-18** and **2025-03-26**, because the Alexa+ client example in Amazon's documentation initializes with 2025-03-26. The stateless 2026-07-28 per-request envelope is refused, so newer clients fall back to the handshake. Responses are one JSON body per request by default; `GROUPFLOW_MCP_RESPONSES=sse` streams them, which lets the server ask a clarifying question through a host that supports MCP elicitation. Results come back as JSON in both `content` and `structuredContent` (the lab tools also declare output schemas), errors come back as tool results with `isError` and a message that says what to do, and every tool carries `readOnlyHint` and `destructiveHint` annotations.
+GroupFlow uses the official MCP Python SDK 2.3.0. It prefers protocol version **2025-11-25**, and also accepts 2025-06-18 and 2025-03-26 because the Alexa+ client example in Amazon's documentation starts with 2025-03-26. Each request gets one JSON response by default; with `GROUPFLOW_MCP_RESPONSES=sse` responses are streamed, which lets the server ask a clarifying question mid-call through a host that supports MCP elicitation. Results come back as JSON in both `content` and `structuredContent`; errors come back as tool results marked `isError`, with a message that says what to do next; every tool says whether it only reads or can overwrite (`readOnlyHint`, `destructiveHint`).
 
 ### Who is speaking
 
-The bearer token decides who is speaking. No tool takes a "who" argument, every MCP session is bound to the person who opened it (another person's token on that session gets 403), browser requests from unknown origins are refused, and Host headers are checked against DNS rebinding. A token can come from three places:
+The bearer token decides who is speaking; no tool takes a "who" argument. Each MCP session is tied to the person who opened it, so another person's token on that session is refused. Browser requests from unknown origins and unexpected Host headers are refused too. A token comes from one of three places:
 
-| Source | When to use it | How |
-| --- | --- | --- |
-| Demo tokens | Local testing | The table above (`demo/world.yaml`) |
-| A linked token from the person's own page | Your own MCP client, or the group chat | Sign up (group chat at `:8788/chat`, or `POST /human/signup`), then link an assistant on your page (`POST /human/links`); revocable there |
-| OAuth | Alexa+ and other hosts that do account linking | See [Connecting GroupFlow to Alexa+](#connecting-groupflow-to-alexa) |
+| Source | When to use it |
+| --- | --- |
+| The [demo sign-ins](#demo-sign-ins) | Local testing |
+| A link made on the person's own page (`POST /human/links`) | Your own MCP client, or the group chat. The person can revoke it there |
+| OAuth | Alexa+ and other hosts that link accounts; see [Connecting to Alexa+](#connecting-to-alexa) |
 
-A request without a valid token gets HTTP 401 with `WWW-Authenticate: Bearer resource_metadata="<server>/.well-known/oauth-protected-resource"`, so an OAuth-aware client can discover where to sign in.
+A request without a valid token gets HTTP 401 with a `WWW-Authenticate` header pointing at the OAuth discovery document.
 
 ### Who is listening
 
-A voice assistant on a kitchen counter is overheard. A host can say who will hear the reply with the `X-GroupFlow-Listeners` header, and the server then narrows the speaker's view to what every listener may see. The declaration can only narrow, never widen.
+A host can tell GroupFlow who will hear the reply with the `X-GroupFlow-Listeners` header. It can only narrow what is said, never widen it.
 
 | Header value | Meaning |
 | --- | --- |
-| *(absent)* | **Room mode** (default): the reply may be overheard. Summaries, open questions and reminders leave out plans kept from someone in the group, and the speaker's private limits are not read out. Naming a plan still serves it. Set `GROUPFLOW_UNDECLARED_AUDIENCE=private` to trust undeclared devices instead |
-| `me` | A personal device: only the speaker hears it |
-| `bob,charlie` | These members are listening too |
+| *(not sent)* | Others may hear (the default for shared devices): summaries leave out plans hidden from someone in the group, and private limits are not read out. Naming a plan still works for people who may see it. `GROUPFLOW_UNDECLARED_AUDIENCE=private` trusts such devices instead |
+| `me` | A personal device: only the speaker hears |
+| `bob,charlie` | These people are listening too |
 | `group:family` | Everyone in that group reads the reply (the group chat sends this) |
 
-With Alice's token, `catch_up` from an undeclared device lists Friday dinner and Home; with `X-GroupFlow-Listeners: me` it also lists Linda's surprise party; with Linda's token, asking for the party returns the same "no such plan" as a plan that does not exist.
+With Alice's token, "what's new?" on a device that sends nothing lists Friday dinner and Home; with `X-GroupFlow-Listeners: me` it also lists Linda's surprise party. With Linda's token, asking for the party gets the same "no such plan" as a plan that does not exist.
 
 ### Try it with curl
 
-These calls were run against `python -m groupflow server` as written (bash; on Windows use Git Bash or WSL).
+These calls work against `python -m groupflow server` as written (bash; on Windows use Git Bash or WSL).
 
 ```bash
 URL=http://127.0.0.1:8787/mcp
@@ -193,7 +212,7 @@ curl -s "$URL" "${H[@]}" -H "X-GroupFlow-Listeners: me" \
   -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"catch_up","arguments":{}}}'
 ```
 
-`python scripts/probe_host.py --url http://127.0.0.1:8787/mcp/lab --out probe.json` runs a similar smoke test with the official SDK client: session binding, typed results, a hidden plan filtered for Linda, and the listener filter for a shared room. [docs/PROTOCOL_EVIDENCE.md](docs/PROTOCOL_EVIDENCE.md) shows the captured traffic of a full run.
+`python scripts/probe_host.py --url http://127.0.0.1:8787/mcp/lab --out probe.json` runs a similar check with the official SDK client.
 
 ### Connect an MCP client
 
@@ -204,7 +223,7 @@ claude mcp add --transport http groupflow http://127.0.0.1:8787/mcp \
   --header "Authorization: Bearer gf_demo_alice_7f3k" --header "X-GroupFlow-Listeners: me"
 ```
 
-Clients configured by JSON (for example a project's `.mcp.json`) take the same URL and headers:
+Clients configured with JSON (for example a project's `.mcp.json`) take the same URL and headers:
 
 ```json
 {
@@ -218,22 +237,44 @@ Clients configured by JSON (for example a project's `.mcp.json`) take the same U
 }
 ```
 
-Use `/mcp/lab` instead of `/mcp` for the full tool set. Browser-based clients send an `Origin` header; if one is refused with 403, add its origin to `GROUPFLOW_ALLOWED_ORIGINS`. Then try saying what a person would say: "what's new with Friday dinner?", "restaurant A just closed, can you fix it?", "why not restaurant C?", "send it out". Confirming is then done by each person on their page, which the demo page shows under each person.
+Then say what a person would say: "what's new with Friday dinner?", "restaurant A just closed, can you fix it?", "why not restaurant C?", "send it out". If a browser-based client is refused with 403, add its origin to `GROUPFLOW_ALLOWED_ORIGINS`.
 
-## Connecting GroupFlow to Alexa+
+### Demo sign-ins
 
-Amazon's Alexa+ add-on documentation describes two OAuth tiers: the host itself (client credentials) and each person who links their account (authorization code with PKCE). GroupFlow implements both. We could not test on a device, because add-on device testing needs Private Preview access (see the [friction log](docs/FRICTION_LOG.md)), so this path is tested locally with the same HTTP calls.
+The demo world has thirteen people in five groups. These credentials are made up and only work locally. The **token** is what an assistant sends on `/mcp`; the **passcode** signs the person in to their own page and to the OAuth sign-in page.
 
-1. **Host the server on HTTPS.** Put it behind a TLS reverse proxy or tunnel and tell it its public address:
+| Person | Token for `/mcp` | Passcode | Groups |
+| --- | --- | --- | --- |
+| `alice` | `gf_demo_alice_7f3k` | `alice-demo` | Family, Friday friends |
+| `bob` | `gf_demo_bob_2m9q` | `bob-demo` | Family, Friday friends |
+| `charlie` | `gf_demo_charlie_8d1x` | `charlie-demo` | Family |
+| `linda` | `gf_demo_linda_5p0w` | `linda-demo` | Family (the surprise party is hidden from her) |
+| `chen` | `gf_demo_chen_k3v6` | `chen-demo` | Friday friends, Cottage crew, CS 341 study group |
+| `dana` | `gf_demo_dana_m9x1` | `dana-demo` | Friday friends, Cottage crew |
+| `omar` | `gf_demo_omar_r5t2` | `omar-demo` | Cottage crew |
+| `priya` | `gf_demo_priya_h8c4` | `priya-demo` | Cottage crew, Product team |
+| `marcus` | `gf_demo_marcus_w2p7` | `marcus-demo` | Product team |
+| `jun` | `gf_demo_jun_b6n3` | `jun-demo` | Product team, CS 341 study group |
+| `sofia` | `gf_demo_sofia_e4k9` | `sofia-demo` | Product team |
+| `sam` | `gf_demo_sam_t7m1` | `sam-demo` | CS 341 study group |
+| `noor` | `gf_demo_noor_q3z8` | `noor-demo` | CS 341 study group |
+
+Besides the Friday friends of the demo story, the Test lab has a family with a surprise party kept from Linda, a three-day cottage trip, a team design review moved by someone's private dentist appointment, and a study group with RSVPs, a bring list, a cost split and a vote.
+
+## Connecting to Alexa+
+
+Amazon's Alexa+ add-on documentation describes two kinds of sign-in: one for Alexa+ itself (OAuth client credentials) and one for each person who links their account (OAuth authorization code with PKCE). GroupFlow implements both. We could not test them on a device, because add-on device testing needs Private Preview access ([friction log](docs/FRICTION_LOG.md), entry F5), so they are tested locally with the same HTTP calls.
+
+1. **Host the server on HTTPS** behind a TLS reverse proxy or tunnel, and tell it its public address:
 
    ```bash
    GROUPFLOW_PUBLIC_URL=https://groupflow.example.com GROUPFLOW_HOST=0.0.0.0 GROUPFLOW_DB=data/live.db \
      python -m groupflow server
    ```
 
-   The public URL becomes the OAuth issuer and the token audience (`https://groupflow.example.com/mcp`), and its host name is added to the accepted Host headers. Keep the default room mode: a household Echo is a shared device.
+   Keep the shared-device default: a household Echo is a shared device.
 
-2. **Register Alexa+ as a client.** The secret is shown once:
+2. **Register Alexa+ as a client.** The secret is shown once.
 
    ```bash
    python -m groupflow oauth add --name "Alexa+" --redirect-uri https://<redirect URL from the add-on's account-linking settings>
@@ -241,219 +282,130 @@ Amazon's Alexa+ add-on documentation describes two OAuth tiers: the host itself 
    python -m groupflow oauth revoke <client_id>
    ```
 
-3. **Fill in the add-on's settings.** MCP endpoint `https://groupflow.example.com/mcp`; authorization endpoint `/oauth/authorize`; token endpoint `/oauth/token`; client id and secret from step 2. Discovery documents are at `/.well-known/oauth-protected-resource` and `/.well-known/oauth-authorization-server`.
+3. **Fill in the add-on's settings:** MCP endpoint `https://groupflow.example.com/mcp`, authorization endpoint `/oauth/authorize`, token endpoint `/oauth/token`, and the client id and secret from step 2.
 
-4. **How the two tiers behave.**
+4. **What each sign-in can do.**
 
-   | Tier | Grant | Scope | What it can do |
-   | --- | --- | --- | --- |
-   | Service | `client_credentials` with `resource=https://.../mcp` | `mcp:service` | `initialize` and `tools/list`; a `tools/call` answers HTTP 403 with `WWW-Authenticate: Bearer error="insufficient_scope"`, which is what starts account linking |
-   | Person | `authorization_code` with PKCE S256, then `refresh_token` | `mcp:resource` (also accepts `mcp:resources`) | Everything that person may do. Access tokens last an hour; refresh tokens rotate, and reusing a rotated refresh token or a code revokes the whole link |
+   | Sign-in | How it is obtained | What it can do |
+   | --- | --- | --- |
+   | Alexa+ itself | `client_credentials`, scope `mcp:service` | Connect and list tools. Calling a tool answers HTTP 403 with `insufficient_scope`, which is what starts account linking |
+   | A linked person | `authorization_code` with PKCE, then `refresh_token`; scope `mcp:resource` (`mcp:resources` is accepted too, because Amazon's pages use both) | Everything that person may do. Access tokens last an hour; refresh tokens change on every use, and reusing an old one revokes the link |
 
-   During linking the person signs in on GroupFlow's own page with their member id and passcode. The page tells them the assistant can read and act on their plans but can never confirm, decline or withdraw for them. Tokens are opaque, stored hashed, and bound to this server's resource; a token issued for another server is refused. The person can revoke the link on their own page, and the next request fails.
+   While linking, the person signs in on GroupFlow's own page, which tells them the assistant can read and act on their plans but can never confirm, decline or withdraw for them. They can revoke the link on their page at any time.
 
-5. **People.** Each person needs a GroupFlow account: sign-up through the group chat or `POST /human/signup` (`GROUPFLOW_SIGNUP=open`, `invite` or `off`), then groups and invites on their page or through the `invite_people` tool.
+5. **People need GroupFlow accounts:** sign-up through the group chat or `POST /human/signup`, then groups and invites through their page or by asking their assistant.
 
-## Tool reference
+## Tools
 
-### Voice profile (`/mcp`)
+### Voice tools (`/mcp`)
 
-One tool per thing people say, following the Alexa+ design guide's advice of one customer intent per tool, every constraint in one call, and lean results. Every write returns a receipt and is guarded against resends on the server, so no tool asks the model for a request key or a version.
+One tool per thing people say. Every change returns a receipt, and a repeated request is recorded once, so no tool asks the model to track request ids or versions.
 
 | Tool | What people say | What it does |
 | --- | --- | --- |
-| `catch_up` | "What's new?", "where are we with the party?" | News and what waits on the speaker across their plans, or one plan in detail. Changes nothing, except that passing back `heard` (the `heard_token` from an earlier call) marks those updates as told |
-| `ask_about` | "Where's the cake on the list?", "why can't we do 8?", "who moved it to 9?" | Finds items, explains why something is blocked or why an option would not work (without naming whose limit), and shows history |
-| `start_plan` | "Start a plan for Sam's birthday" | A plan from the closest template, optionally hidden from someone or limited to an audience |
-| `change_plan` | "Move dinner to 8", "ok, go with 7:30", "the toast depends on the speech" | Proposes or applies a change by the item's policy, decides a pending request (owner), links items |
-| `my_part` | "I'm in with one more, I'll bring chips, and I can only do 40" | The speaker's own RSVP, bring-list claims and private limits; never anyone else's |
-| `find_options` | "Restaurant A cancelled, can you fix it?" | Records the report and finds the smallest fix; with `brief: true` returns a search brief for other place tools; with `candidates` checks places found elsewhere |
-| `send_for_confirmation` | "Send it out" | Organizer: sends the version to the people who must confirm; refused if it breaks a hard limit |
-| `lock_in` | "Lock it in" | Organizer: commits a fully confirmed version through the gate (simulated bookings) |
-| `ask_group` | "Let's vote: pizza or tacos, until Wednesday" | Votes and "unless someone objects by ..." defaults |
-| `split_costs` | "I paid 60 for the cabin deposit" | Expenses, repayments, balances and settle-up suggestions |
-| `tell_people` | "Let everyone know", "remind whoever hasn't answered tomorrow at 9" | Notices by role or name, and reminders at a time in the speaker's words |
+| `catch_up` | "What's new?", "where are we with the party?" | News and what is waiting on the speaker, across their plans or for one plan. Reading never marks news as heard; passing back the `heard` value from an earlier call does |
+| `ask_about` | "Why can't we do 8?", "who moved it to 9?" | Finds items, explains why something is blocked (without naming whose limit), shows history |
+| `start_plan` | "Start a plan for Sam's birthday" | A plan from the closest template, optionally hidden from someone |
+| `change_plan` | "Move dinner to 8", "ok, go with 7:30" | Proposes or makes a change according to who owns the item; the owner decides requests |
+| `my_part` | "I'm in with one more, I'll bring chips, and I can only do 40" | The speaker's own RSVP, bring-list items and private limits, never anyone else's |
+| `find_options` | "Restaurant A cancelled, can you fix it?" | Records the report and finds the smallest fix; can also check places another tool found |
+| `send_for_confirmation` | "Send it out" | Organizer: asks the people taking part to confirm this version; refused if it breaks someone's limit |
+| `lock_in` | "Lock it in" | Organizer: locks in a fully confirmed version (bookings are simulated) |
+| `ask_group` | "Let's vote: pizza or tacos, until Wednesday" | Votes, and "unless someone objects by Thursday" proposals |
+| `split_costs` | "I paid 60 for the cabin deposit" | Expenses, repayments and who owes whom |
+| `tell_people` | "Let everyone know", "remind whoever hasn't answered tomorrow at 9" | Messages by role or name, and reminders at a time in the speaker's words |
 | `answer` | "The 7:30 one" | Runs the option the person picked for a question GroupFlow asked |
-| `invite_people` | "Make an invite for the cousins" | Starts a group or makes an invite code; each person accepts it on their own page |
+| `invite_people` | "Start a group for the cousins", "join with code 4F7K-29QD" | Starts a group, makes an invite code, or asks to join with one; joining waits for the person's own yes on their screen |
 
-### Lab profile (`/mcp/lab`)
-
-The full set, used by the simulator's host and the evaluation. The voice tools call these same engine operations.
+### All tools (`/mcp/lab`)
 
 | Area | Tools |
 | --- | --- |
-| Reading | `get_context` (summary index or full views), `search_plan`, `get_history`, `explain`, `review_plan`, `resolve_action` (the exact item a phrase refers to, with next-action recipes) |
+| Reading | `get_context`, `search_plan`, `get_history`, `explain`, `review_plan`, `resolve_action` |
 | Templates | `list_templates`, `get_template` |
-| Changing plans | `create_plan`, `propose_change`, `decide_change`, `link_items`, `set_my_conditions` (drafts; the person verifies them on their page) |
-| Facts and repair | `report_observation` (unverified until a trusted source confirms), `find_alternatives`, `get_alternatives`, `planning_options` (feasible options plus read-only facts, agreement, resilience, fairness and relaxation analyses) |
-| Agreements | `request_confirmations`, `commit_plan` |
-| Guarded writes | `action_receipts` (apply with a request key and expected version, status after a lost reply, preview, correct, inbox) |
-| People | `create_group`, `invite_to_group`, `notify_people`, `ask_followup`, `answer_followup`, `set_reminder` |
+| Changing plans | `create_plan`, `propose_change`, `decide_change`, `link_items`, `set_my_conditions` (drafts a private limit; the person confirms it on their screen) |
+| Facts and repair | `report_observation` (unconfirmed until a trusted source confirms), `find_alternatives`, `get_alternatives`, `planning_options` |
+| Agreeing | `request_confirmations`, `commit_plan` |
+| Safe retries | `action_receipts` (apply with a request key, check status after a lost reply, preview, undo) |
+| People | `create_group`, `invite_to_group`, `join_group`, `notify_people`, `ask_followup`, `answer_followup`, `set_reminder` |
 | Deciding together | `poll`, `rsvp`, `bring_list`, `costs` |
 | Structured projects | `get_project`, `configure_project`, `upsert_work`, `manage_recurrence`, `repair_project` |
 
-There is deliberately no tool that approves, declines or withdraws a confirmation, accepts an invite or links an account. Those exist only on the person's own page ([human API](docs/HUMAN_API.md)).
-
-## How it works
-
-```
- Simulator (:8788)                                  GroupFlow server (:8787)
- +---------------------------+   MCP 2025-11-25    +----------------------------------------+
- | Alice's Echo  (LLM agent) +--- Streamable HTTP ->| /mcp       voice profile, 13 tools     |
- | Bob's Echo    (LLM agent) |   one session per   | /mcp/lab   lab profile, 35 tools       |
- | group chat host           |   person, bearer    |            token = who is speaking     |
- +---------------------------+   token             |                                        |
- +---------------------------+   human-only HTTP   | Engine     groups, spaces, plans,      |
- | Each person's own page    +--- /human --------->|            items, requests, polls,     |
- | (sign-in, challenge, CSRF)|   no assistant      |            costs, reminders, check-ins |
- +---------------------------+   route             | Agreement  versions, conditions,       |
- +---------------------------+   OAuth             |            confirmations, commit gate  |
- | Alexa+ (add-on)           +--- /oauth --------->| Repair     enumeration, OR-Tools CP-SAT |
- +---------------------------+                     | SQLite     one file, WAL               |
-                                                   +----------------------------------------+
-```
-
-| Concept | What it is | Why it is there |
-| --- | --- | --- |
-| Group and space | People who plan together; a space is the part of the group that can see a plan | Visibility is decided once, by the space, so no tool can leak a plan to someone outside it |
-| Plan | One thing being planned, made from a template, with an organizer | The same tools work on any plan; the template supplies the vocabulary |
-| Detail | One agreed value (the party date, the meeting point) with an owner | Ownership turns "who gets to decide this?" into a rule |
-| Task | Something one person does, with status, due date and what it waits on | Dependencies show what blocks what, and finished work reopens when its inputs change |
-| Activity | Something people attend together, with a time, a place and participants | Each participant confirms it on their own page |
-| Condition | A person's private limit: home time, budget, diet, busy window | The solver respects it and explanations mention its kind, never its owner |
-
-Each item type has one of three policies. **Owner**: the owner decides, and anyone else's change becomes a request (a "maybe" is only an idea). **Open**: anyone in the plan can change it, like a shopping list. **Participants**: each person taking part confirms on their own page, then the organizer commits.
-
-**Agreements.** Activities move through draft, proposed, awaiting confirmations, ready and committed. An approval is bound to a digest of that activity and of the whole version, so it can never be replayed onto changed content. When a new version leaves an activity unchanged, its old approvals carry forward only after re-checking the digest, the person's current conditions, their membership and expiry. The commit gate re-checks all of it again.
-
-**Repair.** The solver searches a finite set of options per activity (other places of the same kind, time shifts the template allows, other days for multi-day plans) and minimises, in order: activities changed, the largest change for any one person, total change, people asked to reconfirm, soft preferences missed, added cost. Below 16,384 combinations it enumerates exactly; above that it uses OR-Tools CP-SAT, a threshold calibrated on 180 benchmark cases. Every candidate passes an independent validator, and results are labelled `optimal_within_domain`, `best_found`, `infeasible_within_domain` or `unknown`. When nothing fits, a deletion filter reports the kinds of limits that clash, without naming anyone. Every call measured 44 to 128 ms locally, repair included.
-
-**Visibility.** Every read goes through the speaker's scope. A plan outside it is never loaded, not filtered out afterwards, and asking for a hidden plan by name gets the same answer as a plan that does not exist.
-
-## The Alexa+ simulator
-
-The simulation path requires the simulated experience's source code; it is all here (`groupflow/sim`, `web/`). Each Echo on the page is a language-model agent that connects to GroupFlow with its person's token over the official MCP client, exactly as an add-on host would. One generic prompt serves every group. The page also shows:
-
-| View | What it shows |
-| --- | --- |
-| Demo story | One speaker at a time, the plan's timeline, the grid of answers (confirmed, still counts, asked again), the messages GroupFlow sent, and each person's private limits in a labelled narrator's view ([walkthrough](docs/DEMO_FRIENDS.md)) |
-| Each person's own page | Their confirmations, private limits, votes, RSVPs and costs, through the human-only API; the assistant has no route to it |
-| Memory explorer (test lab) | A read-only map of the speaker's actual MCP results, with the exact tool messages delivered to the last model request ([design](docs/MEMORY_VISUALIZATION.md)) |
-| Group chat (`/chat`) | Real people sign up, start a group, share an invite link and ask `@Alexa` in a room; the chat declares the room as listeners ([design](docs/GROUP_CHAT.md)) |
-| Demo console | Report a place closed as a trusted source would, reset a group to a stage, clear an assistant's chat memory, skip ahead two quiet days |
-
-Language models: DeepSeek by default, **Amazon Bedrock** through the Converse API (`AGENT_PROVIDER=bedrock`, `groupflow/sim/llm/bedrock.py`), or any OpenAI-compatible endpoint. Voice input uses the browser's speech recognition (Chrome, Edge).
-
-![Each person confirms the changed dinner on their own GroupFlow page; Alexa has no tool that can do it for them](docs/img/own-pages.png)
-
-![Authorized MCP memory: speaker, group, plan, versioned items, human confirmations and personal limits](docs/img/visible-memory.png)
-
-<details>
-<summary>More screenshots</summary>
-
-![The group chat: a new group with its invite link, a join notice, and two people talking](docs/img/group-chat-room.png)
-
-![The family group: Linda hears the cover story, and the board shows that her Echo receives nothing about the surprise party](docs/img/family-linda.png)
-
-![The same core on a team meeting: Marcus's private dentist appointment moves the design review to Tuesday afternoon](docs/img/team-meeting.png)
-
-</details>
-
-Feature design notes: [telling people and asking first](docs/TELLING_PEOPLE.md), [reminders and check-ins](docs/KEEPING_PLANS_MOVING.md), [deciding together](docs/DECIDING_TOGETHER.md), [group chat](docs/GROUP_CHAT.md).
+On purpose, no tool approves, declines or withdraws a confirmation, confirms a private limit, accepts a group invite or links an account. Those exist only on the person's own page ([human-only API](docs/HUMAN_API.md)).
 
 ## Configuration
 
-Every setting has a working local default; `.env.example` lists them. Only the simulated assistant needs a model key.
+Every setting has a working local default, and `.env.example` lists them. Only the simulated assistant needs a model key.
 
-| Variable | Default | Purpose |
+| Variable | Default | What it sets |
 | --- | --- | --- |
-| `AGENT_PROVIDER` | `deepseek` | The simulator's model: `deepseek`, `bedrock`, `openai` (any compatible endpoint) or `relay` (an outside agent answers each model request, see [the demo story](docs/DEMO_FRIENDS.md#recording-with-another-model)) |
+| `AGENT_PROVIDER` | `deepseek` | The simulated assistant's model: `deepseek`, `bedrock`, `openai` (any compatible service), or `relay` (an outside agent answers each model request; [how](docs/DEMO_FRIENDS.md#recording-with-another-model)) |
 | `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL` | none, `deepseek-flash` | DeepSeek |
-| `BEDROCK_MODEL_ID`, `AWS_REGION` | `us.amazon.nova-pro-v1:0`, `us-east-1` | Amazon Bedrock Converse; credentials from the standard AWS chain |
-| `OPENAI_COMPAT_BASE_URL`, `OPENAI_COMPAT_API_KEY`, `OPENAI_COMPAT_MODEL` | none | Any OpenAI-compatible endpoint |
+| `BEDROCK_MODEL_ID`, `AWS_REGION` | `us.amazon.nova-pro-v1:0`, `us-east-1` | Amazon Bedrock (Converse API); credentials come from the standard AWS chain |
+| `OPENAI_COMPAT_BASE_URL`, `OPENAI_COMPAT_API_KEY`, `OPENAI_COMPAT_MODEL` | none | Any OpenAI-compatible service |
 | `GROUPFLOW_HOST`, `GROUPFLOW_PORT` | `127.0.0.1`, `8787` | Where the server listens |
 | `SIMULATOR_PORT` | `8788` | The simulator page |
-| `GROUPFLOW_DB` | `data/groupflow.db` | SQLite file (created and seeded with the demo world on first start) |
-| `GROUPFLOW_WORLD` | `demo/world.yaml` | Demo world; `demo/enterprise.yaml` is a six-week project world (use its own `--db`) |
-| `GROUPFLOW_TOOL_PROFILE` | `voice` | What `/mcp` serves: `voice` (13 tools) or `lab` (35); `/mcp/lab` always serves the full set |
-| `GROUPFLOW_UNDECLARED_AUDIENCE` | `room` | A host that sends no `X-GroupFlow-Listeners`: `room` (may be overheard) or `private` |
-| `GROUPFLOW_PUBLIC_URL` | none | Public base URL: OAuth issuer, token audience and an accepted Host name |
-| `GROUPFLOW_ALLOWED_HOSTS` | localhost | Extra Host header names accepted on `/mcp` (DNS-rebinding protection); `*` only behind a proxy that checks Host |
-| `GROUPFLOW_ALLOWED_ORIGINS` | the simulator's and Vite's local origins | Browser origins allowed on `/mcp` and `/human` |
-| `GROUPFLOW_MCP_RESPONSES` | `json` | `sse` streams responses, which lets the server ask follow-ups through a host that supports elicitation |
-| `GROUPFLOW_CHECKINS` | `rules` | Check-ins on quiet plans: `rules`, `model` (a language model reviews and words them within the server's checks) or `off` |
+| `GROUPFLOW_DB` | `data/groupflow.db` | The SQLite database, created and filled with the demo world on first start |
+| `GROUPFLOW_WORLD` | `demo/world.yaml` | The demo world; `demo/enterprise.yaml` is a six-week project world (give it its own `--db`) |
+| `GROUPFLOW_TOOL_PROFILE` | `voice` | What `/mcp` serves: `voice` (13 tools) or `lab` (36). `/mcp/lab` always serves all 36 |
+| `GROUPFLOW_UNDECLARED_AUDIENCE` | `room` | For a host that does not send `X-GroupFlow-Listeners`: `room` (others may hear) or `private` |
+| `GROUPFLOW_PUBLIC_URL` | none | The public address: OAuth issuer, token audience and an accepted Host name |
+| `GROUPFLOW_ALLOWED_HOSTS` | localhost | Extra Host names accepted on `/mcp` (protection against DNS rebinding) |
+| `GROUPFLOW_ALLOWED_ORIGINS` | the simulator's local addresses | Browser origins allowed on `/mcp` and `/human` |
+| `GROUPFLOW_MCP_RESPONSES` | `json` | `sse` streams responses, so the server can ask follow-up questions through hosts that support it |
+| `GROUPFLOW_CHECKINS` | `rules` | Reminders on quiet plans: `rules`, `model` (a language model words them within the server's checks) or `off` |
 | `GROUPFLOW_SIGNUP` | `open` | Account sign-up: `open`, `invite` (needs an invite code) or `off` |
-| `GROUPFLOW_JOIN_URL`, `GROUPFLOW_CHAT_DB` | `http://localhost:8788/chat`, next to the database | Group chat invite links and its own message store |
-| `GROUPFLOW_ADMIN_KEY`, `GROUPFLOW_DEMO_ADMIN` | none, `1` | The demo console exists only with an admin key; `python -m groupflow demo` makes a random one per run. `GROUPFLOW_DEMO_ADMIN=0` turns it off |
-| `GROUPFLOW_TIMEZONE` | `America/Toronto` | The simulator's local time zone |
+| `GROUPFLOW_JOIN_URL`, `GROUPFLOW_CHAT_DB` | `http://localhost:8788/chat`, next to the database | Group chat invite links and its message store |
+| `GROUPFLOW_ADMIN_KEY`, `GROUPFLOW_DEMO_ADMIN` | none, `1` | The demo console exists only with an admin key; `python -m groupflow demo` makes a random one per run, and `GROUPFLOW_DEMO_ADMIN=0` turns it off |
+| `GROUPFLOW_TIMEZONE` | `America/Toronto` | The simulator's time zone |
 
-## Tests and evaluation
-
-```bash
-python -m pytest -q                       # engine, solver, templates, MCP transport, OAuth, human API, simulator, evaluation runner
-python scripts/check_links.py             # no doc links to files a fresh clone lacks
-```
-
-The suite (955 tests) runs without any model key. It covers the consent rules over real MCP sessions and the human-only HTTP API, the solver cross-checked against brute force, OAuth flows, room mode, resend detection, eight concurrent MCP sessions on one database with crash and restart, and replays of the held-out scenarios' reference answers against the real server. `.github/workflows/ci.yml` runs the tests and the link check on every push, and the model gate below when a key is configured.
-
-The model evaluation runs scenarios through real MCP sessions with the configured language model and checks server state, tool calls and outcomes, never exact wording:
+## Tests and evaluation commands
 
 ```bash
-python -m groupflow eval --suite all --list                     # 183 scenarios in five suites
+python -m pytest -q                       # the automated tests, no model key needed
+python scripts/check_links.py             # no document links to a file a fresh clone lacks
+python -m groupflow eval --suite all --list
 python -m groupflow eval --suite realistic --suite adversarial --host minimal --runs 3 --out minimal.md --json minimal.json
 python -m groupflow eval --suite realistic --suite adversarial --host lab --runs 3 --out lab.md --json lab.json
-python scripts/eval_gate.py minimal.json  # fails on any safety counter above zero or a drop below eval/baseline.json
-python -m groupflow eval --leakage        # which scenario sentences also appear in the prompt or tool text
-python scripts/compare_confirmation_policies.py   # the 16-versus-4 comparison, no model call
-python scripts/benchmark_solver.py        # enumeration versus CP-SAT
+python scripts/eval_gate.py minimal.json  # fails on any safety mistake, or a drop below eval/baseline.json
+python scripts/compare_confirmation_policies.py   # the 16-against-4 comparison, no model needed
+python scripts/benchmark_solver.py        # exact search against CP-SAT
 ```
 
-| Suite | Scenarios | Purpose |
-| --- | --- | --- |
-| `original` (`eval/scenarios`) | 108 | Written alongside the prompt: ownership, consent shortcuts, stale answers, lost chat memory, several plans per person |
-| `holdout` (`eval/holdout`) | 8 | Structure transfer, frozen before their first run |
-| `realistic` (`eval/realistic`) | 57 | Held out, in their own world: slang, typos, requests buried in chatter, self-corrections, group chats with listeners, telling people, asking first, deciding together |
-| `adversarial` (`eval/adversarial`) | 5 | Instructions planted by one member in task titles, bring-list entries and expense notes |
-| `demos` (`eval/demos`) | 5 | The guided demos the simulator used to play, step for step, kept as regression tests with reference trajectories |
-
-Results, method and the raw reports behind the headline numbers: [docs/EVALUATION.md](docs/EVALUATION.md).
+`--host minimal` is the Alexa+-like client and `--host lab` the simulator's client from [Results](#results). The suites are described in [docs/EVALUATION.md](docs/EVALUATION.md).
 
 ## Project layout
 
 | Path | Contents |
 | --- | --- |
-| `groupflow/mcp_server` | MCP server (official Python SDK 2.3.0): authentication, listener declarations, the voice profile (`voice.py`) and the lab profile (`tools.py`) |
-| `groupflow/engine` | The generic core: groups, spaces, plans and items (`core.py`), agreements and conditions (`agreement.py`), telling people (`notices.py`), reminders and check-ins (`momentum.py`), votes (`polls.py`), RSVPs and the bring list (`attendance.py`), costs (`costs.py`), OAuth (`oauth.py`), outside data (`outside.py`), resend detection (`product.py`) |
-| `groupflow/repair` | Search domain, validator, enumeration, CP-SAT, conflict explanation |
-| `groupflow/templates` | Eight plan templates plus frozen legacy definitions and presets (YAML) |
-| `groupflow/human_api` | The human-only API, OAuth pages and demo console endpoints |
-| `groupflow/sim` | The Alexa+ simulator: an MCP client per person, the LLM agent and providers, the demo story's script, the group chat host |
-| `groupflow/evals` | Evaluation runner and prompt-leakage check |
-| `web/` | React page (Echo devices, plan board, own pages, memory map) and the group chat |
-| `demo/` | Demo worlds (`world.yaml`, `enterprise.yaml`) |
-| `eval/` | Evaluation suites, their worlds, and `baseline.json` for the gate |
-| `tests/` | The automated test suite |
-| `docs/` | Evaluation, human API, protocol evidence, product feedback, friction log, design notes, limitations |
-
-## Hackathon submission
-
-| Requirement | Where it is met |
-| --- | --- |
-| Track | **Alexa+**, simulation path: a self-hosted MCP server plus a simulated Alexa+ experience in a web app |
-| MCP 2025-11-25 or later over Streamable HTTP | `groupflow/mcp_server/app.py`; captured handshake and calls in [docs/PROTOCOL_EVIDENCE.md](docs/PROTOCOL_EVIDENCE.md) |
-| Source code of the simulation | `groupflow/sim/` and `web/` |
-| Setup and run instructions | [Quick start](#quick-start-run-the-demo) and [Using the MCP server](#using-the-mcp-server) |
-| Test credentials | [Demo identities](#demo-identities) |
-| Open-source license | [MIT](LICENSE) |
-| Product feedback | [docs/PRODUCT_FEEDBACK.md](docs/PRODUCT_FEEDBACK.md) |
-| Friction log (bonus) | [docs/FRICTION_LOG.md](docs/FRICTION_LOG.md), every Alexa+ entry with task, steps, expected, actual, severity, workaround and suggestion |
-| AWS services | Amazon Bedrock (Converse API) is a selectable model provider for the simulated assistant and the evaluation; see [product feedback](docs/PRODUCT_FEEDBACK.md) for what was and was not run |
-| New project | Created for this hackathon; the first commit is dated October 2026, inside the submission period |
-| Demo video | *Link added with the Devpost submission* |
+| `groupflow/mcp_server` | The MCP server: sign-in, who is listening, the 13 voice tools (`voice.py`) and all 36 tools (`tools.py`) |
+| `groupflow/engine` | Groups, plans and items, agreements and private limits, messages, reminders, votes, RSVPs, costs, OAuth |
+| `groupflow/repair` | The repair search: options, checks, exact search, CP-SAT, explaining conflicts without names |
+| `groupflow/templates` | Plan templates in YAML (evening out, trip, meeting, gathering, shared tasks, study group, general event, structured project) |
+| `groupflow/human_api` | The human-only API, the OAuth pages and the demo console |
+| `groupflow/sim` | The Alexa+ simulator: one MCP client per person, the language-model assistant, the demo story's script, the group chat |
+| `groupflow/evals` | The evaluation runner |
+| `web/` | The simulator page and the group chat (React); `web/dist` is a built copy |
+| `demo/` | The demo worlds |
+| `eval/` | Evaluation scenarios and the baseline the CI gate compares against |
+| `tests/` | The automated tests |
+| `docs/` | The documents listed below |
 
 ## Limitations
 
-The Echo devices are simulated and the add-on has not run on a real Alexa+ device. Bookings are simulated (`SIM-` references), notifications are pulled rather than pushed (people hear news on their next turn or page visit, because we found no documented way for an add-on to start a notification), and the database is SQLite with one owning process. The full list, with the reason for each boundary, is in [docs/KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md).
+The Echo devices are simulated, and the add-on has not run on a real Alexa+ device. Alexa+ documents no way for an add-on to show a confirmation that the model cannot answer, so the screen panels in the demo show what we ask Amazon for in the product feedback. Bookings are simulated. Messages wait on the server until the person next talks to their assistant, because we found no documented way for an add-on to start a notification. The database is SQLite run by one server process. No real users have tried GroupFlow yet. The full list, with the reason for each, is in [docs/KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md).
+
+## Documents
+
+| Document | What it covers |
+| --- | --- |
+| [DEMO_FRIENDS.md](docs/DEMO_FRIENDS.md) | The demo story step by step, how to run and record it |
+| [EVALUATION.md](docs/EVALUATION.md) | How GroupFlow is tested with and without a language model, and the results |
+| [PRODUCT_FEEDBACK.md](docs/PRODUCT_FEEDBACK.md) | Feedback on each tool, API and SDK we used, and what we would ask Amazon for |
+| [FRICTION_LOG.md](docs/FRICTION_LOG.md) | Problems we hit with the Alexa+ add-on platform and while building |
+| [HUMAN_API.md](docs/HUMAN_API.md) | The human-only API behind each person's own page |
+| [KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md) | What GroupFlow does not do yet, and why |
+| [PROTOCOL_EVIDENCE.md](docs/PROTOCOL_EVIDENCE.md) | A captured MCP session: handshake, tool list and calls |
 
 ## License
 

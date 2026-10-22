@@ -26,6 +26,8 @@ from groupflow.core.errors import DomainError
 
 from .core import ASSISTANT, STATUS_WORDS, UNSET, Row, Scope, _names
 
+HOUR_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12}
+MINUTE_WORDS = {"fifteen": 15, "thirty": 30, "forty five": 45}
 NOTIFY_LEVELS = ("everyone", "organizers", "participants", "owners", "needs_answer")
 LEVEL_WORDS = {"all": "everyone", "everybody": "everyone", "the_group": "everyone", "group": "everyone", "organizer": "organizers",
                "hosts": "organizers", "participant": "participants", "attendees": "participants", "owner": "owners",
@@ -156,6 +158,20 @@ class Notices:
         agreed = plan["status"] == "COMMITTED" and not plan["candidate_revision_id"]
         return f"{a.title}: {self._when(plan, a)}{' at ' + where if where else ''}" + ("" if agreed else " (not agreed yet)")
 
+    def _plan_facts(self, plan: Row) -> str:
+        """An update about the whole plan ("tell everyone what we've got"): its stops as they stand, written from the plan's own
+        state. Empty for a plan without stops, which then needs a note or items."""
+        snap = self._latest_snapshot(plan)
+        stops = [a for a in (snap.activities if snap else ()) if not a.cancelled]
+        if not stops:
+            return ""
+        parts = []
+        for a in stops:
+            where = self._place_name(plan, a)
+            parts.append(f"{a.title} {self._when(plan, a)}" + (f" at {where}" if where else ""))
+        agreed = plan["status"] == "COMMITTED" and not plan["candidate_revision_id"]
+        return "; ".join(parts) + ("" if agreed else " (nothing agreed yet)")
+
     def _role_hint(self, plan: Row, items: list[Row], member: str, roles: dict[str, set[str]]) -> tuple[str, str]:
         requests = [r for i in items for r in self._open_requests(i["id"])] if items else \
             self.db.all("SELECT assignee_id FROM requests WHERE plan_id = ? AND status = 'open'", plan["id"])
@@ -249,10 +265,12 @@ class Notices:
             heard = set(scope.listeners or ())
             recipients: set[str] = set()
             in_room: set[str] = set()
+            levels: set[str] = set()
             for ref in wanted:
                 level = ref.lower().replace(" ", "_")
                 level = LEVEL_WORDS.get(level, level)
                 if level in NOTIFY_LEVELS:
+                    levels.add(level)
                     # People in this conversation already heard it; asking for a level never tells them twice.
                     recipients |= roles[level] - heard
                     in_room |= roles[level] & heard
@@ -264,10 +282,11 @@ class Notices:
                 who = "someone it would go to" if scope.listeners else self.name(leak)
                 raise DomainError("PRIVATE_NOTE", f"Nobody was told: the note mentions something {who} cannot see. Say it without that part, "
                                   "or tell only people who can see it.")
-            facts = "; ".join(self._about_fact(p, i) for i in items)
+            # Without items, an update to everyone carries the plan's stops; a reminder to whoever has not answered stays a reminder.
+            facts = "; ".join(self._about_fact(p, i) for i in items) if items else ("" if "needs_answer" in levels else self._plan_facts(p))
             hints = {m: self._role_hint(p, items, m, roles) for m in recipients}
             # A bare reminder ("nudge whoever hasn't answered") is fine when it tells each person what to do; otherwise say what to tell.
-            if not items and not note and not all(hint for _, hint in hints.values()):
+            if not facts and not note and not all(hint for _, hint in hints.values()):
                 raise DomainError("INVALID_ARGUMENT", "Say what to tell them: pass about (items in the plan) or a short note in the speaker's words.")
             speaker = self.name(actor_id)
             stale = _shift(self.ts(), -timedelta(minutes=30))
@@ -509,6 +528,16 @@ class Notices:
     def _match_option(options: list[dict[str, Any]], choice: str) -> dict[str, Any] | None:
         def spoken_time(value: str) -> str:
             value = value.lower().replace('’', "'")
+            # Times said in words ("nine thirty", "quarter past six", "nine pm"). An hour word becomes a number only next to a
+            # minute word, am/pm, o'clock or half/quarter, or when it is the whole answer, so "the first one" stays words.
+            hour = "|".join(HOUR_WORDS)
+            value = re.sub(rf"\b({hour})[\s-]+(fifteen|thirty|forty[\s-]five)\b",
+                           lambda m: f"{HOUR_WORDS[m[1]]}:{MINUTE_WORDS[re.sub(r'[\s-]+', ' ', m[2])]:02d}", value)
+            value = re.sub(rf"\bquarter past\s+({hour}|1[0-2]|[1-9])\b", lambda m: f"{HOUR_WORDS.get(m[1], m[1])}:15", value)
+            value = re.sub(rf"\bquarter to\s+({hour}|1[0-2]|[1-9])\b", lambda m: f"{(int(HOUR_WORDS.get(m[1], m[1])) + 10) % 12 + 1}:45", value)
+            value = re.sub(rf"\bhalf(?: past)?\s+({hour})\b", lambda m: f"{HOUR_WORDS[m[1]]}:30", value)
+            value = re.sub(rf"\b({hour})(?=\s*(?:am|pm|o'?clock)\b)", lambda m: str(HOUR_WORDS[m[1]]), value)
+            value = re.sub(rf"^\s*({hour})\s*[.!]?\s*$", lambda m: str(HOUR_WORDS[m[1]]), value)
             value = re.sub(r"\bhalf(?: past)?\s+(1[0-2]|[1-9])\b", r"\1:30", value)
             value = re.sub(r"(?<![:\d])\b(1[0-2]|[1-9])\s*(am|pm)\b", r"\1:00 \2", value)
             return re.sub(r"\b(1[0-2]|[1-9])\s+o'?clock\b", r"\1:00", value)
@@ -604,6 +633,8 @@ class Notices:
 
         if tool == "notify_people":
             return self.notify_people(actor_id, **keep("plan", "about", "audience", "note"))
+        if tool == "add_stop":  # an optional stop the template offered when the plan was made
+            return self.add_starter_stop(actor_id, a["plan"], a["key"])
         if tool == "propose_change":
             kw = keep("item", "plan", "value", "status", "owner", "title", "day", "start", "end", "place", "participants", "new_type", "value_kind",
                       "certainty", "quote")

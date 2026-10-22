@@ -49,7 +49,7 @@ INSTRUCTIONS = (
 NAMES = ["resolve_action", "action_receipts", "planning_options", "get_context", "search_plan", "create_plan", "propose_change", "decide_change", "link_items", "set_my_conditions", "report_observation",
          "request_confirmations", "find_alternatives", "get_alternatives", "commit_plan", "explain", "get_history", "list_templates", "get_template",
          "get_project", "configure_project", "upsert_work", "manage_recurrence", "repair_project", "create_group", "invite_to_group",
-         "notify_people", "ask_followup", "answer_followup", "set_reminder", "review_plan", "poll", "rsvp", "bring_list", "costs"]
+         "join_group", "notify_people", "ask_followup", "answer_followup", "set_reminder", "review_plan", "poll", "rsvp", "bring_list", "costs"]
 
 PLAN_ARG = Field(description='Plan id/title.')
 
@@ -424,6 +424,13 @@ def register(mcp: MCPServer, engine: GroupFlow, runner: ToolRunner) -> None:
               annotations=hints("invite_to_group"))
     async def invite_to_group(ctx: Context, group: Annotated[str | None, Field(description="Group id or name; needed when the speaker is in several groups.")] = None) -> dict[str, Any]:
         return runner.run(ctx, "invite_to_group", lambda m: engine.invite_to_group(m.id, group))
+
+    @mcp.tool(title="Join a group with a code", description=(
+        "The speaker was given an invite code and asks to join (\"join Alice's group, the code is 4F7K-29QD\"). It joins nobody: the speaker "
+        "confirms it on their own GroupFlow page, which their device shows them. Say which group it is and who invited them."),
+              annotations=hints("join_group"))
+    async def join_group(ctx: Context, code: Annotated[str, Field(description="The invite code exactly as said, e.g. 4F7K-29QD.")]) -> dict[str, Any]:
+        return runner.run(ctx, "join_group", lambda m: engine.request_join(m.id, code))
 
     @mcp.tool(title="Tell people about an update", description=(
         'When the speaker asks to let people know ("tell everyone", "remind whoever hasn\'t answered") or agrees to an offered follow-up. '

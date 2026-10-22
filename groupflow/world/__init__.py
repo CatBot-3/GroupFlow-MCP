@@ -25,7 +25,7 @@ from groupflow.core.db import Db
 from groupflow.core.identity import Person, seed_people
 from groupflow.core.settings import REPO_ROOT
 from groupflow.core.util import iso_now, new_id, now
-from groupflow.engine import GroupFlow, fixed_clock
+from groupflow.engine import ASSISTANT, GroupFlow, fixed_clock
 from groupflow.engine.text import day_label
 
 WORLD_PATH = REPO_ROOT / "demo" / "world.yaml"
@@ -89,6 +89,8 @@ def seed_world(engine: GroupFlow, world: World, stages: dict[str, str] | None = 
 
 
 def seed_group(engine: GroupFlow, world: World, group_id: str, stages: dict[str, str]) -> None:
+    if stages.get(f"group:{group_id}") == "none":
+        return  # the guided demo creates this group on camera, and its people join through an invite
     g = world.group(group_id)
     engine.add_group(g["id"], g["name"], g.get("timezone", "America/Toronto"), g.get("currency", "CAD"),
                      [{"id": m["id"], "role": m.get("role", "member"), "label": m.get("label"), "confirmation_mode": m.get("confirmation_mode", "scoped")}
@@ -126,6 +128,9 @@ def seed_plan(engine: GroupFlow, world: World, spec: dict[str, Any], stage: str 
     script = spec.get("script", [])
     first_at = next((s["at"] for s in script if "at" in s), None)
     previous_clock = engine._now_override
+    # Seeding is never an assistant conversation, even when a test seeds a world while acting as one: the template's starter
+    # is complete and nothing is offered.
+    not_assistant = ASSISTANT.set(False)
     try:
         if first_at:
             engine.set_clock(fixed_clock(first_at))
@@ -189,6 +194,7 @@ def seed_plan(engine: GroupFlow, world: World, spec: dict[str, Any], stage: str 
             run_stage(engine, spec["id"], steps, start_date)
     finally:
         engine.set_clock(previous_clock)
+        ASSISTANT.reset(not_assistant)
     return spec["id"]
 
 
@@ -289,6 +295,8 @@ def wipe_group(db: Db, group_id: str) -> None:
         delete("space_members", "space_id", spaces)
         db.run("DELETE FROM spaces WHERE group_id = ?", group_id)
         db.run("DELETE FROM group_members WHERE group_id = ?", group_id)
+        db.run("DELETE FROM join_requests WHERE group_id = ?", group_id)
+        db.run("DELETE FROM group_invites WHERE group_id = ?", group_id)
         db.run("DELETE FROM groups WHERE id = ?", group_id)
     db.tx(run)
 

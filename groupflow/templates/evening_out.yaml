@@ -56,5 +56,5 @@ starter:
   activities:
     - {key: meetup, title: Meet up, type: stop, start: "18:00", end: "18:15", place: central_hub}
     - {key: dinner, title: Dinner, type: stop, start: "18:30", end: "19:30", place: restaurant_a}
-    - {key: dessert, title: Dessert, type: stop, start: "19:45", end: "20:15", place: dessert_d}
+    - {key: dessert, title: Dessert, type: stop, start: "19:45", end: "20:15", place: dessert_d, optional: true, ask: "Do you want dessert after dinner, at Dessert Shop D?"}
     - {key: return_home, title: Ride home, type: stop, start: "20:15", end: "20:45", place: ride_home}

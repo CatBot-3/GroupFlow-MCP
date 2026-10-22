@@ -16,7 +16,7 @@ call the same engine, so permissions, consent and privacy rules are identical. W
   split_costs       "I paid 60 for the cabin deposit"
   tell_people       "let everyone know", "remind whoever hasn't answered tomorrow at 9"
   answer            the person's answer to a question the server asked
-  invite_people     "make an invite for the cousins group"
+  invite_people     "make an invite for the cousins group", "join Alice's group, the code is 4F7K-29QD"
 
 Every write returns a receipt and is guarded against resends by the server, so no tool needs a request key or a version from the
 model. None of them can confirm, decline or withdraw for a person: that exists only on the person's own page.
@@ -91,7 +91,7 @@ LAB_TO_VOICE = {"request_confirmations": "send_for_confirmation", "commit_plan":
                 "link_items": "change_plan", "notify_people": "tell_people", "set_reminder": "tell_people", "get_context": "catch_up",
                 "review_plan": "catch_up", "search_plan": "ask_about", "get_history": "ask_about", "resolve_action": "ask_about",
                 "set_my_conditions": "my_part", "bring_list": "my_part", "create_plan": "start_plan", "invite_to_group": "invite_people",
-                "create_group": "invite_people", "list_templates": "start_plan", "get_template": "start_plan"}
+                "create_group": "invite_people", "join_group": "invite_people", "list_templates": "start_plan", "get_template": "start_plan"}
 _LAB_NAME = re.compile(r"\b(" + "|".join(sorted(LAB_TO_VOICE, key=len, reverse=True)) + r")\b")
 
 
@@ -352,9 +352,12 @@ def register_voice(mcp: MCPServer, engine: GroupFlow, runner: ToolRunner) -> Non
 
     @mcp.tool(title="Invite people", description=(
         "Make an invite code for one of the speaker's groups (or start a new group first with new_group). It adds nobody by itself: "
-        "each person accepts it on their own page. Read the code out exactly."), annotations=hints("invite_people"))
-    async def invite_people(ctx: Context, group: str | None = None, new_group: str | None = None) -> dict[str, Any]:
+        "each person accepts it on their own page. Read the code out exactly. When the speaker was given a code and wants to join, pass "
+        "join_code: they confirm the join on their own page."), annotations=hints("invite_people"))
+    async def invite_people(ctx: Context, group: str | None = None, new_group: str | None = None, join_code: str | None = None) -> dict[str, Any]:
         def run(m):
+            if join_code:
+                return lean(engine.request_join(m.id, join_code))
             out: dict[str, Any] = {}
             target = group
             if new_group:
@@ -363,7 +366,7 @@ def register_voice(mcp: MCPServer, engine: GroupFlow, runner: ToolRunner) -> Non
                 target = (made.get("group") or {}).get("id") or new_group
             out.update(lean(engine.invite_to_group(m.id, target)))
             return out
-        return runner.run(ctx, "invite_people", run, op="invite_people", arguments={"group": group, "new_group": new_group})
+        return runner.run(ctx, "invite_people", run, op="invite_people", arguments={"group": group, "new_group": new_group, "join_code": join_code})
 
     lean_tool_schemas(mcp, VOICE_NAMES)
 

@@ -55,7 +55,10 @@ def build_runtime(settings: ServerSettings | None = None, db_path: str | None = 
         groups, plan_stages = parse_scenario(scenario, world)
         for g in groups:
             wipe_group(db, g)
-            seed_group(engine, world, g, {**(stages or {}), **plan_stages})
+            merged = {**(stages or {}), **plan_stages}
+            if any(v != "none" for v in plan_stages.values()):
+                merged.pop(f"group:{g}", None)  # a reset to a seeded stage needs the group itself
+            seed_group(engine, world, g, merged)
         engine.reset_rate_limits()
 
     services = Services(db=db, identity=identity, engine=engine, on_call=on_call, on_reset=reset)

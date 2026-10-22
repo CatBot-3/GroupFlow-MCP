@@ -110,6 +110,11 @@ class InviteBody(BaseModel):
     code: str
 
 
+class JoinDecisionBody(BaseModel):
+    id: str
+    accept: bool
+
+
 class LinkBody(BaseModel):
     host: str
 
@@ -314,6 +319,11 @@ def register_human_routes(app: FastAPI, services: Any) -> None:
             return JSONResponse(engine.invite_preview(code))
         except DomainError as err:
             return _error(err)
+
+    @app.post("/human/joins/decide")
+    async def decide_join(request: Request, body: JoinDecisionBody) -> JSONResponse:
+        """The person's own answer to a join they asked their assistant for by voice."""
+        return await run(request, True, lambda m: engine.human_decide_join(m, body.id, body.accept))
 
     @app.post("/human/invites/accept")
     async def accept_invite(request: Request, body: InviteBody) -> JSONResponse:

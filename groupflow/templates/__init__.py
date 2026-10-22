@@ -131,6 +131,9 @@ class StarterActivity(BaseModel):
     start: str
     end: str
     place: str | None = None
+    # An optional stop: a plan made through an assistant asks the organizer (``ask``) instead of adding it. Seeded plans include it.
+    optional: bool = False
+    ask: str | None = None
 
 
 class Starter(BaseModel):

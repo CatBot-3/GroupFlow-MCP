@@ -69,8 +69,11 @@ def _build_runtime(args: argparse.Namespace, demo: bool = False):
             Path(settings.db_path + suffix).unlink(missing_ok=True)
     Path(settings.db_path).parent.mkdir(parents=True, exist_ok=True)
     stage = getattr(args, "stage", None)
-    # The demo opens on the guided story, which starts with the friends group and no plan; --stage brings back a seeded dinner.
+    # The demo opens on the guided story, which starts before the friends group exists (Alice creates it and invites the others)
+    # and with no plan; --stage brings back the seeded group and dinner.
     stages = {"friday_dinner": stage or "none"} if (stage or demo) else None
+    if stages is not None and stages["friday_dinner"] == "none":
+        stages["group:friends"] = "none"  # the guided story starts before the group exists: Alice creates it and invites the others
     from groupflow.core.db import SchemaMismatch
 
     try:

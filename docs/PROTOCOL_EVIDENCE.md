@@ -1,8 +1,8 @@
 # Protocol evidence
 
-Captured 2026-10-20T18:49:57Z by `python -m groupflow evidence` (Python 3.13.16, MCP Python SDK 2.3.0, Linux).
+Captured 2026-10-22T17:16:57Z by `python -m groupflow evidence` (Python 3.13.16, MCP Python SDK 2.3.0, Linux).
 
-GroupFlow is a remote MCP server: Streamable HTTP on `/mcp`, JSON-RPC 2.0, protocol version **2025-11-25**, bearer-token identity. This capture serves the full lab tool set on `/mcp` (`GROUPFLOW_TOOL_PROFILE=lab`); by default `/mcp` serves the 13 voice tools and the lab set is on `/mcp/lab`, with the same engine and rules behind both. Everything below is the real traffic of one run against a throwaway database; only the tokens are redacted.
+GroupFlow is a remote MCP server: Streamable HTTP on `/mcp`, JSON-RPC 2.0, protocol version **2025-11-25**, bearer-token identity. This capture serves all 36 tools on `/mcp` (`GROUPFLOW_TOOL_PROFILE=lab`); by default `/mcp` serves the 13 voice tools and all 36 are on `/mcp/lab`, with the same engine and rules behind both. Everything below is the real traffic of one run against a throwaway database; only the tokens are redacted.
 
 ## 1. Handshake, discovery and a tool call (Alice, who has three plans in two groups)
 
@@ -39,7 +39,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 
 {
   "jsonrpc": "2.0",
@@ -80,7 +80,7 @@ content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <alice's token>
 x-groupflow-listeners: me
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 mcp-protocol-version: 2025-11-25
 
 {
@@ -94,7 +94,7 @@ Response:
 ```http
 HTTP/1.1 202 Accepted
 content-type: application/json
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 
 "(empty body)"
 ```
@@ -111,7 +111,7 @@ content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <alice's token>
 x-groupflow-listeners: me
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 mcp-protocol-version: 2025-11-25
 
 {
@@ -126,7 +126,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 
 {
   "jsonrpc": "2.0",
@@ -159,6 +159,7 @@ mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
       "repair_project",
       "create_group",
       "invite_to_group",
+      "join_group",
       "notify_people",
       "ask_followup",
       "answer_followup",
@@ -239,7 +240,7 @@ content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <alice's token>
 x-groupflow-listeners: me
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 mcp-protocol-version: 2025-11-25
 
 {
@@ -261,7 +262,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 
 {
   "jsonrpc": "2.0",
@@ -331,7 +332,7 @@ content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <linda's token>
 x-groupflow-listeners: me
-mcp-session-id: 9513c57a37e84593b3174cc760858037
+mcp-session-id: 9be98750167745d0a6d19b1d54173390
 mcp-protocol-version: 2025-11-25
 
 {
@@ -353,7 +354,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: 9513c57a37e84593b3174cc760858037
+mcp-session-id: 9be98750167745d0a6d19b1d54173390
 
 {
   "jsonrpc": "2.0",
@@ -394,7 +395,7 @@ content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <linda's token>
 x-groupflow-listeners: me
-mcp-session-id: 9513c57a37e84593b3174cc760858037
+mcp-session-id: 9be98750167745d0a6d19b1d54173390
 mcp-protocol-version: 2025-11-25
 
 {
@@ -415,7 +416,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: 9513c57a37e84593b3174cc760858037
+mcp-session-id: 9be98750167745d0a6d19b1d54173390
 
 {
   "jsonrpc": "2.0",
@@ -467,7 +468,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: 95f8fa16ed77484b873c80694cee334e
+mcp-session-id: 41c0d83306c342389f6e789a015c1599
 
 {
   "jsonrpc": "2.0",
@@ -508,7 +509,7 @@ content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <alice's token>
 x-groupflow-listeners: group:family
-mcp-session-id: 95f8fa16ed77484b873c80694cee334e
+mcp-session-id: 41c0d83306c342389f6e789a015c1599
 mcp-protocol-version: 2025-11-25
 
 {
@@ -530,7 +531,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: 95f8fa16ed77484b873c80694cee334e
+mcp-session-id: 41c0d83306c342389f6e789a015c1599
 
 {
   "jsonrpc": "2.0",
@@ -577,7 +578,7 @@ content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <alice's token>
 x-groupflow-listeners: group:family
-mcp-session-id: 95f8fa16ed77484b873c80694cee334e
+mcp-session-id: 41c0d83306c342389f6e789a015c1599
 mcp-protocol-version: 2025-11-25
 
 {
@@ -600,7 +601,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: 95f8fa16ed77484b873c80694cee334e
+mcp-session-id: 41c0d83306c342389f6e789a015c1599
 
 {
   "jsonrpc": "2.0",
@@ -651,7 +652,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: e82c94e1e0174805920b5ccb59c9e1d4
+mcp-session-id: 9286b03a34264f5c8b9eac47f5e117ce
 
 {
   "jsonrpc": "2.0",
@@ -691,7 +692,7 @@ POST /mcp HTTP/1.1
 content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <maya (linked)'s token>
-mcp-session-id: e82c94e1e0174805920b5ccb59c9e1d4
+mcp-session-id: 9286b03a34264f5c8b9eac47f5e117ce
 mcp-protocol-version: 2025-11-25
 
 {
@@ -712,7 +713,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: e82c94e1e0174805920b5ccb59c9e1d4
+mcp-session-id: 9286b03a34264f5c8b9eac47f5e117ce
 
 {
   "jsonrpc": "2.0",
@@ -720,7 +721,7 @@ mcp-session-id: e82c94e1e0174805920b5ccb59c9e1d4
   "result": {
     "content": [
       {
-        "text": "{\"outcome\": \"created\", \"group\": {\"id\": \"flatmates\", \"name\": \"Flatmates\", \"timezone\": \"America/Toronto\", \"currency\": \"CAD\", \"description\": null, \"members\": [{\"id\": \"maya\", \"name\": \"Maya\", \"role\": \"organizer\", \"label\": null, \"color\": \"#6B46C1\"}]}, \"message\": \"Started Flatmates with you as organizer. Invite people with invite_to_group; each person joins on their own GroupFlow page.\", \"action_receipt\": {\"id\": \"action_00d0d73a\", \"actor\": \"Maya\", \"subjects\": [\"Maya\"], \"operation\": \"create_group\", \"plans\": [], \"before\": {}, \"after\": {}, \"effects\": [], \"outcome\": \"created\", \"message\": \"Started Flatmates with you as organizer. Invite people with invite_to_group; each person joins on their own GroupFlow page.\", \"reversible\": false, \"created_at\": \"2026-10-20T18:49:56.679Z\"}}",
+        "text": "{\"outcome\": \"created\", \"group\": {\"id\": \"flatmates\", \"name\": \"Flatmates\", \"timezone\": \"America/Toronto\", \"currency\": \"CAD\", \"description\": null, \"members\": [{\"id\": \"maya\", \"name\": \"Maya\", \"role\": \"organizer\", \"label\": null, \"color\": \"#6B46C1\"}]}, \"message\": \"Started Flatmates with you as organizer. Invite people with invite_to_group; each person joins on their own GroupFlow page.\", \"action_receipt\": {\"id\": \"action_2455c196\", \"actor\": \"Maya\", \"subjects\": [\"Maya\"], \"operation\": \"create_group\", \"plans\": [], \"before\": {}, \"after\": {}, \"effects\": [], \"outcome\": \"created\", \"message\": \"Started Flatmates with you as organizer. Invite people with invite_to_group; each person joins on their own GroupFlow page.\", \"reversible\": false, \"created_at\": \"2026-10-22T17:16:56.740Z\"}}",
         "type": "text"
       }
     ],
@@ -745,7 +746,7 @@ mcp-session-id: e82c94e1e0174805920b5ccb59c9e1d4
       },
       "message": "Started Flatmates with you as organizer. Invite people with invite_to_group; each person joins on their own GroupFlow page.",
       "action_receipt": {
-        "id": "action_00d0d73a",
+        "id": "action_2455c196",
         "actor": "Maya",
         "subjects": [
           "Maya"
@@ -758,7 +759,7 @@ mcp-session-id: e82c94e1e0174805920b5ccb59c9e1d4
         "outcome": "created",
         "message": "Started Flatmates with you as organizer. Invite people with invite_to_group; each person joins on their own GroupFlow page.",
         "reversible": false,
-        "created_at": "2026-10-20T18:49:56.679Z"
+        "created_at": "2026-10-22T17:16:56.740Z"
       }
     }
   }
@@ -776,7 +777,7 @@ POST /mcp HTTP/1.1
 content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <maya (linked)'s token>
-mcp-session-id: e82c94e1e0174805920b5ccb59c9e1d4
+mcp-session-id: 9286b03a34264f5c8b9eac47f5e117ce
 mcp-protocol-version: 2025-11-25
 
 {
@@ -795,7 +796,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: e82c94e1e0174805920b5ccb59c9e1d4
+mcp-session-id: 9286b03a34264f5c8b9eac47f5e117ce
 
 {
   "jsonrpc": "2.0",
@@ -803,7 +804,7 @@ mcp-session-id: e82c94e1e0174805920b5ccb59c9e1d4
   "result": {
     "content": [
       {
-        "text": "{\"outcome\": \"created\", \"group\": {\"id\": \"flatmates\", \"name\": \"Flatmates\"}, \"code\": \"2MR2-5N45\", \"expires_at\": \"2026-10-27T18:49:56.728Z\", \"message\": \"Invite code for Flatmates: 2MR2-5N45. Share it; each person opens it and joins on their own GroupFlow page. Nobody can be added for them.\", \"join_url\": \"http://localhost:8788/chat?invite=2MR2-5N45\", \"action_receipt\": {\"id\": \"action_cf8b8372\", \"actor\": \"Maya\", \"subjects\": [\"Maya\"], \"operation\": \"invite_to_group\", \"plans\": [], \"before\": {}, \"after\": {}, \"effects\": [], \"outcome\": \"created\", \"message\": \"Invite code for Flatmates: 2MR2-5N45. Share it; each person opens it and joins on their own GroupFlow page. Nobody can be added for them.\", \"reversible\": false, \"created_at\": \"2026-10-20T18:49:56.728Z\"}}",
+        "text": "{\"outcome\": \"created\", \"group\": {\"id\": \"flatmates\", \"name\": \"Flatmates\"}, \"code\": \"PJ4K-9DD2\", \"expires_at\": \"2026-10-29T17:16:56.785Z\", \"message\": \"Invite code for Flatmates: PJ4K-9DD2. Share it; each person opens it and joins on their own GroupFlow page. Nobody can be added for them.\", \"join_url\": \"http://localhost:8788/chat?invite=PJ4K-9DD2\", \"action_receipt\": {\"id\": \"action_d556125e\", \"actor\": \"Maya\", \"subjects\": [\"Maya\"], \"operation\": \"invite_to_group\", \"plans\": [], \"before\": {}, \"after\": {}, \"effects\": [], \"outcome\": \"created\", \"message\": \"Invite code for Flatmates: PJ4K-9DD2. Share it; each person opens it and joins on their own GroupFlow page. Nobody can be added for them.\", \"reversible\": false, \"created_at\": \"2026-10-22T17:16:56.785Z\"}}",
         "type": "text"
       }
     ],
@@ -814,12 +815,12 @@ mcp-session-id: e82c94e1e0174805920b5ccb59c9e1d4
         "id": "flatmates",
         "name": "Flatmates"
       },
-      "code": "2MR2-5N45",
-      "expires_at": "2026-10-27T18:49:56.728Z",
-      "message": "Invite code for Flatmates: 2MR2-5N45. Share it; each person opens it and joins on their own GroupFlow page. Nobody can be added for them.",
-      "join_url": "http://localhost:8788/chat?invite=2MR2-5N45",
+      "code": "PJ4K-9DD2",
+      "expires_at": "2026-10-29T17:16:56.785Z",
+      "message": "Invite code for Flatmates: PJ4K-9DD2. Share it; each person opens it and joins on their own GroupFlow page. Nobody can be added for them.",
+      "join_url": "http://localhost:8788/chat?invite=PJ4K-9DD2",
       "action_receipt": {
-        "id": "action_cf8b8372",
+        "id": "action_d556125e",
         "actor": "Maya",
         "subjects": [
           "Maya"
@@ -830,9 +831,9 @@ mcp-session-id: e82c94e1e0174805920b5ccb59c9e1d4
         "after": {},
         "effects": [],
         "outcome": "created",
-        "message": "Invite code for Flatmates: 2MR2-5N45. Share it; each person opens it and joins on their own GroupFlow page. Nobody can be added for them.",
+        "message": "Invite code for Flatmates: PJ4K-9DD2. Share it; each person opens it and joins on their own GroupFlow page. Nobody can be added for them.",
         "reversible": false,
-        "created_at": "2026-10-20T18:49:56.728Z"
+        "created_at": "2026-10-22T17:16:56.785Z"
       }
     }
   }
@@ -853,7 +854,7 @@ content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <alice's token>
 x-groupflow-listeners: me
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 mcp-protocol-version: 2025-11-25
 
 {
@@ -876,7 +877,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 
 {
   "jsonrpc": "2.0",
@@ -907,7 +908,7 @@ mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
       "plan_status": null,
       "problems": [],
       "suggested_followup": {
-        "id": "fu_d58355c5",
+        "id": "fu_632b7f08",
         "question": "Want me to let Bob know that Venue is now \"Lucky Star karaoke\"?",
         "options": [
           "yes",
@@ -915,7 +916,7 @@ mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
         ]
       },
       "action_receipt": {
-        "id": "action_806be4cb",
+        "id": "action_7397a0d1",
         "actor": "Alice",
         "subjects": [
           "Alice",
@@ -926,10 +927,10 @@ mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
           "party"
         ],
         "before": {
-          "party": "sha256:54cd3bf51eae1c103ed031d4f3127863583c08e7c9d146779f08db57bb03f3e0"
+          "party": "sha256:b57526b1c3272aeb58bcd348cac06c7e310e4abc9b0c885a7060864c02de1724"
         },
         "after": {
-          "party": "sha256:5d82a379e148ee058e34015ed7970c8fcb13a58ac93c223e7b0ffcd0434af387"
+          "party": "sha256:84f84d354ba3b1091eb4db57feed1f95778d8d4365fd3bc8dc617c95d233ecdb"
         },
         "effects": [
           "value.confirmed",
@@ -939,7 +940,7 @@ mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
         "outcome": "confirmed",
         "message": "Venue is now \"Lucky Star karaoke\" (was \"Rosa's Trattoria, back room\").",
         "reversible": false,
-        "created_at": "2026-10-20T18:49:56.781Z"
+        "created_at": "2026-10-22T17:16:56.840Z"
       }
     }
   }
@@ -958,7 +959,7 @@ content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <alice's token>
 x-groupflow-listeners: me
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 mcp-protocol-version: 2025-11-25
 
 {
@@ -979,7 +980,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 
 {
   "jsonrpc": "2.0",
@@ -987,7 +988,7 @@ mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
   "result": {
     "structuredContent": {
       "outcome": "answered",
-      "id": "fu_d58355c5",
+      "id": "fu_632b7f08",
       "question": "Want me to let Bob know that Venue is now \"Lucky Star karaoke\"?",
       "choice": "yes",
       "action": {
@@ -1005,7 +1006,7 @@ mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
               "name": "Bob",
               "role": "fyi",
               "text": "Alice asked Alexa to let you know about Linda's surprise party: Venue is \"Lucky Star karaoke\".",
-              "notice_id": "n_75fac027"
+              "notice_id": "n_ba885700"
             }
           ],
           "skipped": [],
@@ -1014,7 +1015,7 @@ mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
       },
       "message": "Ran notify_people as they chose; report its outcome exactly.",
       "action_receipt": {
-        "id": "action_d063c206",
+        "id": "action_79c9ab08",
         "actor": "Alice",
         "subjects": [
           "Alice"
@@ -1024,10 +1025,10 @@ mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
           "party"
         ],
         "before": {
-          "party": "sha256:5d82a379e148ee058e34015ed7970c8fcb13a58ac93c223e7b0ffcd0434af387"
+          "party": "sha256:84f84d354ba3b1091eb4db57feed1f95778d8d4365fd3bc8dc617c95d233ecdb"
         },
         "after": {
-          "party": "sha256:129955df0579d13e1d7dac116e8959aacf2965aa23e69650afe495abad7bd9d0"
+          "party": "sha256:a78f704e313bcad16e936e112424bee2002a286059021e4ca39447608c44d8ae"
         },
         "effects": [
           "followup.answered",
@@ -1036,7 +1037,7 @@ mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
         "outcome": "answered",
         "message": "Ran notify_people as they chose; report its outcome exactly.",
         "reversible": false,
-        "created_at": "2026-10-20T18:49:56.834Z"
+        "created_at": "2026-10-22T17:16:56.891Z"
       }
     }
   }
@@ -1055,7 +1056,7 @@ content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <alice's token>
 x-groupflow-listeners: me
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 mcp-protocol-version: 2025-11-25
 
 {
@@ -1077,7 +1078,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 
 {
   "jsonrpc": "2.0",
@@ -1107,7 +1108,7 @@ content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <alice's token>
 x-groupflow-listeners: me
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 mcp-protocol-version: 2025-11-25
 
 {
@@ -1130,7 +1131,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 
 {
   "jsonrpc": "2.0",
@@ -1163,7 +1164,7 @@ content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <alice's token>
 x-groupflow-listeners: me
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 mcp-protocol-version: 2025-11-25
 
 {
@@ -1208,7 +1209,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 
 {
   "jsonrpc": "2.0",
@@ -1216,7 +1217,7 @@ mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
   "result": {
     "structuredContent": {
       "outcome": "pending",
-      "id": "fu_7e715292",
+      "id": "fu_08973ced",
       "question": "Push it to 6:30 or 7?",
       "options": [
         "6:30",
@@ -1224,7 +1225,7 @@ mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
       ],
       "message": "Ask this in your reply, with the options. When they answer, call answer_followup with their words; the server runs what they chose.",
       "action_receipt": {
-        "id": "action_26098a4a",
+        "id": "action_e5e4cf7c",
         "actor": "Alice",
         "subjects": [
           "Alice"
@@ -1234,10 +1235,10 @@ mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
           "party"
         ],
         "before": {
-          "party": "sha256:129955df0579d13e1d7dac116e8959aacf2965aa23e69650afe495abad7bd9d0"
+          "party": "sha256:a78f704e313bcad16e936e112424bee2002a286059021e4ca39447608c44d8ae"
         },
         "after": {
-          "party": "sha256:8f8437bf373748d1e89bcd77571e343c46369167bd04d0f1f5ccdb157d5592dd"
+          "party": "sha256:8a0cf7f27e662d8bc1c43b411556c5a6d6eab0e2503fd6639913d3e6603853b4"
         },
         "effects": [
           "followup.asked"
@@ -1245,7 +1246,7 @@ mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
         "outcome": "pending",
         "message": "Ask this in your reply, with the options. When they answer, call answer_followup with their words; the server runs what they chose.",
         "reversible": false,
-        "created_at": "2026-10-20T18:49:56.988Z"
+        "created_at": "2026-10-22T17:16:57.041Z"
       }
     }
   }
@@ -1264,7 +1265,7 @@ content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <alice's token>
 x-groupflow-listeners: me
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 mcp-protocol-version: 2025-11-25
 
 {
@@ -1285,7 +1286,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 
 {
   "jsonrpc": "2.0",
@@ -1293,7 +1294,7 @@ mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
   "result": {
     "structuredContent": {
       "outcome": "answered",
-      "id": "fu_7e715292",
+      "id": "fu_08973ced",
       "question": "Push it to 6:30 or 7?",
       "choice": "7:00",
       "action": {
@@ -1332,7 +1333,7 @@ mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
       },
       "message": "Ran propose_change as they chose; report its outcome exactly.",
       "action_receipt": {
-        "id": "action_253d4ff6",
+        "id": "action_18b4d4ca",
         "actor": "Alice",
         "subjects": [
           "Alice",
@@ -1344,10 +1345,10 @@ mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
           "party"
         ],
         "before": {
-          "party": "sha256:8f8437bf373748d1e89bcd77571e343c46369167bd04d0f1f5ccdb157d5592dd"
+          "party": "sha256:8a0cf7f27e662d8bc1c43b411556c5a6d6eab0e2503fd6639913d3e6603853b4"
         },
         "after": {
-          "party": "sha256:47b4b77c5dfaebd93db99d8fc72226f15a1ec75df8441e32e2b183420dea3484"
+          "party": "sha256:4253767ad24d1798008f4e38e163be02eed4d7f3aa512bfbd68f8faad51b9678"
         },
         "effects": [
           "followup.answered",
@@ -1359,7 +1360,7 @@ mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
         "outcome": "answered",
         "message": "Ran propose_change as they chose; report its outcome exactly.",
         "reversible": false,
-        "created_at": "2026-10-20T18:49:57.042Z"
+        "created_at": "2026-10-22T17:16:57.095Z"
       }
     }
   }
@@ -1380,7 +1381,7 @@ content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <alice's token>
 x-groupflow-listeners: me
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 mcp-protocol-version: 2025-11-25
 
 {
@@ -1402,7 +1403,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 
 {
   "jsonrpc": "2.0",
@@ -1417,7 +1418,7 @@ mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
           "said": "later",
           "plan": "party",
           "followup": {
-            "id": "fu_080aa260",
+            "id": "fu_31d3c60b",
             "question": "When should the reminder go off: this evening at 7, tomorrow at 9am, the day before at 9am or the morning of?",
             "options": [
               "This evening at 7",
@@ -1445,7 +1446,7 @@ content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <alice's token>
 x-groupflow-listeners: me
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 mcp-protocol-version: 2025-11-25
 
 {
@@ -1466,7 +1467,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 
 {
   "jsonrpc": "2.0",
@@ -1474,7 +1475,7 @@ mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
   "result": {
     "structuredContent": {
       "outcome": "answered",
-      "id": "fu_080aa260",
+      "id": "fu_31d3c60b",
       "question": "When should the reminder go off: this evening at 7, tomorrow at 9am, the day before at 9am or the morning of?",
       "choice": "Tomorrow at 9am",
       "action": {
@@ -1482,19 +1483,19 @@ mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
         "ok": true,
         "result": {
           "outcome": "scheduled",
-          "id": "rm_f1ce3a18",
+          "id": "rm_ee67db42",
           "plan": "Linda's surprise party",
-          "when": "Wed, Oct 21, 9:00 am",
+          "when": "Fri, Oct 23, 9:00 am",
           "to": "you",
           "about": [
             "Cake"
           ],
-          "message": "Reminder set for Wed, Oct 21, 9:00 am for you. At that time it shows up in GroupFlow, and Alexa mentions it on your next turn."
+          "message": "Reminder set for Fri, Oct 23, 9:00 am for you. At that time it shows up in GroupFlow, and Alexa mentions it on your next turn."
         }
       },
       "message": "Ran set_reminder as they chose; report its outcome exactly.",
       "action_receipt": {
-        "id": "action_dda46683",
+        "id": "action_3e48b5dd",
         "actor": "Alice",
         "subjects": [
           "Alice"
@@ -1504,10 +1505,10 @@ mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
           "party"
         ],
         "before": {
-          "party": "sha256:4158a9cd9e27430eb4d328c5f496482e9b3f67596827b1f8adc23e18e8e885e7"
+          "party": "sha256:9cb90de070c8faa6e100ba1d70f6449fcd5c6b83fdcb56c3ef7232263516eb8b"
         },
         "after": {
-          "party": "sha256:46c9e156c7018f6c77f1a121fd82e34159e7fd2e5fa80547f31095e3f85f24d1"
+          "party": "sha256:da8652ca923aec579afa73165d33fcacaa7580816c2c9455b4771383d1009c53"
         },
         "effects": [
           "followup.answered",
@@ -1516,7 +1517,7 @@ mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
         "outcome": "answered",
         "message": "Ran set_reminder as they chose; report its outcome exactly.",
         "reversible": false,
-        "created_at": "2026-10-20T18:49:57.150Z"
+        "created_at": "2026-10-22T17:16:57.198Z"
       }
     }
   }
@@ -1535,7 +1536,7 @@ content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <alice's token>
 x-groupflow-listeners: me
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 mcp-protocol-version: 2025-11-25
 
 {
@@ -1556,7 +1557,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 
 {
   "jsonrpc": "2.0",
@@ -1584,7 +1585,7 @@ mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
       ],
       "message": "Friday dinner has been quiet for less than an hour. Waiting on: answers on the sent plan (P1) from you, Bob, Chen and Dana.",
       "action_receipt": {
-        "id": "action_559f9d1d",
+        "id": "action_3b67cea8",
         "actor": "Alice",
         "subjects": [
           "Alice"
@@ -1594,16 +1595,16 @@ mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
           "friday_dinner"
         ],
         "before": {
-          "friday_dinner": "sha256:205c5c0b95b9be34007d51a3343c9403f4df7ac631e83713c63b400d5cc42472"
+          "friday_dinner": "sha256:3f415f5b82700b470843a1c718c348e0eb37211b0a3f6664a6311f6af8edf01b"
         },
         "after": {
-          "friday_dinner": "sha256:205c5c0b95b9be34007d51a3343c9403f4df7ac631e83713c63b400d5cc42472"
+          "friday_dinner": "sha256:3f415f5b82700b470843a1c718c348e0eb37211b0a3f6664a6311f6af8edf01b"
         },
         "effects": [],
         "outcome": "waiting for answers",
         "message": "Friday dinner has been quiet for less than an hour. Waiting on: answers on the sent plan (P1) from you, Bob, Chen and Dana.",
         "reversible": false,
-        "created_at": "2026-10-20T18:49:57.204Z"
+        "created_at": "2026-10-22T17:16:57.250Z"
       }
     }
   }
@@ -1642,7 +1643,7 @@ Response:
 
 ```http
 HTTP/1.1 401 Unauthorized
-www-authenticate: Bearer realm="groupflow", resource_metadata="http://127.0.0.1:33141/.well-known/oauth-protected-resource"
+www-authenticate: Bearer realm="groupflow", resource_metadata="http://127.0.0.1:38519/.well-known/oauth-protected-resource"
 content-type: application/json
 
 {
@@ -1711,7 +1712,7 @@ POST /mcp HTTP/1.1
 content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <bob's token>
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 mcp-protocol-version: 2025-11-25
 
 {
@@ -1749,7 +1750,7 @@ content-type: application/json
 accept: application/json, text/event-stream
 authorization: Bearer <alice's token>
 x-groupflow-listeners: me
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 mcp-protocol-version: 2025-11-25
 
 {
@@ -1770,7 +1771,7 @@ Response:
 ```http
 HTTP/1.1 200 OK
 content-type: application/json
-mcp-session-id: b63d7beb16974a79b9b2b9c9b9b2fb87
+mcp-session-id: 64ed5e5947154b438e90687dbbafaf01
 
 {
   "jsonrpc": "2.0",
@@ -1796,5 +1797,5 @@ The Python MCP SDK client (`mcp` 2.3.0) connects in both of its modes. In `auto`
 | `legacy` | `2025-11-25` |
 | `auto` | `2025-11-25` |
 
-Tools listed in the last session: 35.
+Tools listed in the last session: 36.
 

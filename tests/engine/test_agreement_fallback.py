@@ -612,7 +612,7 @@ def test_one_use_challenge_and_decline_survive_database_reopen(tmp_path):
 def test_no_mcp_tool_or_guarded_action_can_grant_fallback_permission(lab):
     from groupflow.mcp_server.tools import NAMES
 
-    assert len(NAMES) == 35
+    assert len(NAMES) == 36
     assert not any(part in name for name in NAMES for part in ("fallback_approve", "human_fallback", "approve_for"))
     before = state(lab.gf)
     denied(lambda: lab.gf.apply_action("amir", "human_fallback_decide", {

@@ -33,7 +33,7 @@ from groupflow.repair.solver import judge_option, rejected_alternatives, repair
 from groupflow.repair.validate import violations
 from groupflow.templates import Template, apply_preset, get_template
 
-from .core import UNSET, Core, Row, Scope, _names, _plural
+from .core import ASSISTANT, UNSET, Core, Row, Scope, _names, _plural
 from .text import dates_text, day_label, money, normalize_slot_key, parse_amount_minor, parse_day, parse_time_of_day, slugify, topic_stems
 from .views import (
     ActivityView, AlternativesResult, AlternativeView, ChangeResult, CommitResult, ConditionsResult, ConditionView, ConfirmationRow,
@@ -714,6 +714,7 @@ class Agreement(Core):
                         lifecycle or t.lifecycle, n_days)
             plan = self._plan_row(pid)
             self._audit(actor_id, "plan.created", "plan", pid, plan, f"{self.name(actor_id)} started {plan['title']} ({t.name}) for {dates_text(d, n_days)}.")
+            optional: list[Any] = []
             if starter:
                 for sd in t.starter.details:
                     self._insert_item(plan, "detail", sd.type, sd.label, org, actor_id, item_id=self._free_id(sd.key, plan), value_kind=sd.value_kind,
@@ -725,6 +726,9 @@ class Agreement(Core):
                     snap = self._empty_snapshot(plan)
                     catalog = self._catalog(plan)
                     for sa in t.starter.activities:
+                        if sa.optional and ASSISTANT.get():
+                            optional.append(sa)  # asked, not assumed (see below)
+                            continue
                         place = catalog.places.get(sa.place or "")
                         it = t.item_type(sa.type) or t.default_type("activity")
                         aid = self._free_id(sa.key, plan)
@@ -741,8 +745,48 @@ class Agreement(Core):
             scope = self.scope_for(actor_id)
             hidden = (" Only you can see it." if private else
                       f" It is hidden from {_names([self.name(m) for m in members if m not in people])}." if set(people) != set(members) else "")
-            return CreatePlanResult(outcome="created", plan=self._plan_view(scope, self._plan_row(pid)),
-                                    message=f"Started {plan['title']} for {dates_text(d, n_days)}.{hidden} Nothing is agreed yet.")
+            offer = None
+            if optional:
+                # Ask about the template's optional stops instead of assuming them; the answer adds the stop exactly as the starter would.
+                sa = optional[0]
+                question = sa.ask or f"Do you want {sa.title.lower()} as well?"
+                options = [{"label": "yes", "action": {"tool": "add_stop", "arguments": {"plan": pid, "key": sa.key}}}, {"label": "no", "action": None}]
+                offer = {"id": self._store_followup(actor_id, "offer", question, options, self._plan_row(pid), "suggested"), "question": question,
+                         "options": ["yes", "no"]}
+            return CreatePlanResult(outcome="created", plan=self._plan_view(scope, self._plan_row(pid)), suggested_followup=offer,
+                                    message=f"Started {plan['title']} for {dates_text(d, n_days)}.{hidden} Nothing is agreed yet."
+                                            + (f" Ask the organizer: {offer['question']}" if offer else ""))
+        return self.db.tx(run)
+
+    def add_starter_stop(self, actor_id: str, plan: str, key: str) -> dict[str, Any]:
+        """Add an optional stop the template offered when the plan was made, the way the starter would have added it."""
+        def run() -> dict[str, Any]:
+            scope = self.scope_for(actor_id)
+            p = self.resolve_plan(scope, plan)
+            self._require_organizer(p, actor_id, "add a stop")
+            if p["status"] != "DRAFT":
+                raise DomainError("INVALID_STATE", f"{p['title']} was already sent out; add stops with propose_change.")
+            sa = next((a for a in self.template(p).starter.activities if a.key == key), None)
+            if sa is None:
+                raise DomainError("NOT_FOUND", f"The {p['title']} template has no stop called {key}.")
+            snap = self._latest_snapshot(p) or self._empty_snapshot(p)
+            if any(a.title == sa.title for a in snap.activities):
+                return {"outcome": "already_there", "message": f"{p['title']} already has {sa.title}."}
+            catalog = self._catalog(p)
+            place = catalog.places.get(sa.place or "")
+            it = self.template(p).item_type(sa.type) or self.template(p).default_type("activity")
+            aid = self._free_id(sa.key, p)
+            people = self.plan_audience(p)
+            self._insert_item(p, "activity", it.name, sa.title, p["organizer_id"], actor_id, item_id=aid)
+            start = sa.day * DAY + (parse_time_of_day(sa.start) or 0)
+            end = sa.day * DAY + (parse_time_of_day(sa.end) or 0)
+            snap = snap.with_activity(Activity(id=aid, title=sa.title, kind=place.kind if place else it.name, start=start, end=end,
+                                               place_id=place.id if place else None, place_name=None if place else sa.place,
+                                               participants=tuple(people), cost_shares=tuple((m, place.price_minor if place else 0) for m in sorted(people))))
+            p, _, _ = self._edit(p, snap, actor_id)
+            where = f" at {place.name}" if place else ""
+            self._audit(actor_id, "plan.stop_added", "plan", p["id"], p, f"{self.name(actor_id)} added {sa.title}{where} to {p['title']}.")
+            return {"outcome": "added", "message": f"Added {sa.title} {hhmm(start)}-{hhmm(end)}{where} to {p['title']}. Nothing is agreed yet."}
         return self.db.tx(run)
 
     def _free_id(self, key: str, plan: Row) -> str:
@@ -1198,8 +1242,21 @@ class Agreement(Core):
         return replace(snap, activities=tuple(acts))
 
     def _reassess(self, group_id: str, reason: str, plan_id: str | None = None) -> list[str]:
-        """After a verified fact or an activated condition: an agreed plan that no longer works becomes DEGRADED."""
+        """After a verified fact or an activated condition: an agreed plan that no longer works becomes DEGRADED, and the organizer of a
+        draft that no longer fits someone's limits is told (without saying whose), so the fix can start before anyone tries to send it."""
         affected = []
+        for plan in self.db.all("SELECT * FROM plans WHERE group_id = ? AND status = 'DRAFT' AND draft_revision_id IS NOT NULL", group_id):
+            if (plan_id and plan["id"] != plan_id) or not self._has_activities(plan):
+                continue
+            problems = self._public_problems(plan, self._snapshot(self._revision(plan["draft_revision_id"])))
+            if not problems:
+                continue
+            text = (f"{plan['title']}: the draft no longer fits everyone. {problems[0]} "
+                    "Want me to look for the smallest change that works for everyone?")
+            org = plan["organizer_id"]
+            if not self.db.get("SELECT 1 AS x FROM notifications WHERE member_id = ? AND plan_id = ? AND kind = 'conflict' AND text = ?", org, plan["id"], text):
+                self._notify([org], plan, "conflict", text)
+            affected.append(plan["id"])
         rows = self.db.all("SELECT * FROM plans WHERE group_id = ? AND status IN ('COMMITTED', 'READY_TO_COMMIT', 'AWAITING_CONFIRMATIONS', 'PROPOSED')", group_id)
         for plan in rows:
             if plan_id and plan["id"] != plan_id:
@@ -1290,7 +1347,7 @@ class Agreement(Core):
                     kept.setdefault(scope_row["member_id"], []).append(self._activity_title(cand, scope_row["activity_id"]))
             for m in pending:
                 if m != actor_id:
-                    self._notify([m], p, "confirm", f"{me} asked you to confirm {p['title']} {cand['label']} on your GroupFlow page.")
+                    self._notify([m], p, "confirm", f"{me} asked you to confirm {p['title']} {cand['label']}. Only you can answer it, on your own screen.")
             for m, titles in kept.items():
                 self._notify([m], p, "carried", f"Your earlier approval still covers {_names(titles)} in {cand['label']}; nothing to do for those.")
             msg = ("Everyone needed has already confirmed; it can be committed." if view.complete else
@@ -1666,7 +1723,7 @@ class Agreement(Core):
             self._audit(actor_id, "plan.committed", "plan", p["id"], p, f"{self.name(actor_id)} committed {rev['label']} ({summary}).")
             self._mark_stale_asks(p["id"], self.plan_audience(p))
             self._notify([m for m in self.plan_audience(p) if m != actor_id], p, "committed",
-                         f"{p['title']} {rev['label']} is now the agreed plan ({summary}). Your total is on your page.")
+                         f"{p['title']} {rev['label']} is now the agreed plan ({summary}). Your total is on your own screen.")
             return CommitResult(outcome="committed", plan_status=p["status"], bookings=bookings,
                                 message=f"{rev['label']} is now the agreed plan. Booking steps are simulated only.")
         return self.db.tx(run)
@@ -1744,7 +1801,7 @@ class Agreement(Core):
                 "SELECT * FROM notifications WHERE member_id = ? AND read_at IS NULL ORDER BY created_at, id", member.id)
                 if n["space_id"] is None or n["space_id"] in scope.spaces]
             return {"member": {"id": member.id, "name": member.name}, "plans": plans, "pending": pending, "answered": answered, "receipts": receipts,
-                    "conditions": conditions, "notifications": notes}
+                    "conditions": conditions, "notifications": notes, "joins": self.human_join_requests(member)}
         return self.db.tx(run)
 
     def human_verify_condition(self, member: Any, condition_id: str, verify_digest: str) -> dict[str, Any]:
