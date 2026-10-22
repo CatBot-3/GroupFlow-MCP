@@ -25,9 +25,10 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from groupflow.core.settings import LlmSettings, SimSettings
-from groupflow.sim.agent import PERSONAL_DEVICE, LlmAgent, compact
+from groupflow.sim.agent import PERSONAL_DEVICE, LlmAgent, compact, format_today
 from groupflow.sim.chat import ChatService, ChatStore, register_chat_routes
-from groupflow.sim.demo_script import SCRIPTS
+from groupflow.sim.demo_script import SCRIPTS, story_time
+from groupflow.sim.llm.relay import RelayProvider, register_relay_routes
 from groupflow.sim.llm.types import LlmError
 from groupflow.sim.mcp_pool import SessionPool
 from groupflow.sim.memory import memory_map, turn_plan_ids, visible_plan_ids
@@ -55,6 +56,11 @@ class ForgetBody(BaseModel):
 class SkipBody(BaseModel):
     hours: float = 48
     group: str | None = None
+
+
+class ClockBody(BaseModel):
+    chapter: str | None = None  # a weekday of the story's week (ending on the coming Friday); omitted: back to the real clock
+    time: str = "12:00"
 
 
 class EventBody(BaseModel):
@@ -106,6 +112,9 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
     app.state.chat = chat
     if chat is not None:
         register_chat_routes(app, chat)
+    if isinstance(agent.provider, RelayProvider):
+        register_relay_routes(app, agent.provider)
+    real_now = agent.now
     members: dict[str, dict[str, Any]] = {}
     for p in world.people:
         groups = [g["id"] for g in world.groups if any(m["id"] == p.id for m in g["members"])]
@@ -160,7 +169,7 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
 
         templates = [{"id": t.id, "name": t.name, "description": t.description} for t in load_templates().values()]
         return {"scenarios": scenarios, "templates": templates, "provider": agent.provider_info, "mcpUrl": mcp_url, "serverBase": server_base,
-                "showcase": {"group": "friends", "plan": "friday_dinner", "script": SCRIPTS.get('friends', [])[:9]}, "chat": chat is not None}
+                "showcase": {"group": "friends", "script": SCRIPTS.get("friends", [])}, "chat": chat is not None}
 
     @app.get("/api/health")
     async def health() -> JSONResponse:
@@ -303,6 +312,7 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
                 return JSONResponse({"error": f"reset failed ({r.status_code})"}, status_code=502)
         except httpx.HTTPError:
             return unreachable()
+        agent.now = real_now
         for m in scenario_members(scenario):
             agent.reset(m)
             transcripts.pop(m, None)
@@ -333,6 +343,22 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
         """Demo console: a trusted outside source reports a place unavailable or a new price (the role a connector would play)."""
         date = body.date
         if date is None:
+            # A plan made during the run (the guided story starts without one) is not in the world file: use the date of
+            # the live plan in this group that has a stop at this place.
+            try:
+                state = (await admin("GET", "/debug/state", params={"group": body.group})).json()
+            except (httpx.HTTPError, ValueError):
+                state = {}
+            place_name = next((pl.name for spec in world.plans_of(body.group) for pl in get_template(spec["template"]).catalog.places
+                               if pl.id == body.place_id), None)
+            for live in state.get("plans", []) if isinstance(state, dict) else []:
+                acts = [a for v in (live.get("agreed"), live.get("working")) if v for a in v.get("activities", [])]
+                if live.get("start_date") and any(a.get("place") == place_name for a in acts):
+                    from datetime import date as date_cls, timedelta
+
+                    date = (date_cls.fromisoformat(live["start_date"]) + timedelta(days=body.day or 0)).isoformat()
+                    break
+        if date is None:
             spec = next((p for p in world.plans_of(body.group) if any(pl.id == body.place_id for pl in get_template(p["template"]).catalog.places)), None)
             if spec is not None:
                 from datetime import date as date_cls, timedelta
@@ -349,6 +375,20 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
         if r.status_code == 200:
             broadcast("event", {"group": body.group, "place_id": body.place_id, "result": data})
         return JSONResponse(data, status_code=r.status_code)
+
+    @app.post("/api/demo/clock")
+    async def demo_clock(body: ClockBody) -> JSONResponse:
+        """Demo console: the day and time the simulated Alexa believes it is, for a story told over several days. Only the
+        assistant's clock moves (what "today", "tonight" and "this Friday" mean to it); the server keeps the real one."""
+        if not body.chapter:
+            agent.now = real_now
+        else:
+            try:
+                offset = story_time(body.chapter, body.time, real_now(), agent.timezone) - real_now()
+            except ValueError as err:
+                return JSONResponse({"error": str(err)}, status_code=400)
+            agent.now = lambda: real_now() + offset
+        return JSONResponse({"today": format_today(agent.now(), agent.timezone)})
 
     @app.post("/api/demo/skip-ahead")
     async def demo_skip_ahead(body: SkipBody) -> JSONResponse:

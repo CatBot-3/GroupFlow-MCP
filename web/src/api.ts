@@ -5,10 +5,16 @@
 export interface Member { id: string; name: string; color: string; groups: string[]; label?: string | null; role?: string; demoPasscode?: string }
 
 export interface DemoStep {
-  kind: 'say' | 'event' | 'phones' | 'verify';
+  kind: 'say' | 'event' | 'phones' | 'verify' | 'skip';
   member?: string;
   text?: string;
   note: string;
+  /** Starts a new day of the story ("Monday"). */
+  chapter?: string;
+  /** With chapter: the time of day it starts ("19:40"); the simulated Alexa's clock is set to it first. */
+  clock?: string;
+  /** For skip steps: how many quiet hours the server's worker should act as if had passed. */
+  hours?: number;
   group?: string;
   place_id?: string;
   start?: string;
@@ -34,7 +40,7 @@ export interface ScenarioConfig {
 
 export interface ProviderInfo { id: string; label: string; model: string; ready: boolean; reason: string | null }
 export interface TemplateInfo { id: string; name: string; description: string }
-export interface Config { scenarios: ScenarioConfig[]; templates: TemplateInfo[]; provider: ProviderInfo; mcpUrl: string; serverBase: string; showcase?: { group: string; plan: string; script: DemoStep[] }; chat?: boolean }
+export interface Config { scenarios: ScenarioConfig[]; templates: TemplateInfo[]; provider: ProviderInfo; mcpUrl: string; serverBase: string; showcase?: { group: string; script: DemoStep[] }; chat?: boolean }
 
 export interface ToolCallRecord { name: string; args: Record<string, unknown>; ok: boolean; result: unknown; ms: number; prefetched?: boolean; sent_to_model?: boolean; model_content?: unknown }
 export interface LlmTurnStats { calls: { ms: number; inputTokens: number; outputTokens: number; toolCalls: string[] }[]; inputTokens: number; outputTokens: number; ms: number }
@@ -184,6 +190,7 @@ export const api = {
   notify: (data: Record<string, unknown>) => post('/api/notify', data).catch(() => undefined),
   demoEvent: (group: string, place_id: string, start = '00:00', end = '23:59', day?: number) =>
     post('/api/demo/event', { group, place_id, start, end, day }).then((r) => json<{ outcome: string; affected_plans?: string[] }>(r)),
+  demoClock: (chapter: string | null, time?: string) => post('/api/demo/clock', { chapter, time }).then((r) => json<{ today: string }>(r)),
   skipAhead: (hours: number, group: string) => post('/api/demo/skip-ahead', { hours, group }).then((r) => json<SkipAhead>(r)),
 
   inspector: async (group: string): Promise<BoardModel> => {

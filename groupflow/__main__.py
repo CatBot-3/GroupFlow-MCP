@@ -18,7 +18,7 @@ import sys
 from dataclasses import replace
 from pathlib import Path
 
-STAGES = ["committed", "draft", "proposed", "awaiting", "degraded"]
+STAGES = ["none", "committed", "draft", "proposed", "awaiting", "degraded"]
 
 
 def _quiet_logs() -> None:
@@ -68,7 +68,9 @@ def _build_runtime(args: argparse.Namespace, demo: bool = False):
         for suffix in ("", "-wal", "-shm"):
             Path(settings.db_path + suffix).unlink(missing_ok=True)
     Path(settings.db_path).parent.mkdir(parents=True, exist_ok=True)
-    stages = {"friday_dinner": args.stage} if getattr(args, "stage", None) else None
+    stage = getattr(args, "stage", None)
+    # The demo opens on the guided story, which starts with the friends group and no plan; --stage brings back a seeded dinner.
+    stages = {"friday_dinner": stage or "none"} if (stage or demo) else None
     from groupflow.core.db import SchemaMismatch
 
     try:
@@ -276,7 +278,7 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--port", type=int, help="server port (default 8787 or GROUPFLOW_PORT)")
         p.add_argument("--db", help="SQLite file (default data/groupflow.db or GROUPFLOW_DB)")
         p.add_argument("--world", help="Demo world YAML; use demo/enterprise.yaml with a separate --db for the six-week project demo")
-        p.add_argument("--stage", choices=STAGES, default=None, help="starting stage of the Friday dinner when seeding (default committed)")
+        p.add_argument("--stage", choices=STAGES, default=None, help="starting stage of the Friday dinner when seeding (demo default: none, the guided story makes it; server default: committed)")
         p.add_argument("--fresh", action="store_true", help="start from a fresh database")
 
     p_demo = sub.add_parser("demo", help="server and simulator together")

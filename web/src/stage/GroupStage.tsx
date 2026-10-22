@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, HumanClient, type BoardModel, type DecisionExtra, type Inbox, type ScenarioConfig, type TranscriptLine } from '../api';
-import { sleep, typeInto, urlParam, type EchoControls } from '../App';
-import { DemoBar } from '../components/DemoBar';
+import { urlParam, type EchoControls } from '../App';
 import { Echo, type EchoBadges } from '../components/Echo';
 import { PhonePage } from './PhonePage';
 import { PlanBoard, type PlanTab } from './PlanBoard';
 import { parseWhen } from './Timeline';
 import { MemoryExplorer } from './MemoryExplorer';
-import { OutcomeStrip } from './OutcomeStrip';
 
 interface Props {
   scenario: ScenarioConfig;
@@ -17,7 +15,6 @@ interface Props {
   resetKey: number;
   onReset: (target?: string) => Promise<void>;
   onChanged: () => void;
-  presentation?: boolean;
 }
 
 // A first line to try on each Echo, keyed by group and person, so it fits the plans that person has in that group.
@@ -47,14 +44,14 @@ const SUGGESTIONS: Record<string, string> = {
 type Face = 'alexa' | 'page';
 const DONE: Record<string, string> = { approved: 'Confirmed. Recorded with a one-time challenge.', rejected: 'Declined. The organizer will see it.', conditional: 'Confirmed with your condition.' };
 
-export function GroupStage({ scenario, transcripts, echo, tick, resetKey, onReset, onChanged, presentation = false }: Props) {
+/** The test lab: every group, every Echo and own page side by side, the narrator's inspector and the demo console. */
+export function GroupStage({ scenario, transcripts, echo, tick, resetKey, onReset, onChanged }: Props) {
   const members = scenario.members;
-  const script = scenario.script;
   const [inspector, setInspector] = useState<BoardModel | null>(null);
   const [memberView, setMemberView] = useState<BoardModel | null>(null);
   // A link may open this group on a given view, plan and set of own pages (only for the group it names).
   const linked = urlParam('group') === scenario.id;
-  const [viewAs, setViewAs] = useState((linked && urlParam('view') && (!presentation || members.some((m) => m.id === urlParam('view'))) && urlParam('view')) || (presentation ? members[0].id : 'all'));
+  const [viewAs, setViewAs] = useState((linked && urlParam('view')) || 'all');
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [planId, setPlanId] = useState((linked && urlParam('plan')) || scenario.plans[0]?.id || '');
   const [faces, setFaces] = useState<Record<string, Face>>({});
@@ -63,9 +60,6 @@ export function GroupStage({ scenario, transcripts, echo, tick, resetKey, onRese
   const [phoneErr, setPhoneErr] = useState<Record<string, string | null>>({});
   const [phoneMsg, setPhoneMsg] = useState<Record<string, string | null>>({});
   const [, setSignedTick] = useState(0);
-  const [step, setStep] = useState(() => (linked ? Math.max(0, Number(urlParam('step')) || 0) : 0));
-  const [playing, setPlaying] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [place, setPlace] = useState(scenario.places[0]?.id ?? '');
   const [closeDay, setCloseDay] = useState<number | null>(null);
@@ -108,17 +102,15 @@ export function GroupStage({ scenario, transcripts, echo, tick, resetKey, onRese
   const refresh = useCallback(async () => {
     try {
       const target = viewAsRef.current;
-      const [insp, mine] = await Promise.all([presentation ? Promise.resolve(null) : api.inspector(scenario.id), target === 'all' ? Promise.resolve(null) : api.view(target, planRef.current)]);
-      // Presentation uses only the selected identity's MCP view. The admin
-      // inspector remains available in the test lab.
-      setInspector(presentation ? mine : insp);
+      const [insp, mine] = await Promise.all([api.inspector(scenario.id), target === 'all' ? Promise.resolve(null) : api.view(target, planRef.current)]);
+      setInspector(insp);
       setMemberView(mine);
       setError(null);
     } catch (err) {
       setError((err as Error).message);
     }
     await loadInboxes();
-  }, [scenario.id, loadInboxes, presentation]);
+  }, [scenario.id, loadInboxes]);
 
   useEffect(() => {
     void refresh();
@@ -143,8 +135,6 @@ export function GroupStage({ scenario, transcripts, echo, tick, resetKey, onRese
       mounted.current = true;
       return;
     }
-    setStep(0);
-    setNote(null);
     setFaces({});
     for (const c of Object.values(clients.current)) c.logout();
     setInboxes({});
@@ -199,61 +189,6 @@ export function GroupStage({ scenario, transcripts, echo, tick, resetKey, onRese
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ---------------------------------------------------------------- guided demo
-
-  const playNext = useCallback(async () => {
-    if (playing || step >= script.length) return;
-    const s = script[step];
-    setPlaying(true);
-    setNote(null);
-    try {
-      if (s.kind === 'say' && s.member && s.text) {
-        if (presentation) setViewAs(s.member);
-        setFaces((f) => ({ ...f, [s.member!]: 'alexa' }));
-        await typeInto(echo.setDraft, s.member, s.text);
-        const turn = await echo.send(s.member, s.text, planRef.current || undefined);
-        if (!turn) throw new Error('This step did not complete. Retry it before continuing.');
-      } else if (s.kind === 'event' && s.place_id) {
-        await api.demoEvent(s.group ?? scenario.id, s.place_id, s.start, s.end, s.day);
-        onChanged();
-      } else if (s.kind === 'phones' || s.kind === 'verify') {
-        const ids = s.kind === 'phones' ? s.members ?? [] : s.member ? [s.member] : [];
-        const planIds = new Set(scenario.plans.map((p) => p.id));
-        for (const id of ids) {
-          if (presentation) setViewAs(id);
-          setFaces((f) => ({ ...f, [id]: 'page' }));
-          const c = await signIn(id);
-          if (!c.signedIn) throw new Error('Sign-in did not complete. This step has not advanced.');
-          await sleep(350);
-          const inbox = c.signedIn ? await c.inbox() : null;
-          setInboxes((x) => ({ ...x, [id]: inbox }));
-          await sleep(450);
-          if (s.kind === 'phones') {
-            for (const item of (inbox?.pending ?? []).filter((it) => planIds.has(it.plan_id))) {
-              if (!await phone(id, (cl) => cl.decide(item.scope_id, s.decision ?? 'approved'), DONE[s.decision ?? 'approved'])) throw new Error('A human answer was not recorded. Retry this step.');
-              await sleep(250);
-            }
-            for (const item of (inbox?.project_items ?? []).filter((it) => planIds.has(it.plan_id) && it.can_answer && !['approved', 'carried_forward'].includes(it.status))) {
-              if (!await phone(id, (cl) => cl.decideProject(item.id, s.decision === 'rejected' ? 'decline' : 'approve'), 'Your project answer was recorded.')) throw new Error('A project answer was not recorded. Retry this step.');
-              await sleep(150);
-            }
-          } else {
-            for (const cond of (inbox?.conditions ?? []).filter((x) => x.status === 'unverified')) {
-              if (!await phone(id, (cl) => cl.verify(cond.id, cond.verify_digest), 'It counts now.')) throw new Error('A condition was not verified. Retry this step.');
-              await sleep(250);
-            }
-          }
-        }
-      }
-      setNote(s.note);
-      setStep((n) => n + 1);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setPlaying(false);
-    }
-  }, [playing, step, script, echo, scenario, signIn, phone, onChanged, presentation]);
-
   // ---------------------------------------------------------------- derived
 
   const groupPlanIds = useMemo(() => new Set((inspector?.plans ?? []).map((p) => p.id)), [inspector]);
@@ -288,8 +223,6 @@ export function GroupStage({ scenario, transcripts, echo, tick, resetKey, onRese
     return out;
   }, [inspector, members]);
 
-  const next = step < script.length ? script[step] : null;
-  const cuedIds = new Set(next ? (next.kind === 'say' || next.kind === 'verify' ? [next.member] : next.kind === 'phones' ? next.members ?? [] : []) : []);
   const board = viewAs === 'all' ? inspector : memberView?.member === viewAs && memberView.focus === planId ? memberView : null;
 
   // Plans made on the spot show up in the inspector; keep the picker in step with them.
@@ -390,19 +323,16 @@ export function GroupStage({ scenario, transcripts, echo, tick, resetKey, onRese
 
   return (
     <>
-      <DemoBar script={script} step={step} playing={playing} note={note} members={members} onPlay={playNext} places={scenario.places} />
-      {presentation && <OutcomeStrip plan={board?.plans.find((p) => p.id === shownPlan)} memoryOpen={memoryOpen} onMemory={() => setMemoryOpen((v) => !v)} />}
-      {!presentation && <div className="lab-memory-control"><button type="button" className="ghost" disabled={viewAs === 'all'} onClick={() => setMemoryOpen((v) => !v)} aria-expanded={memoryOpen && viewAs !== 'all'}>{memoryOpen && viewAs !== 'all' ? 'Hide authorized memory' : 'Explore authorized MCP memory'}</button><span>{viewAs === 'all' ? 'Choose a person in the plan view first. The admin inspector is never used for this graph.' : 'The graph uses the selected person’s MCP session.'}</span></div>}
+      <div className="lab-memory-control"><button type="button" className="ghost" disabled={viewAs === 'all'} onClick={() => setMemoryOpen((v) => !v)} aria-expanded={memoryOpen && viewAs !== 'all'}>{memoryOpen && viewAs !== 'all' ? 'Hide authorized memory' : 'Explore authorized MCP memory'}</button><span>{viewAs === 'all' ? 'Choose a person in the plan view first. The admin inspector is never used for this graph.' : 'The graph uses the selected person’s MCP session.'}</span></div>
       {error && <div className="banner" role="alert">{error}</div>}
       {memoryOpen && viewAs !== 'all' && <MemoryExplorer key={`${viewAs}:${shownPlan}`} member={viewAs} group={scenario.id} plan={shownPlan} planTitle={planTabs.find((p) => p.id === shownPlan)?.title} tick={tick} />}
-      <main className={`main group ${presentation ? 'focused-stage' : ''}`}>
+      <main className="main group">
         <section className="echoes" aria-label={`${scenario.label}: Echo devices and each person's own GroupFlow page`}>
-          {presentation && <nav className="speaker-picker" aria-label="Demo speaker">{members.map((m) => <button type="button" key={m.id} className={viewAs === m.id ? 'selected' : ''} onClick={() => setViewAs(m.id)}><span className="speaker-dot" style={{ background: m.color }} />{m.name}</button>)}</nav>}
-          {(presentation ? members.filter((m) => m.id === viewAs) : members).map((m) => (
+          {members.map((m) => (
             <Echo
               key={m.id}
               member={m}
-              showDiagnostics={!presentation}
+              showDiagnostics
               lines={transcripts[m.id] ?? []}
               busy={!!echo.busy[m.id]}
               error={echo.errors[m.id] ?? null}
@@ -410,7 +340,7 @@ export function GroupStage({ scenario, transcripts, echo, tick, resetKey, onRese
               onDraft={(v) => echo.setDraft(m.id, v)}
               onSend={(text) => void sendFocused(m.id, text)}
               badges={badges[m.id] ?? { decisions: 0, changes: 0 }}
-              cued={cuedIds.has(m.id) && !playing}
+              cued={false}
               suggestion={SUGGESTIONS[`${scenario.id}.${m.id}`] ?? "What's new?"}
               face={faces[m.id] ?? 'alexa'}
               onFace={(f) => setFaces((x) => ({ ...x, [m.id]: f }))}
@@ -420,7 +350,6 @@ export function GroupStage({ scenario, transcripts, echo, tick, resetKey, onRese
                   client={client(m.id)}
                   onInbox={fresh => { ++inboxSeq.current; setInboxes(x => ({ ...x, [m.id]: fresh })); void refresh(); void api.notify({ member: m.id }); onChanged(); }}
                   member={m}
-                  simple={presentation}
                   signedIn={!!clients.current[m.id]?.signedIn}
                   inbox={inboxes[m.id] ?? null}
                   groupPlanIds={groupPlanIds}
@@ -447,7 +376,7 @@ export function GroupStage({ scenario, transcripts, echo, tick, resetKey, onRese
             />
           ))}
         </section>
-        <PlanBoard model={board} planId={shownPlan} plans={planTabs} onPlan={setPlanId} viewAs={viewAs} onViewAs={setViewAs} members={members} console={presentation ? undefined : demoConsole} memberOnly={presentation} />
+        <PlanBoard model={board} planId={shownPlan} plans={planTabs} onPlan={setPlanId} viewAs={viewAs} onViewAs={setViewAs} members={members} console={demoConsole} />
       </main>
     </>
   );

@@ -1,16 +1,16 @@
-"""Replay the guided demo of one or more groups against a running simulator and print what happened.
+"""Replay the guided demo against a running simulator and print what happened, as a rehearsal before recording.
 
 Start the demo first (python -m groupflow demo), then:
 
-    python scripts/play_demo.py                 # every group
-    python scripts/play_demo.py friends team    # some groups
-    python scripts/play_demo.py friends --until 5   # stop after step 5 (to look at the page)
-    python scripts/play_demo.py friends --from 6    # carry on from step 6 without resetting
+    python scripts/play_demo.py                     # the whole story, from a reset
+    python scripts/play_demo.py --until 5           # stop after step 5 (to look at the page)
+    python scripts/play_demo.py --from 6            # carry on from step 6 without resetting
 
 It drives the same endpoints as the page: "say" steps go to /api/say (the configured LLM answers
-through MCP), "event" steps to the demo console, and "phones"/"verify" steps to each person's own
-page through the human-only API, never through Alexa. At the end of each group it prints the plan
-status the inspector reports, so a broken story shows up before anyone records it.
+through MCP), "event" steps to the demo console, "skip" steps to the console's skip-ahead, and
+"phones"/"verify" steps to each person's own page through the human-only API, never through Alexa.
+At the end it prints the plan status the inspector reports, so a broken story shows up before
+anyone records it.
 """
 from __future__ import annotations
 
@@ -67,7 +67,6 @@ def play(http: httpx.Client, scenario: dict[str, Any], first: int = 1, last: int
     group = scenario["id"]
     passcodes = {m["id"]: m.get("demoPasscode", "") for m in scenario["members"]}
     names = {m["id"]: m["name"] for m in scenario["members"]}
-    plan_ids = {p["id"] for p in scenario["plans"]}
     print(f"\n=== {scenario['label']} ({group}) ===")
     if first <= 1:
         http.post(f"{BASE}/api/reset", json={"scenario": group}).raise_for_status()
@@ -78,6 +77,10 @@ def play(http: httpx.Client, scenario: dict[str, Any], first: int = 1, last: int
             continue
         kind = step["kind"]
         t0 = time.time()
+        if step.get("chapter"):
+            print(f"\n-- {step['chapter']} --")
+            if step.get("clock"):
+                http.post(f"{BASE}/api/demo/clock", json={"chapter": step["chapter"], "time": step["clock"]}).raise_for_status()
         if kind == "say":
             r = http.post(f"{BASE}/api/say", json={"member": step["member"], "text": step["text"], "scenario": group}, timeout=180)
             if r.status_code >= 400:
@@ -92,7 +95,18 @@ def play(http: httpx.Client, scenario: dict[str, Any], first: int = 1, last: int
         elif kind == "event":
             r = http.post(f"{BASE}/api/demo/event", json={k: step[k] for k in ("group", "place_id", "start", "end", "day") if k in step})
             print(f"{i:>2} console: {step['place_id']} unavailable -> {r.json().get('outcome')} {r.json().get('affected_plans', '')}")
+        elif kind == "skip":
+            r = http.post(f"{BASE}/api/demo/skip-ahead", json={"hours": step.get("hours", 48), "group": group}).json()
+            print(f"{i:>2} console: skip ahead {step.get('hours', 48)} quiet hours")
+            for c in r.get("checkins", []):
+                for sent in c.get("sent", []):
+                    print(wrap(f"to {sent['name']}: {sent['text']}"))
+            if not any(c.get("sent") for c in r.get("checkins", [])):
+                ok = False
+                print("      nobody was checked in with")
         elif kind in ("phones", "verify"):
+            # Plans made during the run are not in the world file, so ask the server which plans the group has now.
+            plan_ids = {p["id"] for p in http.get(f"{BASE}/api/inspector", params={"scenario": group}).json().get("plans", [])}
             who = step.get("members") or [step["member"]]
             for m in who:
                 page = Page(http, m, passcodes[m])
@@ -126,7 +140,7 @@ def play(http: httpx.Client, scenario: dict[str, Any], first: int = 1, last: int
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("groups", nargs="*", help="groups to play (default: all)")
+    ap.add_argument("groups", nargs="*", help="groups to play (default: every group with a guided script)")
     ap.add_argument("--from", dest="first", type=int, default=1, help="start at this step without resetting the group")
     ap.add_argument("--until", dest="last", type=int, default=None, help="stop after this step")
     args = ap.parse_args(argv)
@@ -139,7 +153,7 @@ def main(argv: list[str] | None = None) -> int:
         if not config["provider"]["ready"]:
             print(f"The LLM is not configured: {config['provider'].get('reason')}", file=sys.stderr)
             return 2
-        chosen = [s for s in config["scenarios"] if not args.groups or s["id"] in args.groups]
+        chosen = [s for s in config["scenarios"] if s.get("script") and (not args.groups or s["id"] in args.groups)]
         results = {s["id"]: play(http, s, args.first, args.last) for s in chosen}
     print("\n" + ", ".join(f"{g}: {'ok' if ok else 'CHECK'}" for g, ok in results.items()))
     return 0 if all(results.values()) else 1

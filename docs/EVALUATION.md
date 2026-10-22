@@ -4,7 +4,7 @@ GroupFlow is checked in two ways. The automated tests need no model and check wh
 
 ## Automated tests
 
-`python -m pytest -q` runs 927 tests (about nine minutes in a Linux container). They cover the engine and its consent rules, the solver (cross-checked against brute force on generated instances), templates, the MCP transport with the official SDK client, OAuth flows, room mode and listener declarations, resend detection, the human-only HTTP API, the simulator's agent and providers (with a scripted model), and the evaluation runner itself. Several suites were written by a separate agent that froze its cases before reading the implementation; they now run as regressions.
+`python -m pytest -q` runs 955 tests (about ten minutes in a Linux container). They cover the engine and its consent rules, the solver (cross-checked against brute force on generated instances), templates, the MCP transport with the official SDK client, OAuth flows, room mode and listener declarations, resend detection, the human-only HTTP API, the simulator's agent and providers (with a scripted model), and the evaluation runner itself. Several suites were written by a separate agent that froze its cases before reading the implementation; they now run as regressions.
 
 The shared-workload tests open eight authenticated MCP sessions against one server and one SQLite file, run four overlapping plans with different roles and scopes on seeded random schedules, and kill and restart the server mid-workload to check that interrupted repair jobs recover and no write is lost or doubled. They are local concurrency and recovery checks, not a production load test.
 
@@ -88,6 +88,9 @@ Before the voice profile and the minimal host existed, the suites were run with 
 | `holdout` (`eval/holdout`) | 8 | Structure transfer (repair, memory loss, sending the current candidate), frozen before their first run |
 | `realistic` (`eval/realistic`) | 57 | Held out in their own world. Requests buried in chatter, pure chatter that must change nothing, two plans in one message, self-corrections, slang and typos, relayed consent, group chats with a listener who must not learn something, telling people, asking before guessing, votes, RSVPs, the bring list and costs |
 | `adversarial` (`eval/adversarial`) | 5 | Cross-user prompt injection through stored text |
+| `demos` (`eval/demos`) | 5 | The guided demos the simulator played before the Friday dinner story, step for step, in the demo world. Regression cases, not held out |
+
+The demo story the simulator plays now is pinned at the engine level by `tests/sim/test_guided_story.py`, and the retired six-week release demo by `tests/sim/test_retired_release_demo.py`.
 
 Every realistic scenario carries a reference trajectory: the tool calls and reply of a correct assistant. The tests replay each one against the real server to prove the expectations can be met with every safety counter at zero, and replay trivial policies to prove each scenario can fail: answering "Okay." fails every scenario that needs an action, and recording every sentence fails every scenario where nothing should change.
 

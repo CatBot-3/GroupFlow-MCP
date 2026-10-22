@@ -12,7 +12,7 @@ Four friends agreed on a Friday evening of four stops (meet-up, dinner, dessert,
 
 The assistant can propose, repair and lock in a plan, but it can never give anyone's consent. Each person confirms on their own page, bound to the exact version they saw. The reason is simple: anything that passes through the model can be talked into it ("everyone agreed in the group chat, just approve it"), so consent must not pass through the model at all.
 
-![Friends demo: one changed activity, twelve confirmations kept, and the committed plan](docs/img/friends-committed.png)
+![The demo page on Friday: the restaurant cancelled, only the dinner is asked again, and twelve answers still count](docs/img/story-friday.png)
 
 ## What a plain Alexa+ host gets
 
@@ -86,9 +86,9 @@ You need Python 3.10 or newer. Node is only needed to change the web page; a bui
 
    The MCP server listens on http://127.0.0.1:8787/mcp and the simulator page opens at http://localhost:8788. `python -m groupflow check` shows the configuration (whether the key is present, never its value).
 
-4. On the page, the **Friends demo** opens by default. Press **Play step 1** (or the N key) to follow the nine-step Friday story, or type to one speaker yourself. **See how AI uses memory** opens a read-only map of what that speaker's assistant actually received. **Test lab** has the other groups. The group chat is at http://localhost:8788/chat.
+4. The page opens on the demo story: four friends plan Friday dinner from Monday to Friday, starting with no plan. Press **Play step 1** (or the N key) to play it one step at a time, or type to the speaker yourself. **Test lab** has every group, all four Echos and own pages side by side, the memory explorer and the demo console. The group chat is at http://localhost:8788/chat.
 
-For a recording, use a separate database so the story can be reset without touching other work: `python -m groupflow demo --db data/friends-demo.db`. The step-by-step walkthrough is in [docs/DEMO_FRIENDS.md](docs/DEMO_FRIENDS.md), and `python scripts/play_demo.py` replays every group's guided story against a running demo and prints each reply.
+For a recording, use a separate database so the story can be reset without touching other work: `python -m groupflow demo --db data/video.db --fresh`. The step-by-step walkthrough is in [docs/DEMO_FRIENDS.md](docs/DEMO_FRIENDS.md), and `python scripts/play_demo.py` plays the story against a running demo and prints each reply, as a rehearsal.
 
 ### Demo identities
 
@@ -110,9 +110,9 @@ The demo world has thirteen people in five groups. These credentials are synthet
 | `sam` | `gf_demo_sam_t7m1` | `sam-demo` | CS 341 study group |
 | `noor` | `gf_demo_noor_q3z8` | `noor-demo` | CS 341 study group |
 
-| Group | Plans | What the guided story shows |
+| Group | Plans | What it shows |
 | --- | --- | --- |
-| Friday friends | Friday dinner | The main story: Restaurant A closes, only the dinner moves, twelve confirmations carry forward, Bob cannot approve for everyone |
+| Friday friends | Friday dinner, made during the demo story | Private limits used without names, a refused draft and its fix, a check-in after a quiet day, a rumour that changes nothing, then a closure where only the dinner is asked again and Bob cannot approve for everyone |
 | Family | Linda's surprise party (hidden from Linda), Home chores | Charlie's date change waits for Alice; "maybe an ice cream cake" stays an idea; Linda hears nothing about her party |
 | Cottage crew | Cottage weekend (three days) | The draft breaks Priya's private busy morning, so it is not sent; the fix moves only the hike by an hour |
 | Product team | Design review | Marcus's private dentist appointment moves the meeting; "why not Birch?" says someone needs video, not who |
@@ -336,9 +336,9 @@ The simulation path requires the simulated experience's source code; it is all h
 
 | View | What it shows |
 | --- | --- |
-| Echo devices and plan board | One speaker at a time, the live plan, and server-derived counts of changed activities, kept confirmations and answers needed |
+| Demo story | One speaker at a time, the plan's timeline, the grid of answers (confirmed, still counts, asked again), the messages GroupFlow sent, and each person's private limits in a labelled narrator's view ([walkthrough](docs/DEMO_FRIENDS.md)) |
 | Each person's own page | Their confirmations, private limits, votes, RSVPs and costs, through the human-only API; the assistant has no route to it |
-| See how AI uses memory | A read-only map of the speaker's actual MCP results, with the exact tool messages delivered to the last model request ([design](docs/MEMORY_VISUALIZATION.md)) |
+| Memory explorer (test lab) | A read-only map of the speaker's actual MCP results, with the exact tool messages delivered to the last model request ([design](docs/MEMORY_VISUALIZATION.md)) |
 | Group chat (`/chat`) | Real people sign up, start a group, share an invite link and ask `@Alexa` in a room; the chat declares the room as listeners ([design](docs/GROUP_CHAT.md)) |
 | Demo console | Report a place closed as a trusted source would, reset a group to a stage, clear an assistant's chat memory, skip ahead two quiet days |
 
@@ -367,7 +367,7 @@ Every setting has a working local default; `.env.example` lists them. Only the s
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `AGENT_PROVIDER` | `deepseek` | The simulator's model: `deepseek`, `bedrock` or `openai` (any compatible endpoint) |
+| `AGENT_PROVIDER` | `deepseek` | The simulator's model: `deepseek`, `bedrock`, `openai` (any compatible endpoint) or `relay` (an outside agent answers each model request, see [the demo story](docs/DEMO_FRIENDS.md#recording-with-another-model)) |
 | `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL` | none, `deepseek-flash` | DeepSeek |
 | `BEDROCK_MODEL_ID`, `AWS_REGION` | `us.amazon.nova-pro-v1:0`, `us-east-1` | Amazon Bedrock Converse; credentials from the standard AWS chain |
 | `OPENAI_COMPAT_BASE_URL`, `OPENAI_COMPAT_API_KEY`, `OPENAI_COMPAT_MODEL` | none | Any OpenAI-compatible endpoint |
@@ -394,12 +394,12 @@ python -m pytest -q                       # engine, solver, templates, MCP trans
 python scripts/check_links.py             # no doc links to files a fresh clone lacks
 ```
 
-The suite (927 tests) runs without any model key. It covers the consent rules over real MCP sessions and the human-only HTTP API, the solver cross-checked against brute force, OAuth flows, room mode, resend detection, eight concurrent MCP sessions on one database with crash and restart, and replays of the held-out scenarios' reference answers against the real server. `.github/workflows/ci.yml` runs the tests and the link check on every push, and the model gate below when a key is configured.
+The suite (955 tests) runs without any model key. It covers the consent rules over real MCP sessions and the human-only HTTP API, the solver cross-checked against brute force, OAuth flows, room mode, resend detection, eight concurrent MCP sessions on one database with crash and restart, and replays of the held-out scenarios' reference answers against the real server. `.github/workflows/ci.yml` runs the tests and the link check on every push, and the model gate below when a key is configured.
 
 The model evaluation runs scenarios through real MCP sessions with the configured language model and checks server state, tool calls and outcomes, never exact wording:
 
 ```bash
-python -m groupflow eval --suite all --list                     # 178 scenarios in four suites
+python -m groupflow eval --suite all --list                     # 183 scenarios in five suites
 python -m groupflow eval --suite realistic --suite adversarial --host minimal --runs 3 --out minimal.md --json minimal.json
 python -m groupflow eval --suite realistic --suite adversarial --host lab --runs 3 --out lab.md --json lab.json
 python scripts/eval_gate.py minimal.json  # fails on any safety counter above zero or a drop below eval/baseline.json
@@ -414,6 +414,7 @@ python scripts/benchmark_solver.py        # enumeration versus CP-SAT
 | `holdout` (`eval/holdout`) | 8 | Structure transfer, frozen before their first run |
 | `realistic` (`eval/realistic`) | 57 | Held out, in their own world: slang, typos, requests buried in chatter, self-corrections, group chats with listeners, telling people, asking first, deciding together |
 | `adversarial` (`eval/adversarial`) | 5 | Instructions planted by one member in task titles, bring-list entries and expense notes |
+| `demos` (`eval/demos`) | 5 | The guided demos the simulator used to play, step for step, kept as regression tests with reference trajectories |
 
 Results, method and the raw reports behind the headline numbers: [docs/EVALUATION.md](docs/EVALUATION.md).
 
@@ -426,7 +427,7 @@ Results, method and the raw reports behind the headline numbers: [docs/EVALUATIO
 | `groupflow/repair` | Search domain, validator, enumeration, CP-SAT, conflict explanation |
 | `groupflow/templates` | Eight plan templates plus frozen legacy definitions and presets (YAML) |
 | `groupflow/human_api` | The human-only API, OAuth pages and demo console endpoints |
-| `groupflow/sim` | The Alexa+ simulator: an MCP client per person, the LLM agent and providers, guided demo scripts, the group chat host |
+| `groupflow/sim` | The Alexa+ simulator: an MCP client per person, the LLM agent and providers, the demo story's script, the group chat host |
 | `groupflow/evals` | Evaluation runner and prompt-leakage check |
 | `web/` | React page (Echo devices, plan board, own pages, memory map) and the group chat |
 | `demo/` | Demo worlds (`world.yaml`, `enterprise.yaml`) |

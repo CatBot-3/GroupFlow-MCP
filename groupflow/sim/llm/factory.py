@@ -5,6 +5,7 @@ from groupflow.core.settings import LlmSettings
 
 from .bedrock import BedrockProvider
 from .openai_compat import OpenAiCompatibleProvider
+from .relay import RelayProvider
 from .types import LlmError, LlmRequest, LlmResponse
 
 
@@ -37,4 +38,7 @@ def create_provider(s: LlmSettings | None = None):
                                         model=s.openai_model, thinking=None, timeout_s=s.timeout_s)
     if which == "bedrock":
         return BedrockProvider(model_id=s.bedrock_model_id, region=s.aws_region)
-    return MissingProvider(which, f'Unknown AGENT_PROVIDER "{s.provider}". Use deepseek, bedrock or openai.')
+    if which == "relay":
+        # An outside agent answers each completion over /api/relay (see groupflow/sim/llm/relay.py).
+        return RelayProvider(label=s.relay_label, model=s.relay_model)
+    return MissingProvider(which, f'Unknown AGENT_PROVIDER "{s.provider}". Use deepseek, bedrock, openai or relay.')

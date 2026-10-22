@@ -227,7 +227,7 @@ async def test_functional_assertion_failure_does_not_abort_later_cases():
 
 def test_suites_and_held_out_reporting():
     from groupflow.evals.runner import suite_paths
-    assert {p.parent.name for p in suite_paths(["all"])} == {"scenarios", "holdout", "realistic", "adversarial"}
+    assert {p.parent.name for p in suite_paths(["all"])} == {"scenarios", "holdout", "realistic", "adversarial", "demos"}
     with pytest.raises(ValueError):
         suite_paths(["nope"])
     report = Report('test', 'test', 1, 'now', [], 1, source={"prompt_overlap": {"n": 5, "utterances": 12, "with_overlap": 0},

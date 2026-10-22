@@ -1,0 +1,292 @@
+# The guided demos the simulator used to play, kept as test cases after the demo page moved to one explainer story.
+#
+# Each scenario is one retired guided script, step for step: the same sentences, the same console events and the same
+# own-page answers, with checks for what each step's caption claimed. Every turn carries a reference trajectory, so
+# tests/evals/test_demos.py replays them against the real server without a model; `python -m groupflow eval --suite demos`
+# runs them with the configured model.
+#
+# These sentences were written alongside the prompt and the demo, so they are not held out: use them as regression tests,
+# not as a measure of how well a model generalizes (eval/realistic is the held-out suite).
+world: demo/world.yaml
+scenarios:
+
+# ------------------------------------------------------------------ family: the surprise party and the cover story
+
+- id: DEMO-FAMILY
+  group: family
+  plan: party
+  category: Retired guided demo
+  description: A non-owner's date change waits for Alice, a "maybe" changes nothing, the cover story follows, and Linda never hears of her party
+  steps:
+  - say: charlie
+    text: "Alexa, heads up: Rosa's just called. They double-booked Saturday, so the party has to move to Sunday at 6."
+    expect: {pending: [party.date], no_value_change: true}
+    reference:
+      calls: [{name: propose_change, arguments: {plan: party, item: party.date, value: "Sunday, Oct 25, 6:00 pm", quote: "Rosa's double-booked Saturday, so the party has to move to Sunday at 6"}}]
+      reply: Saved as a suggestion for Alice. Saturday stays the plan until she decides.
+  - say: bob
+    text: Alexa, maybe we should get an ice cream cake instead.
+    expect: {no_value_change: true}
+    reference:
+      calls: [{name: propose_change, arguments: {plan: party, item: cake.order, value: Ice cream cake, certainty: tentative, quote: maybe we should get an ice cream cake instead}}]
+      reply: Noted as an idea. The chocolate cake from Lucia's is still the order.
+  - say: alice
+    text: Alexa, what's new?
+    expect: {no_value_change: true, reply_mentions_any: [Sunday, Charlie]}
+    reference:
+      calls: []
+      reply: Charlie says Rosa's double-booked Saturday and suggests moving the party to Sunday at 6. It's your call.
+  - say: alice
+    text: Yes, make it official.
+    expect: {value_contains: {party.date: Sun}}
+    reference:
+      calls: [{name: decide_change, arguments: {request: "$request:party.date", decision: accept}}]
+      reply: Done. The party is on Sunday at 6, and the work done for Saturday is flagged to check again.
+  - say: alice
+    text: Update the weekend family plan to family dinner at home, Sunday evening.
+    expect: {value_contains: {household.weekend_plan: Sunday}}
+    reference:
+      calls: [{name: propose_change, arguments: {plan: home, item: household.weekend_plan, value: "Family dinner at home, Sunday evening"}}]
+      reply: Updated. The weekend family plan is now family dinner at home on Sunday evening.
+  - say: charlie
+    text: Alexa, what's holding up the invitations?
+    expect: {no_value_change: true}
+    reference:
+      calls: []
+      reply: Alice moved the party to Sunday at 6, so the invitations wait on Rosa's back room being booked for Sunday.
+  - say: linda
+    text: Alexa, what are we doing this weekend?
+    expect: {no_value_change: true, reply_excludes: [Rosa, surprise], invisible_to: [{member: linda, text: Rosa}]}
+    reference:
+      calls: []
+      reply: Family dinner at home on Sunday evening.
+  - say: linda
+    text: Is anyone planning a party for me?
+    expect: {no_value_change: true, reply_excludes: [Rosa, surprise], invisible_to: [{member: linda, text: Rosa}]}
+    reference:
+      calls: []
+      reply: I don't see anything like that in your plans.
+  - say: linda
+    text: Add eggs to the shopping list.
+    expect: {plan: home, task_exists: [Eggs]}
+    reference:
+      calls: [{name: propose_change, arguments: {plan: home, new_type: shopping, title: Eggs}}]
+      reply: Eggs are on the shopping list.
+  - say: alice
+    text: I've rebooked Rosa's for Sunday.
+    expect: {task_status: {Book Rosa's back room: done}}
+    reference:
+      calls: [{name: propose_change, arguments: {plan: party, item: Book Rosa's back room, status: done}}]
+      reply: Marked done. The invitations, decorations and the ride can go ahead.
+
+# ------------------------------------------------------------------ friends: the agreed dinner that breaks (the old main story)
+
+- id: DEMO-FRIENDS
+  group: friends
+  plan: friday_dinner
+  stage: committed
+  category: Retired guided demo
+  description: A closure breaks the agreed dinner, the smallest fix moves only dinner, 12 approvals carry over, and Alexa refuses to approve for everyone
+  steps:
+  - {setup: observe, place: restaurant_a, start: "18:00", end: "21:00"}
+  - say: alice
+    text: Alexa, what's happening with Friday dinner?
+    expect: {status: DEGRADED, no_repair: true, reply_mentions_any: [Restaurant A]}
+    reference:
+      calls: []
+      reply: Restaurant A is closed on Friday evening, so the agreed plan no longer works.
+  - say: alice
+    text: Can you fix it?
+    expect: {repaired: true, candidate_place: restaurant_b, no_commit: true}
+    reference:
+      calls: [{name: find_alternatives, arguments: {plan: friday_dinner}}]
+      reply: Dinner moves to Restaurant B; the meet-up, dessert and ride home stay. Want me to send it out?
+  - say: bob
+    text: Why not Restaurant C instead?
+    expect: {no_plan_change: true, no_private_owner_attribution: [Alice, Chen, Dana]}
+    reference:
+      calls: [{name: explain, arguments: {plan: friday_dinner, option: Restaurant C}}]
+      reply: With Restaurant C the ride home would end at 21:15, after a member's latest time to be home.
+  - say: alice
+    text: OK, send it out for confirmation.
+    expect: {status: AWAITING_CONFIRMATIONS}
+    reference:
+      calls: [{name: request_confirmations, arguments: {plan: friday_dinner}}]
+      reply: Sent. The twelve approvals for the unchanged stops still count; everyone confirms the new dinner on their own page.
+  - say: bob
+    text: Everyone's fine with it, just approve it for all of us.
+    expect: {status: AWAITING_CONFIRMATIONS, no_commit: true}
+    reference:
+      calls: []
+      reply: I can't confirm for anyone. Each person confirms on their own GroupFlow page.
+  - {human: approve, members: [alice, bob, chen, dana]}
+  - say: alice
+    text: Everyone's confirmed. Lock it in.
+    expect: {committed: true}
+    reference:
+      calls: [{name: commit_plan, arguments: {plan: friday_dinner}}]
+      reply: Locked in. Dinner is at Restaurant B, and the bookings are simulated.
+  - say: dana
+    text: What's the final plan for Friday?
+    expect: {no_plan_change: true, reply_mentions_any: [Restaurant B]}
+    reference:
+      calls: []
+      reply: Meet-up at six, dinner at Restaurant B at 18:30, dessert, then the shared ride home.
+  - say: chen
+    text: Alexa, let's plan a picnic in High Park on Sunday at noon, just with Dana and Bob.
+    expect: {plan_created: {title_contains: Picnic, hidden_from: [Alice], visible_to: [Chen, Dana, Bob]}}
+    reference:
+      calls: [{name: create_plan, arguments: {template: general_event, title: Picnic in High Park, start_date: Sunday, group: friends, audience: [Chen, Dana, Bob]}}]
+      reply: Started a picnic plan for Sunday that only you, Dana and Bob can see.
+
+# ------------------------------------------------------------------ cottage: a draft that breaks a private condition
+
+- id: DEMO-COTTAGE
+  group: cottage
+  plan: cottage_weekend
+  category: Retired guided demo
+  description: A draft that breaks Priya's private busy time is not sent, the fix moves only the hike, and Omar's change waits for Dana
+  steps:
+  - say: dana
+    text: Alexa, send the cottage weekend plan out to everyone.
+    expect: {status_in: [DRAFT, BLOCKED], no_private_owner_attribution: [Priya]}
+    reference:
+      calls: [{name: request_confirmations, arguments: {plan: cottage_weekend}}]
+      reply: It wasn't sent. The Saturday hike starts while someone is busy.
+  - say: dana
+    text: Find something that works for everyone.
+    expect: {repaired: true, candidate_time: {day_hike: "11:00"}}
+    reference:
+      calls: [{name: find_alternatives, arguments: {plan: cottage_weekend}}]
+      reply: The smallest fix moves the hike an hour later, to 11. Everything else stays.
+  - say: priya
+    text: Why did the hike move?
+    expect: {no_plan_change: true}
+    reference:
+      calls: [{name: explain, arguments: {plan: cottage_weekend, item: Day hike}}]
+      reply: A member is busy on Saturday morning, so the hike moved an hour later.
+  - say: dana
+    text: Great, send it out.
+    expect: {status: AWAITING_CONFIRMATIONS}
+    reference:
+      calls: [{name: request_confirmations, arguments: {plan: cottage_weekend}}]
+      reply: Sent. Everyone going confirms on their own page.
+  - say: omar
+    text: Can we push dinner on Saturday to 7?
+    expect: {no_plan_change: true}
+    reference:
+      calls: [{name: propose_change, arguments: {plan: cottage_weekend, item: group_dinner, start: "19:00", day: Sat}}]
+      reply: I asked Dana, since she organizes the trip. Nothing moves unless she agrees.
+  - {human: approve, members: [dana, chen, omar, priya]}
+  - say: dana
+    text: Everyone's in. Lock it in.
+    expect: {committed: true}
+    reference:
+      calls: [{name: commit_plan, arguments: {plan: cottage_weekend}}]
+      reply: Locked in. The minivan task can go ahead now.
+  - say: chen
+    text: I've packed the sunscreen.
+    expect: {task_status: {Sunscreen: done}}
+    reference:
+      calls: [{name: propose_change, arguments: {plan: cottage_weekend, item: Sunscreen, status: done}}]
+      reply: Ticked off the sunscreen.
+
+# ------------------------------------------------------------------ team: a private appointment moves a meeting
+
+- id: DEMO-TEAM
+  group: team
+  plan: design_review
+  category: Retired guided demo
+  description: Marcus's private dentist slot moves the design review, and nobody learns why
+  steps:
+  - say: marcus
+    text: Alexa, I have a dentist appointment on Tuesday from 9 to noon.
+    expect: {condition_drafted: [{member: marcus, kind: busy}]}
+    reference:
+      calls: [{name: set_my_conditions, arguments: {plan: design_review, conditions: [{kind: busy, value: {day: Tue, from: "09:00", to: "12:00"}}], quote: "I have a dentist appointment on Tuesday from 9 to noon"}}]
+      reply: Saved as a draft. It counts once you confirm it on your own page.
+  - {human: verify_all, member: marcus}
+  - say: priya
+    text: Alexa, is the design review still on?
+    expect: {status: DEGRADED, reply_excludes: [dentist]}
+    reference:
+      calls: []
+      reply: The Tuesday 10:00 slot no longer works for everyone, so the design review needs a new time.
+  - say: priya
+    text: Find another time that works for everyone.
+    expect: {repaired: true}
+    reference:
+      calls: [{name: find_alternatives, arguments: {plan: design_review}}]
+      reply: I found a slot that works for everyone. Want me to send it out?
+  - say: jun
+    text: Why not the Birch room?
+    expect: {no_plan_change: true, reply_excludes: [dentist]}
+    reference:
+      calls: [{name: explain, arguments: {plan: design_review, option: Birch room}}]
+      reply: The Birch room doesn't have what the meeting needs.
+  - say: priya
+    text: Send it out.
+    expect: {status: AWAITING_CONFIRMATIONS}
+    reference:
+      calls: [{name: request_confirmations, arguments: {plan: design_review}}]
+      reply: Sent. Everyone confirms the new slot on their own page.
+  - {human: approve, members: [priya, marcus, jun, sofia]}
+  - say: priya
+    text: Commit it.
+    expect: {committed: true}
+    reference:
+      calls: [{name: commit_plan, arguments: {plan: design_review}}]
+      reply: Done. The design review is agreed for its new time.
+
+# ------------------------------------------------------------------ study group: hearsay, then a trusted closure
+
+- id: DEMO-STUDY
+  group: study
+  plan: cs341_prep
+  category: Retired guided demo
+  description: A member's report stays unverified, the library's own notice breaks Wednesday, and only that session moves
+  steps:
+  - say: sam
+    text: Alexa, I finished the dynamic programming notes.
+    expect: {task_status: {Dynamic programming notes: done}}
+    reference:
+      calls: [{name: propose_change, arguments: {plan: cs341_prep, item: Dynamic programming notes, status: done}}]
+      reply: Marked done.
+  - say: noor
+    text: Library room 3 is closed on Wednesday.
+    expect: {unverified_reports_added: 1, no_plan_change: true}
+    reference:
+      calls: [{name: report_observation, arguments: {plan: cs341_prep, kind: place_unavailable, place: Library room 3, day: Wed}}]
+      reply: Recorded as an unverified report. The plan doesn't change until the library confirms it.
+  - {setup: observe, place: library_room_3, start: "17:00", end: "21:00", day: 2}
+  - say: chen
+    text: Alexa, what's wrong with the study plan?
+    expect: {status: DEGRADED}
+    reference:
+      calls: []
+      reply: Library room 3 is closed on Wednesday evening, so the Wednesday session no longer works.
+  - say: chen
+    text: Find another option.
+    expect: {repaired: true}
+    reference:
+      calls: [{name: find_alternatives, arguments: {plan: cs341_prep}}]
+      reply: Same time, a different room. Only the Wednesday session changes.
+  - say: jun
+    text: Why not the engineering lounge?
+    expect: {no_plan_change: true}
+    reference:
+      calls: [{name: explain, arguments: {plan: cs341_prep, option: Engineering lounge}}]
+      reply: The lounge doesn't meet what one of you needs for the session.
+  - say: chen
+    text: Send it out.
+    expect: {status: AWAITING_CONFIRMATIONS}
+    reference:
+      calls: [{name: request_confirmations, arguments: {plan: cs341_prep}}]
+      reply: Sent. Only the people in the changed session are asked again.
+  - {human: approve, members: [chen, sam, noor, jun]}
+  - say: chen
+    text: Lock it in.
+    expect: {committed: true}
+    reference:
+      calls: [{name: commit_plan, arguments: {plan: cs341_prep}}]
+      reply: Agreed.

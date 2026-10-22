@@ -140,6 +140,8 @@ class LlmSettings:
     openai_model: str | None = field(default_factory=lambda: env("OPENAI_COMPAT_MODEL"))
     aws_region: str = field(default_factory=lambda: env("AWS_REGION", "us-east-1"))
     bedrock_model_id: str = field(default_factory=lambda: env("BEDROCK_MODEL_ID", "us.amazon.nova-pro-v1:0"))
+    relay_label: str = field(default_factory=lambda: env("RELAY_LABEL", "Relay"))
+    relay_model: str = field(default_factory=lambda: env("RELAY_MODEL", "external agent"))
     timeout_s: float = field(default_factory=lambda: env_int("LLM_TIMEOUT_MS", 45000) / 1000)
     max_steps: int = field(default_factory=lambda: env_int("LLM_MAX_STEPS", 10))
 

@@ -15,7 +15,8 @@ group (other groups keep their seed) and runs steps in order:
     say:     one turn through the model, optionally with checks; with room: the turn comes from
              that group's chat, with the room's recent messages and its members as listeners
 
-Suites: original (eval/scenarios, written alongside the prompt), holdout (eval/holdout) and
+Suites: original (eval/scenarios, written alongside the prompt), holdout (eval/holdout), demos (eval/demos:
+the retired guided demos, step for step, with reference trajectories) and
 realistic (eval/realistic: colloquial, noisy, several plans at once, group chats, in its own
 world whose people and words appear nowhere in the prompt). A scenario file may name its own
 world with a top-level `world:` path.
@@ -59,7 +60,7 @@ from groupflow.sim.traffic import TrafficLog
 
 SCENARIO_DIR = REPO_ROOT / "eval" / "scenarios"
 SUITES = {"original": SCENARIO_DIR, "holdout": REPO_ROOT / "eval" / "holdout", "realistic": REPO_ROOT / "eval" / "realistic",
-          "adversarial": REPO_ROOT / "eval" / "adversarial"}
+          "adversarial": REPO_ROOT / "eval" / "adversarial", "demos": REPO_ROOT / "eval" / "demos"}
 EXPECTATIONS = set('candidate_label candidate_place candidate_time committed condition_drafted error_codes executions_added invisible_to no_commit no_condition_change no_pending no_plan_change no_private_owner_attribution no_repair no_value_change outcome_in pending plan plan_created private_intent repaired reply_excludes reply_mentions reply_mentions_any requests_added status status_in task_due_set task_exists task_status task_status_like tools_called tools_called_any tools_not_called unverified_reports_added value_contains values stored_private_note'
                    ' item_added_in no_item_like plans_untouched nothing_changed value_excludes task_owner_like no_new_plan'
                    ' notified not_notified asks_first'

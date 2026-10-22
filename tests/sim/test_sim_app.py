@@ -36,7 +36,9 @@ async def test_config_lists_every_group_with_people_plans_scripts_and_provider(s
     assert [p["id"] for p in family["plans"]] == ["party", "home"]
     assert friends["plans"][0]["template"] == "evening_out" and "committed" in friends["stages"]
     assert any(p["id"] == "restaurant_a" for p in friends["places"])
-    assert family["script"][0]["member"] == "charlie" and friends["script"][0]["kind"] == "event"
+    # Only the Friday dinner story has a guided script; the older group scripts are eval cases now (eval/demos).
+    assert family["script"] == [] and friends["script"][0] == {**friends["script"][0], "kind": "say", "member": "alice"}
+    assert cfg["showcase"]["group"] == "friends" and cfg["showcase"]["script"] == friends["script"]
     assert friends["members"][0]["groups"] == ["family", "friends"], "Alice is in two groups"
     assert len(cfg["templates"]) == 8
     assert cfg["provider"]["id"] == "scripted" and "token" not in str(cfg).lower()

@@ -9,7 +9,6 @@ import type { HumanClient } from '../api';
 interface Props {
   client?: HumanClient;
   onInbox?: (inbox: Inbox) => void;
-  simple?: boolean;
   member: Member;
   signedIn: boolean;
   inbox: Inbox | null;
@@ -122,7 +121,7 @@ function ConditionForm({ id, plans, busy, onSet }: { id: string; plans: InboxPla
   );
 }
 
-export function PhonePage({ client, onInbox, member, signedIn, inbox, groupPlanIds: shownPlanIds, groupId, busy, error, message, onLogin, onLogout, onDecide, onVerify, onRevoke, onSetCondition, onProjectAnswer, onProjectRevoke, onProjectCalendar, onWorkspaceRole, onVote = noop, onRsvp = noop, onBring = noop, onConfirmCost = noop, simple = false }: Props) {
+export function PhonePage({ client, onInbox, member, signedIn, inbox, groupPlanIds: shownPlanIds, groupId, busy, error, message, onLogin, onLogout, onDecide, onVerify, onRevoke, onSetCondition, onProjectAnswer, onProjectRevoke, onProjectCalendar, onWorkspaceRole, onVote = noop, onRsvp = noop, onBring = noop, onConfirmCost = noop }: Props) {
   const [passcode, setPasscode] = useState(member.demoPasscode ?? '');
   const [limit, setLimit] = useState<Record<string, string>>({});
   const [openItem, setOpenItem] = useState<string | null>(null);
@@ -130,7 +129,7 @@ export function PhonePage({ client, onInbox, member, signedIn, inbox, groupPlanI
     ...(inbox?.plans ?? []).filter(p => groupId && p.group_id === groupId).map(p => p.id)]), [shownPlanIds, inbox, groupId]);
 
   const head = (
-    <p className="phone-head"><Lock /> {member.name}'s own page <span className="phone-sub">{simple ? 'Review your part and give your own answer' : 'human-only API, not reachable by Alexa'}</span></p>
+    <p className="phone-head"><Lock /> {member.name}'s own page <span className="phone-sub">human-only API, not reachable by Alexa</span></p>
   );
 
   if (!signedIn) {
@@ -143,7 +142,7 @@ export function PhonePage({ client, onInbox, member, signedIn, inbox, groupPlanI
             <input id={`pass-${member.id}`} value={passcode} onChange={(e) => setPasscode(e.target.value)} autoComplete="off" />
             <button type="submit" className="pbtn primary-p" disabled={busy || !passcode}>Sign in</button>
           </div>
-          <p className="phone-note">{simple ? 'Sign in to review your arrangements and answer for yourself. The demo passcode is filled in.' : <>Signs in to the GroupFlow server's human-only API. Alexa's MCP token is refused there, so only {member.name} can confirm {member.name}'s part.{member.demoPasscode ? ' The demo passcode is filled in.' : ''}</>}</p>
+          <p className="phone-note">Signs in to the GroupFlow server's human-only API. Alexa's MCP token is refused there, so only {member.name} can confirm {member.name}'s part.{member.demoPasscode ? ' The demo passcode is filled in.' : ''}</p>
         </form>
         {error && <p className="phone-error" role="alert">{error}</p>}
       </div>

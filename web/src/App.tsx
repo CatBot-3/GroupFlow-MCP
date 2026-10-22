@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, type AgentTurn, type Config, type TrafficEntry, type TranscriptLine } from './api';
 import { TrafficStrip } from './components/TrafficStrip';
+import { ExplainerStage } from './stage/ExplainerStage';
 import { GroupStage } from './stage/GroupStage';
 import { canSpeak, speak } from './speech';
 
@@ -17,11 +18,13 @@ export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Type a line into an Echo so viewers can read it before it is sent. */
 export async function typeInto(setDraft: (member: string, v: string) => void, member: string, text: string) {
-  if (prefersReducedMotion()) {
+  // A hidden tab runs its timers about once a second, which would turn this into a minute of typing: skip it there.
+  if (prefersReducedMotion() || document.hidden) {
     setDraft(member, text);
     return;
   }
   for (let i = 1; i <= text.length; i += 2) {
+    if (document.hidden) break;
     setDraft(member, text.slice(0, i));
     await sleep(14);
   }
@@ -165,16 +168,33 @@ export function App() {
     );
   }
 
+  const story = mode === 'demo' ? config.scenarios.find((sc) => sc.id === 'friends') : undefined;
+  if (story) {
+    const controls = (
+      <>
+        {canSpeak && <label className="x-ctl"><input type="checkbox" checked={speakReplies} onChange={(e) => setSpeakReplies(e.target.checked)} />Speak replies</label>}
+        <button type="button" className="x-ctl" onClick={() => void reset('friends')}>Reset the story</button>
+        <button type="button" className="x-ctl" onClick={() => setMode('lab')}>Test lab</button>
+      </>
+    );
+    return (
+      <>
+        {fatal && <div className="banner" role="alert">{fatal}</div>}
+        <ExplainerStage scenario={{ ...story, script: config.showcase?.script ?? story.script }} transcripts={transcripts} echo={echo} tick={tick} resetKey={resetKey}
+          onChanged={bump} controls={controls} live={{ mcp: !!protocol, model: config.provider.ready, modelNote: config.provider.ready ? null : config.provider.reason }} />
+      </>
+    );
+  }
+
   return (
-    <div className={`app ${mode === 'demo' ? 'showcase-app' : ''}`}>
+    <div className="app">
       <header className="topbar">
         <div className="brand">
           <span className="wordmark">GroupFlow</span>
           <div className="seg" aria-label="Experience">
-            {config.scenarios.some((s) => s.id === 'friends') && <button type="button" className={mode === 'demo' ? 'on' : ''} onClick={() => setMode('demo')}>Friends demo</button>}
-            <button type="button" className={mode === 'lab' ? 'on' : ''} onClick={() => setMode('lab')}>Test lab</button>
+            {config.scenarios.some((s) => s.id === 'friends') && <button type="button" onClick={() => setMode('demo')}>Story demo</button>}
+            <button type="button" className="on">Test lab</button>
           </div>
-          {mode === 'lab' &&
           <div className="seg scenario-switch" role="radiogroup" aria-label="Group">
             {config.scenarios.map((s) => (
               <button key={s.id} type="button" role="radio" aria-checked={s.id === current.id} className={s.id === current.id ? 'on' : ''} onClick={() => setGroup(s.id)}
@@ -183,14 +203,13 @@ export function App() {
               </button>
             ))}
           </div>
-          }
         </div>
         <div className="status">
           <span className={`pill ${protocol ? 'ok' : 'bad'}`} title={config.mcpUrl}>
-            {protocol ? (mode === 'demo' ? 'Live MCP connected' : `MCP ${protocol} over Streamable HTTP`) : 'MCP server not reachable'}
+            {protocol ? `MCP ${protocol} over Streamable HTTP` : 'MCP server not reachable'}
           </span>
           <span className={`pill ${config.provider.ready ? 'ok' : 'bad'}`} title={config.provider.ready ? 'The LLM decides which MCP tools to call; the GroupFlow server applies the rules' : config.provider.reason ?? ''}>
-            {config.provider.ready ? (mode === 'demo' ? 'Alexa+ simulation' : `Alexa brain: ${config.provider.label} ${config.provider.model}`) : `Alexa brain: no ${config.provider.label} key`}
+            {config.provider.ready ? `Alexa brain: ${config.provider.label} ${config.provider.model}` : `Alexa brain: no ${config.provider.label} key`}
           </span>
           {canSpeak && (
             <label className="toggle">
@@ -208,7 +227,7 @@ export function App() {
         <div className="banner" role="alert">Alexa needs an LLM to understand people. {config.provider.reason}</div>
       )}
 
-      <GroupStage key={`${mode}:${current.id}`} scenario={mode === 'demo' && current.id === 'friends' && config.showcase ? { ...current, script: config.showcase.script } : current} presentation={mode === 'demo'} transcripts={transcripts} echo={echo} tick={tick} resetKey={resetKey} onReset={reset} onChanged={bump} />
+      <GroupStage key={current.id} scenario={current} transcripts={transcripts} echo={echo} tick={tick} resetKey={resetKey} onReset={reset} onChanged={bump} />
 
       <TrafficStrip entries={groupTraffic} members={current.members} />
     </div>

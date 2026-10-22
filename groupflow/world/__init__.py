@@ -96,7 +96,10 @@ def seed_group(engine: GroupFlow, world: World, group_id: str, stages: dict[str,
     for s in g.get("spaces", []):
         engine.add_space(s["id"], g["id"], s["name"], "shared", s["members"], s.get("description"))
     for spec in world.plans_of(group_id):
-        seed_plan(engine, world, spec, stages.get(spec["id"]) or spec.get("stages", {}).get("default"))
+        stage = stages.get(spec["id"]) or spec.get("stages", {}).get("default")
+        if stage == "none":
+            continue  # this plan is made on camera instead (the guided demo starts without it)
+        seed_plan(engine, world, spec, stage)
     # Earlier notifications were heard back then; the demo starts with clean inboxes.
     plan_ids = [p["id"] for p in world.plans_of(group_id)]
     marks = ",".join("?" for _ in plan_ids) or "''"

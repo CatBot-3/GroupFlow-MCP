@@ -169,6 +169,7 @@ plans:
       - {owner: bob, name: prefer_keep, value: {activity: dessert}}
     stages:
       default: committed
+      none: []      # the plan is not created: the guided demo starts with the four friends and no plan
       draft: []
       proposed: [propose]
       awaiting: [send]
@@ -217,6 +218,7 @@ plans:
       - {as: marcus, do: change, new_type: action_item, title: Share the design file before the meeting}
     stages:
       default: committed
+      none: []      # the plan is not created: the guided demo starts with the four friends and no plan
       draft: []
       committed: [send, confirm_all, commit]
 
@@ -241,6 +243,7 @@ plans:
       - {as: chen, do: change, new_type: prep, title: Graph algorithms practice set, owner: noor}
     stages:
       default: committed
+      none: []      # the plan is not created: the guided demo starts with the four friends and no plan
       draft: []
       committed: [send, confirm_all, commit]
 

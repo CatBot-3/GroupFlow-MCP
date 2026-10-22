@@ -218,10 +218,9 @@ interface Props {
   onViewAs: (v: string) => void;
   members: Member[];
   console?: ReactNode;
-  memberOnly?: boolean;
 }
 
-export function PlanBoard({ model, planId, plans, onPlan, viewAs, onViewAs, members, console: demoConsole, memberOnly = false }: Props) {
+export function PlanBoard({ model, planId, plans, onPlan, viewAs, onViewAs, members, console: demoConsole }: Props) {
   const colorOf = (name: string) => members.find((m) => m.name === name || m.id === name)?.color;
   const viewer = viewAs === 'all' ? null : members.find((m) => m.id === viewAs) ?? null;
   const tab = plans.find((p) => p.id === planId) ?? plans[0] ?? null;
@@ -231,7 +230,6 @@ export function PlanBoard({ model, planId, plans, onPlan, viewAs, onViewAs, memb
   const edge = hiddenFrom.length ? 'hatch' : 'plain';
   const conditions = viewer ? ctx?.your_conditions ?? [] : plan?.conditions ?? [];
   const showGate = !viewer && plan?.gate && plan.working && plan.working.kind === 'candidate';
-  const guidance = (text: string) => memberOnly ? text.replace(/ with (find_alternatives|request_confirmations|commit_plan)\b/g, '') : text;
   const nextIsTodo = !!ctx && !!plan && ctx.your_todos.some((t) => t.plan === plan.title && ['send', 'commit', 'repair', 'confirm'].includes(t.kind));
   const attention = !!ctx && (ctx.decisions_for_you.length > 0 || ctx.your_todos.length > 0 || ctx.affected.length > 0);
   // While the agreed version no longer works, mark the activities a verified outside fact hit.
@@ -257,18 +255,18 @@ export function PlanBoard({ model, planId, plans, onPlan, viewAs, onViewAs, memb
             );
           })}
         </div>
-        {!memberOnly && <div className="seg" role="radiogroup" aria-label="Show the plan as">
+        <div className="seg" role="radiogroup" aria-label="Show the plan as">
           <button type="button" role="radio" aria-checked={viewAs === 'all'} className={viewAs === 'all' ? 'on' : ''} onClick={() => onViewAs('all')}>Everything</button>
           {members.map((m) => (
             <button key={m.id} type="button" role="radio" aria-checked={viewAs === m.id} className={viewAs === m.id ? 'on' : ''} onClick={() => onViewAs(m.id)} style={{ ['--member' as string]: m.color }}>
               {m.name}
             </button>
           ))}
-        </div>}
+        </div>
       </header>
       <p className={`plan-caption ${viewer ? 'as-member' : ''}`} style={viewer ? { ['--member' as string]: viewer.color } : undefined}>
         {viewer
-          ? memberOnly ? <>{viewer.name}'s live view. Shared arrangements and your own private limits.</> : <>Exactly what get_context returns to {viewer.name}'s Echo over MCP for this plan: {viewer.name}'s own conditions only, nobody else's.</>
+          ? <>Exactly what get_context returns to {viewer.name}'s Echo over MCP for this plan: {viewer.name}'s own conditions only, nobody else's.</>
           : <>Inspector view for narrating the demo, including everyone's private conditions. Only the demo backend can see this; it is not exposed over MCP.</>}
       </p>
 
@@ -287,9 +285,9 @@ export function PlanBoard({ model, planId, plans, onPlan, viewAs, onViewAs, memb
           <h2 className="plan-title">{plan.title}</h2>
           <div className={`status-strip tone-${STATUS_TONE[plan.status]}`}>
             <span className="status-chip">{STATUS_WORDS[plan.status] ?? plan.status}</span>
-            <span className="status-meta">{plan.dates} · {plan.kind} · organizer {plan.organizer} · {memberOnly ? plan.working?.label ?? plan.agreed?.label : `version ${plan.version}`}</span>
+            <span className="status-meta">{plan.dates} · {plan.kind} · organizer {plan.organizer} · {`version ${plan.version}`}</span>
             {plan.status_reason && <p className="status-reason">{plan.status_reason}</p>}
-            {plan.next_step && !nextIsTodo && <p className="status-next">{plan.project ? 'Review work and resource availability, prepare a schedule, then request individual commitments and stage authorization.' : guidance(plan.next_step)}</p>}
+            {plan.next_step && !nextIsTodo && <p className="status-next">{plan.project ? 'Review work and resource availability, prepare a schedule, then request individual commitments and stage authorization.' : plan.next_step}</p>}
           </div>
           <p className={`audience edge-${edge}`}>
             <span className={`swatch ${edge}`} aria-hidden="true" />
@@ -298,7 +296,7 @@ export function PlanBoard({ model, planId, plans, onPlan, viewAs, onViewAs, memb
             {plan.space && !viewer && <span className="section-sub">Space: {plan.space}</span>}
           </p>
 
-          {ctx && (attention || (!memberOnly && ctx.updates.length > 0)) && (
+          {ctx && (attention || ctx.updates.length > 0) && (
             <div className="for-you">
               <h3 className="plan-section">For {viewer?.name}</h3>
               <ul className="todo-list">
@@ -307,16 +305,10 @@ export function PlanBoard({ model, planId, plans, onPlan, viewAs, onViewAs, memb
                 ))}
                 {ctx.your_todos.map((t, i) => <li key={`t${i}`}>{t.text} <span className="where">({t.where})</span></li>)}
                 {ctx.affected.map((f) => <li key={f.item}>{f.label}: {f.message}</li>)}
-                {memberOnly && ctx.updates.length > 0 ? <li className="update"><details><summary>Recent updates</summary><ul>{ctx.updates.map((u, i) => <li key={`u${i}`}>{u}</li>)}</ul></details></li> : ctx.updates.map((u, i) => <li key={`u${i}`} className="update">{u}</li>)}
+                {ctx.updates.map((u, i) => <li key={`u${i}`} className="update">{u}</li>)}
               </ul>
             </div>
           )}
-          {/* News alone is not something to act on: in the member view it stays a quiet line, not a highlighted box. */}
-          {ctx && memberOnly && !attention && ctx.updates.length > 0 && (
-            <details className="plan-updates"><summary>{ctx.updates.length} recent {ctx.updates.length === 1 ? 'update' : 'updates'} for {viewer?.name}</summary>
-              <ul>{ctx.updates.map((u, i) => <li key={i}>{u}</li>)}</ul></details>
-          )}
-
           <Details plan={plan} colorOf={colorOf} edge={edge} />
           {plan.project && <ProjectPanel key={plan.id} plan={plan} member={viewer?.id} members={members} />}
 
