@@ -1,6 +1,27 @@
 # Friction log
 
-Two parts. First, friction with the Alexa+ add-on platform and its documentation, written in the format the rules ask for (task, steps, expected, actual, severity, workaround, suggestion); these are the entries we would most like Amazon to see. Second, the engineering notes we kept while building, most of them our own bugs, because several will bite anyone building an MCP add-on with a language model in front of it.
+What slowed us down, written so someone else can reproduce it and the owner can fix it. Every entry follows the format the hackathon asks for: the task we attempted, the steps we took, what we expected and what actually happened, a severity rating, the workaround we used and a suggestion. Part 1 is the Alexa+ add-on platform and its documentation, the entries we most want Amazon to see. Part 2 is the other tools and SDKs we built on. Part 3 keeps the shorter engineering notes from the build, most of them our own bugs, because several will bite anyone building an MCP add-on with a language model in front of it.
+
+**Severity.** High: blocks a requirement, a connection or a running server. Medium: costs hours or forces a workaround in our code. Low: an annoyance, or a cost in size or speed rather than correctness.
+
+| Entry | Area | Severity |
+| --- | --- | --- |
+| F1. The documented client initializes with an older protocol version | Alexa+ add-ons | High |
+| F2. WWW-Authenticate listed as unsupported | Alexa+ add-ons | Medium |
+| F3. Two spellings of the person-level scope | Alexa+ add-ons | Low |
+| F4. No signal for who is speaking or listening on a shared device | Alexa+ add-ons | High |
+| F5. Device testing needs Private Preview access | Alexa+ add-ons | High |
+| F6. The 500 ms requirement does not say what is measured | Alexa+ add-ons | Low |
+| F7. "A tool returns 401/403" is ambiguous for account linking | Alexa+ add-ons | Medium |
+| F8. Not documented what the model sees of a server | Alexa+ add-ons | Medium |
+| F9. The v2 Python SDK renamed the server; most examples are v1 | MCP Python SDK 2.3.0 | Medium |
+| F10. No server switch to stay in the handshake protocol era | MCP Python SDK 2.3.0 | Low |
+| F11. Mounting the SDK app under a path redirects `POST /mcp` | MCP Python SDK 2.3.0 | Medium |
+| F12. Elicitation silently needs streamed responses | MCP Python SDK 2.3.0 | Medium |
+| F13. Advertised tool schemas are verbose | MCP Python SDK 2.3.0 | Low |
+| F14. Thinking on by default, and balance errors in the middle of a run | DeepSeek API | Medium |
+| F15. OR-Tools crashed on Windows under Anaconda's Python | Google OR-Tools | High |
+| F16. The Windows event loop stopped accepting connections | Python asyncio on Windows | High |
 
 ## Part 1. Alexa+ add-on friction
 
@@ -84,41 +105,115 @@ Two parts. First, friction with the Alexa+ add-on platform and its documentation
 * **Workaround:** The voice tools keep all essential rules on the server and in short tool descriptions; the server instructions are about 1,700 characters, and every write is guarded on the server regardless of hints.
 * **Suggestion:** Document which server fields Alexa+ passes to its model and how it uses tool annotations.
 
-## Part 2. Engineering notes from the build
+## Part 2. Friction with the other tools we used
 
-These are in the order we hit them, with what fixed each one.
+### F9. The v2 Python SDK renamed the server; most examples are v1
+
+* **Task:** Build the server on the official MCP Python SDK 2.3.0.
+* **Steps:** Follow the examples found online for a Streamable HTTP server with middleware.
+* **Expected:** Examples that run on the current release.
+* **Actual:** v2 renamed `FastMCP` to `MCPServer` (in `mcp.server.mcpserver`), changed middleware to `async (ctx, call_next)` and returns raw dicts for `initialize` and `tools/list`. Most search results and tutorials still show v1 code, which does not import.
+* **Severity:** Medium (hours lost; no risk once known).
+* **Workaround:** We read the v2 source and the specification instead of the examples.
+* **Suggestion:** A v1 to v2 migration page, and a version banner on v1 examples.
+
+### F10. No server switch to stay in the handshake protocol era
+
+* **Task:** Serve MCP 2025-11-25, the handshake-era version the rules require.
+* **Steps:** Connect the SDK's v2 client, in `auto` mode, to the server.
+* **Expected:** A server option that declares its supported protocol versions, so clients go straight to the handshake.
+* **Actual:** The client first tries the newer per-request envelope (2026-07-28) and falls back only after an error; the server has no documented switch.
+* **Severity:** Low.
+* **Workaround:** Our middleware answers modern-envelope requests with JSON-RPC error -32601, which makes the client fall back; a test covers it.
+* **Suggestion:** A documented server setting for the supported protocol versions.
+
+### F11. Mounting the SDK app under a path redirects `POST /mcp`
+
+* **Task:** Serve `/mcp` (voice tools) and `/mcp/lab` (all tools) from one FastAPI app.
+* **Steps:** Mount the SDK's Starlette app at `/mcp`.
+* **Expected:** `POST /mcp` reaches the MCP endpoint.
+* **Actual:** The mount redirects `POST /mcp` to `/mcp/`, which MCP clients do not follow, so connections fail without a clear error.
+* **Severity:** Medium.
+* **Workaround:** A small ASGI dispatcher routes `/mcp` and `/mcp/lab` itself.
+* **Suggestion:** Document mounting under a prefix, or accept the path with and without the trailing slash.
+
+### F12. Elicitation silently needs streamed responses
+
+* **Task:** Ask a clarifying question in the middle of a tool call ("7:00 or 7:30?") with MCP elicitation.
+* **Steps:** Serve one JSON body per request, then call elicitation from a tool.
+* **Expected:** Either it works, or the SDK says elicitation needs streamed (SSE) responses.
+* **Actual:** With one JSON body per request a tool cannot send `elicitation/create` mid-call, and nothing says so.
+* **Severity:** Medium.
+* **Workaround:** The response mode is a setting (`GROUPFLOW_MCP_RESPONSES=sse` streams), and our `ask_followup` falls back to a spoken question.
+* **Suggestion:** Document the dependency, or raise a clear error when elicitation is attempted in JSON mode.
+
+### F13. Advertised tool schemas are verbose
+
+* **Task:** Keep the tool definitions small for a voice host.
+* **Steps:** Measure `tools/list` with the Pydantic-derived input schemas.
+* **Expected:** Compact JSON Schema.
+* **Actual:** Every optional field carries a title, `anyOf` with null and `default: null`; with 35 tools the definitions came to 81 KB.
+* **Severity:** Low (size and speed, not correctness).
+* **Workaround:** The voice tools advertise a simplified schema while validation still uses the full signature; with 13 lean tools that is about 13 KB.
+* **Suggestion:** An SDK option for compact advertised schemas.
+
+### F14. Thinking on by default, and balance errors in the middle of a run
+
+* **Task:** Run the evaluation suites with DeepSeek `deepseek-flash` through its OpenAI-compatible API.
+* **Steps:** Run all scenarios three times in one go.
+* **Expected:** Fast turns, and a clear stop when the account runs out.
+* **Actual:** Thinking mode is on by default and adds seconds per turn. When the balance ran out, requests failed with HTTP 402 in the middle of a suite, which at first looked like scenario failures.
+* **Severity:** Medium (wrong numbers if unnoticed).
+* **Workaround:** We send thinking disabled, and our runner stops on 401, 402 and 403 and marks the report incomplete.
+* **Suggestion:** Document the default prominently, and send a low-balance warning before requests start failing.
+
+### F15. OR-Tools crashed on Windows under Anaconda's Python
+
+* **Task:** Use CP-SAT for large repair searches on the Windows development machine.
+* **Steps:** Import OR-Tools under Anaconda's Python and run a search.
+* **Expected:** The same behaviour as on Linux.
+* **Actual:** The process crashed: Anaconda ships an older Visual C++ runtime (`msvcp140.dll`) next to `python.exe`, and it is loaded before the system's.
+* **Severity:** High on affected machines (the process dies).
+* **Workaround:** GroupFlow loads the system runtime first, and falls back to exact enumeration when CP-SAT is unavailable.
+* **Suggestion:** Check the runtime version at import and raise a readable error that names the conflicting DLL.
+
+### F16. The Windows event loop stopped accepting connections
+
+* **Task:** Run the server and the simulator on Windows.
+* **Steps:** Close a browser tab abruptly while a response is streaming.
+* **Expected:** Other connections carry on.
+* **Actual:** asyncio's default proactor loop closed its own listening socket (WinError 64), and the server stopped accepting new connections.
+* **Severity:** High on Windows (the server stops serving).
+* **Workaround:** Our servers run on the selector loop on Windows.
+* **Suggestion:** Handle WinError 64 on accept in the proactor loop, or document the selector loop for servers.
+
+## Part 3. Engineering notes from the build
+
+Shorter notes, in the order we hit them, with what fixed each one. Entries that are friction with a tool are written out in full in Part 2.
 
 ### MCP server and client (official Python SDK 2.3.0)
 
-1. **The v2 SDK renamed the server.** `FastMCP` examples from v1 do not apply; v2 has `MCPServer` in `mcp.server.mcpserver`, a middleware chain with the signature `async (ctx, call_next)`, and raw dict results for `initialize` and `tools/list`. Most search results still show v1 code.
-2. **Pinning the protocol era.** The v2 client in `auto` mode first tries the newer per-request envelope (2026-07-28) before falling back to the handshake. Our middleware answers modern-envelope requests with JSON-RPC error -32601, which makes the client fall back. There is no documented server switch for "handshake only".
-3. **Mounting under a path.** Mounting the SDK's Starlette app at `/mcp` inside FastAPI turned `POST /mcp` into a redirect to `/mcp/`, which MCP clients do not follow. A tiny ASGI dispatcher now routes `/mcp` and `/mcp/lab` itself.
-4. **Async context ownership.** An SDK client session entered in one asyncio task and closed in another fails with an anyio cancel-scope error, so each member's session lives inside its own long-lived task.
-5. **Async event hooks.** The SDK uses `httpx2`; on an async client a response hook must be an `async def`.
-6. **Identity per request.** The member goes on the ASGI scope in an auth wrapper and tools read it through the request context; each `mcp-session-id` is bound to the member who opened it.
-7. **Elicitation needs a streamed response.** With one JSON body per request a tool cannot send `elicitation/create` mid-call, so the response mode is a setting and `ask_followup` falls back to a spoken question.
-8. **Advertised schemas are verbose.** Pydantic schemas carry titles, `anyOf` with null and `default: null` for every optional field; for the voice tools we simplify the advertised schema (validation still uses the full signature), which with lean descriptions brought 13 tools to about 13 KB.
+1. **Async context ownership.** An SDK client session entered in one asyncio task and closed in another fails with an anyio cancel-scope error, so each member's session lives inside its own long-lived task.
+2. **Async event hooks.** The SDK uses `httpx2`; on an async client a response hook must be an `async def`.
+3. **Identity per request.** The member goes on the ASGI scope in an auth wrapper and tools read it through the request context; each `mcp-session-id` is bound to the member who opened it.
 
 ### LLM behaviour (DeepSeek, OpenAI-compatible API)
 
-9. **Thinking mode is on by default** on DeepSeek, which adds seconds per turn; we send it disabled.
-10. **Hedges confirmed as decisions; negations stored as values; permissions guessed by the model; "noted" without a tool call.** Each was fixed in tool descriptions and server rules, and the evaluation counts the last one.
-11. **Host help hides weaknesses.** The simulator's long prompt, forced state read and reply re-check raised scores that a plain host would not get. The Alexa+-like client, and counting scenarios that pass all three runs, now measure that gap (EVALUATION.md).
+4. **Hedges confirmed as decisions; negations stored as values; permissions guessed by the model; "noted" without a tool call.** Each was fixed in tool descriptions and server rules, and the evaluation counts the last one.
+5. **Host help hides weaknesses.** The simulator's long prompt, forced state read and reply re-check raised scores that a plain host would not get. The Alexa+-like client, and counting scenarios that pass all three runs, now measure that gap (EVALUATION.md).
 
 ### Data and platform
 
-12. **A worker race on Windows,** fixed by delivering a member's outbox before reading their notifications.
-13. **OR-Tools crashed on Windows** because Anaconda's Python ships an older msvcp140.dll; GroupFlow loads the system runtime first and falls back to exact enumeration.
-14. **A stale Python registration** in the Windows `py` launcher; using an interpreter by full path worked.
-15. **SQLite and concurrency:** autocommit with explicit `BEGIN IMMEDIATE`, WAL and nested transactions that join the outer one.
-16. **The Windows event loop closed its own listening socket** after an abrupt disconnect (WinError 64); servers run on the selector loop on Windows.
-17. **Tests that needed local files.** One test read a frozen case file from the ignored `eval/runs/` folder, so a fresh clone failed it; the file is now a tracked fixture and tests write evidence to a temporary folder unless `GROUPFLOW_KEEP_EVIDENCE=1`.
+6. **A worker race on Windows,** fixed by delivering a member's outbox before reading their notifications.
+7. **A stale Python registration** in the Windows `py` launcher; using an interpreter by full path worked.
+8. **SQLite and concurrency:** autocommit with explicit `BEGIN IMMEDIATE`, WAL and nested transactions that join the outer one.
+9. **Tests that needed local files.** One test read a frozen case file from the ignored `eval/runs/` folder, so a fresh clone failed it; the file is now a tracked fixture and tests write evidence to a temporary folder unless `GROUPFLOW_KEEP_EVIDENCE=1`.
 
 ### Turning two demo engines into one generic core
 
-18. **Loose matching across plans** turned "party.venue" into the party date; dotted references skip fuzzy matching.
-19. **History that remembered too much:** a flag caused by a hidden plan was filed where the guest of honour could read it; such entries now live with the more private plan.
-20. **Error messages that echo guesses** could confirm a hidden plan's name; they now read like errors for plans that do not exist.
-21. **A guess that became a new item;** an unknown item with only a status is refused.
-22. **Evaluation state leaking between scenarios;** every scenario starts from the whole world as seeded.
-23. **Repairing and sending in one breath;** the organizer decides whether to send a repaired version.
+10. **Loose matching across plans** turned "party.venue" into the party date; dotted references skip fuzzy matching.
+11. **History that remembered too much:** a flag caused by a hidden plan was filed where the guest of honour could read it; such entries now live with the more private plan.
+12. **Error messages that echo guesses** could confirm a hidden plan's name; they now read like errors for plans that do not exist.
+13. **A guess that became a new item;** an unknown item with only a status is refused.
+14. **Evaluation state leaking between scenarios;** every scenario starts from the whole world as seeded.
+15. **Repairing and sending in one breath;** the organizer decides whether to send a repaired version.

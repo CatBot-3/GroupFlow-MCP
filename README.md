@@ -4,7 +4,7 @@ GroupFlow helps a group of people plan something together, each by talking to th
 
 We built it for the **Alexa+ track** of *Build, Ship, Shape: Amazon Developer Hackathon 2026*, on the **simulation path**. The server speaks **MCP 2025-11-25 over Streamable HTTP**. Because we could not test on a real Alexa+ device, this repository also contains a web simulator in which each person's Echo is played by a real language model that connects to GroupFlow exactly as an assistant would.
 
-Version 0.1.0 · MIT license · Python 3.10 or newer · Demo video: *link added with the Devpost submission*
+Version 0.1.0 · MIT license · Python 3.10 or newer · [Demo video](https://www.youtube.com/watch?v=ZqbjdNWMVjU)
 
 ![Friday in the demo: the restaurant has closed, Alice's Alexa sends out a fix that moves only the dinner, and on the right twelve earlier answers still count while only the dinner is asked again](docs/img/story-friday.png)
 
@@ -412,7 +412,7 @@ The Echo devices are simulated, and the add-on has not run on a real Alexa+ devi
 | --- | --- |
 | [EVALUATION.md](docs/EVALUATION.md) | How GroupFlow is tested with and without a language model, and the results |
 | [PRODUCT_FEEDBACK.md](docs/PRODUCT_FEEDBACK.md) | Feedback on each tool, API and SDK we used, and what we would ask Amazon for |
-| [FRICTION_LOG.md](docs/FRICTION_LOG.md) | Problems we hit with the Alexa+ add-on platform and while building |
+| [FRICTION_LOG.md](docs/FRICTION_LOG.md) | Friction with the Alexa+ add-on platform and the other tools we used, in the hackathon's format, and notes from the build |
 | [HUMAN_API.md](docs/HUMAN_API.md) | The human-only API behind each person's own page |
 | [KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md) | What GroupFlow does not do yet, and why |
 | [PROTOCOL_EVIDENCE.md](docs/PROTOCOL_EVIDENCE.md) | A captured MCP session: handshake, tool list and calls |
