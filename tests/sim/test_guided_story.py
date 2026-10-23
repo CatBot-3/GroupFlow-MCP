@@ -1,7 +1,7 @@
-"""The guided demo story, step by step, against the engine: every server outcome its captions claim.
+"""The Friday dinner story from the demo video, step by step, against the engine: every server outcome the video shows.
 
-The model's side (what Alexa says) varies between runs and is rehearsed with scripts/play_demo.py; what GroupFlow decides
-must not vary, so it is pinned here: the draft that breaks a private limit is not sent and names nobody, the fix fits both
+The story's script is private (private/demo_story.py) and the model's side (what the assistant says) varies between runs;
+what GroupFlow decides must not vary, so it is pinned here: the draft that breaks a private limit is not sent and names nobody, the fix fits both
 limits, the check-in reaches only the person who has not answered, a rumour changes nothing, and after the restaurant's own
 notice only the dinner is asked again. It opens with the group being made: Alice's Alexa creates it and an invite, each friend
 asks their own Alexa to join with the code and is added only after their own yes on their screen, Alice's Alexa asks before
@@ -12,39 +12,16 @@ from __future__ import annotations
 
 import asyncio
 import json
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from groupflow.checkins import CheckIns, RulesReviewer, hours_ahead
 from groupflow.core.db import Db
 from groupflow.engine import ASSISTANT, GroupFlow
-from groupflow.sim.demo_script import FRIENDS_SCRIPT, SCRIPTS
 from groupflow.world import approve_all, seed_world
 from tests.conftest import WORLD
 
-KINDS = {"say", "join", "deliver", "verify", "confirm", "skip", "event"}
 NO_GROUP = {"friday_dinner": "none", "group:friends": "none"}
-
-
-def test_the_script_is_one_story_in_four_days():
-    assert set(SCRIPTS) == {"friends"}
-    assert len(FRIENDS_SCRIPT) == 25
-    assert [s['kind'] for s in FRIENDS_SCRIPT[:6]] == ['say', 'join', 'say', 'say', 'say', 'deliver'], 'group first, then the plan, then everyone hears it'
-    join = FRIENDS_SCRIPT[1]
-    assert "{invite}" in join["text"] and join["members"] == ["bob", "chen", "dana"], "each friend says the code to their own Alexa"
-    assert "dessert" in FRIENDS_SCRIPT[3]["text"].lower(), "Alice chooses dessert before anyone else hears about the plan"
-    assert {s["kind"] for s in FRIENDS_SCRIPT} <= KINDS
-    assert [s["chapter"] for s in FRIENDS_SCRIPT if s.get("chapter")] == ["Monday", "Tuesday", "Wednesday", "Friday"]
-    for s in FRIENDS_SCRIPT:
-        assert s["note"] and len(s["note"]) < 170
-        if s["kind"] == "say":
-            assert s["member"] in {"alice", "bob", "chen", "dana"} and s["text"]
-        if s["kind"] in ("join", "deliver", "confirm"):
-            assert s["members"], s
-        if s["kind"] == "event":
-            assert s["members"] == ["alice"], "the page shows whose Echo hears the restaurant's notice"
-    skip = next(s for s in FRIENDS_SCRIPT if s["kind"] == "skip")
-    # 48 hours would land after a Friday dinner when the run is recorded on a Thursday; a plan less than a week away is quiet
-    # after 24 hours, so 26 still fires.
-    assert 24 < skip["hours"] < 48
 
 
 def test_the_demo_starts_before_the_friends_group_exists():
@@ -54,6 +31,14 @@ def test_the_demo_starts_before_the_friends_group_exists():
     assert {p["id"] for p in gf.db.all("SELECT id FROM members")} >= {"alice", "bob", "chen", "dana"}
     # Other groups keep their seeded plans for the extras.
     assert any(p["id"] == "party" for p in gf.inspector("family", None)["plans"])
+
+
+def story_friday() -> str:
+    """A Friday at least three days away, so the 26 quiet hours before Wednesday's check-in never run past the dinner, whatever
+    day and hour the tests run (on a Thursday evening "next friday" is tomorrow, and 26 hours later the evening is over)."""
+    today = datetime.now(ZoneInfo("America/Toronto")).date()
+    days = (4 - today.weekday()) % 7
+    return (today + timedelta(days=days + (7 if days < 3 else 0))).isoformat()
 
 
 def _story():
@@ -73,7 +58,7 @@ def _story():
     gf.reset_rate_limits()
     token = ASSISTANT.set(True)  # Alice's Alexa makes the plan, so the optional stop is offered instead of assumed
     try:
-        created = gf.create_plan("alice", "evening_out", "Friday dinner", group="friends", start_date="next friday")
+        created = gf.create_plan("alice", "evening_out", "Friday dinner", group="friends", start_date=story_friday())
         pid = out["pid"] = created.plan.id
         out["draft"] = created
         out["dessert"] = gf.answer_followup("alice", "Yes, add dessert.")

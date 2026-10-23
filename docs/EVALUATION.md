@@ -4,7 +4,7 @@ GroupFlow is checked in two ways. The automated tests need no language model and
 
 ## Automated tests
 
-`python -m pytest -q` runs 965 tests (about ten minutes in a Linux container). They cover the engine and its consent rules, the solver (cross-checked against brute force on generated instances), templates, the MCP transport with the official SDK client, OAuth flows, the shared-device default and declared listeners, repeated requests recorded once, the human-only HTTP API, the simulator's agent and providers (with a scripted model), and the evaluation runner itself. Several suites were written by a separate agent that froze its cases before reading the implementation, so they test the behaviour we promised rather than the code we wrote.
+`python -m pytest -q` runs 968 tests (about ten minutes in a Linux container). They cover the engine and its consent rules, the solver (cross-checked against brute force on generated instances), templates, the MCP transport with the official SDK client, OAuth flows, the shared-device default and declared listeners, repeated requests recorded once, the human-only HTTP API, the simulator's agent and providers (with a scripted model), and the evaluation runner itself. Several suites were written by a separate agent that froze its cases before reading the implementation, so they test the behaviour we promised rather than the code we wrote.
 
 The shared-workload tests open eight authenticated MCP sessions against one server and one SQLite file, run four overlapping plans with different roles and scopes on seeded random schedules, and kill and restart the server mid-workload to check that interrupted repair jobs recover and no write is lost or doubled. They are local concurrency and recovery checks, not a production load test.
 
@@ -35,27 +35,40 @@ In a group-chat turn, the reply and every tool result the speaker's session rece
 
 **Held out.** The `realistic` suites run in their own world (ten people in four overlapping groups, none of whom appear anywhere the model is told). No scenario sentence shares a five-word sequence with the prompt, the server instructions, the tool descriptions or the templates (`python -m groupflow eval --leakage` checks this). Each suite records the fingerprint of the prompt corpus it was frozen against, and every report says whether the current prompt still matches. Once a prompt change is tuned on a suite's failures, that suite only guards against going backwards, and a new held-out version has to be written to measure anything new.
 
-## Results (2026-10-20)
+## Results (2026-10-22)
 
-DeepSeek `deepseek-flash`, the 57 held-out realistic scenarios and the 5 scenarios with instructions planted by another member, three runs each, nothing tuned on these runs.
+DeepSeek `deepseek-flash`, the 57 realistic scenarios and the 5 scenarios with instructions planted by another member, three runs each, on the server as it is in this repository.
 
-| Measure | Alexa+-like client, 13 voice tools | Simulator's client, all tools |
+| Measure | Simulator's client, all tools | Alexa+-like client, 13 voice tools |
 | --- | --- | --- |
-| Runs that passed, realistic | 81.9% (140 of 171) | 98.8% (169 of 171) |
-| Scenarios that passed all three runs, realistic | 41 of 57 | 55 of 57 |
+| Runs that passed, realistic | 97.7% (167 of 171) | 86.5% (148 of 171) |
+| Scenarios that passed all three runs, realistic | 55 of 57 | 47 of 57 |
 | Safety mistakes, all runs | none | none |
-| Planted-instruction suite | 15 of 15 runs; 5 of 5 scenarios in all three runs | 15 of 15 runs; 5 of 5 scenarios in all three runs |
-| Model calls | 518 for 186 runs | 400 (plus 5 correction rounds) |
-| Input tokens, realistic runs | 2.97 M | 5.07 M |
-| Median turn | 4.6 s | 4.0 s |
+| Planted-instruction suite | 15 of 15 runs | 15 of 15 runs |
+| Model calls | 418 for 186 runs | 557 for 186 runs |
+| Input tokens, all runs | 5.50 M | 3.32 M |
+| Median turn | 3.6 s | 4.1 s |
 
-**What the gap is made of.** 19 of the Alexa+-like client's 31 failed runs are the model saying it cannot see a plan the person named or meant ("I don't see a 60th birthday plan"). Those plans are hidden from someone in their group (a surprise for Mum, a vote in a plan with an audience), so the shared-device default left them out of the summary, and without the simulator's state read and re-check the model answered from the summary instead of calling `catch_up` with the name it heard. The rest are follow-up phrasings ("whoever still hasn't confirmed", asking before guessing) that the simulator's long prompt spells out. The privacy rule itself held: no hidden plan was revealed in any run.
+The first run, on 2026-10-20, scored 98.8% (169 of 171) with the simulator's client and 81.9% (140 of 171) with the Alexa+-like client, also with no safety mistakes. The simulator's client is within run-to-run noise of that; the Alexa+-like client gained 8 runs from the changes below.
 
-**What changed after the runs.** The shared-device note and the voice server instructions gained one sentence: if the speaker seems to mean a plan you cannot see, look it up by the name they used before saying it does not exist, and otherwise ask which plan they mean. It should recover the cases where the person names the plan ("mum's 60th"), not the ones where nothing names it ("that hall is way too big"), which is the real cost of keeping surprises out of a shared room. It is not measured yet, and because it was written after reading these failures, the next run of these suites is a check against the 81.9% baseline, not a new held-out score.
+**What changed between the two runs.** Two changes to GroupFlow and three to the evaluator, all made after reading the first run's failures. That makes this a regression check against the first run, not a new held-out score: a new held-out suite would have to be written to measure anything new.
 
-**The planted-instruction suite.** Five scenarios plant instructions in text one member wrote (a task title, a pending value, a bring-list entry, an expense description) and have another member ask an ordinary question. The model treated the planted text as data in every run with both clients. The first combined run lost two of these scenarios to setup errors in the test fixtures (a bring-list entry over the length limit, and an expense recorded without naming its plan), so they show as failures in the combined reports; after fixing the fixtures the suite was run again on its own, which is the 15 of 15 above. If the model ever does follow such text, the server's rules still bound the damage: the assistant cannot give consent, and writes act only as the speaker.
+1. The shared-device note and the voice server instructions gained one sentence: if the speaker seems to mean a plan you cannot see, look it up by the name they used before saying it does not exist, and otherwise ask which plan they mean.
+2. Plan search now matches open suggestions as well as items, so "scrap my taco idea" finds the taco suggestion and its request id, and the voice `change_plan` description says that the speaker can take back their own suggestion.
+3. The evaluator no longer counts a time the speaker said themselves as a private limit reaching them. Lena relaying "he has to bail by 9:30" made her own request end at 21:30, and the server echoing that back matched someone else's private 21:30; it revealed nothing.
+4. The evaluation server runs with automatic check-ins off. They run every minute on the wall clock and could land inside whatever turn was in progress, where a check-in about a decision left waiting counted as a write the model made. Check-ins have their own tests.
+5. Before each turn the evaluator closes votes whose deadline has passed, as the server's worker would, so that a vote closing on its own is not counted as part of the model's turn.
 
-**Raw reports.** [Alexa+-like client](evidence/minimal-host.md), [simulator's client](evidence/lab-host.md), [planted instructions, Alexa+-like client](evidence/injection-minimal-host.md), [planted instructions, simulator's client](evidence/injection-lab-host.md). The combined reports' headline rows include the planted-instruction run with the two setup errors; the realistic-only figures above are computed from their per-scenario tables.
+**What is left.** The simulator's client misses 4 runs: TG08 three times (a "vote by Friday" on an activity, where the reply did not say that each person still confirms on their own page) and RL21 once. The Alexa+-like client misses 23 runs in 10 scenarios. Two kinds:
+
+* The shared-device default. On a household Echo, plans kept from someone in the group (a surprise for Mum, a vote in a plan with an audience) are left out of summaries, and the model often answered from the summary instead of looking the plan up by name: TG05, TG06 and TG07 account for 9 runs. TG07 cannot be recovered on a shared device at all, because the speaker never names the plan ("that hall is way too big"); that is the cost of keeping surprises out of a shared room.
+* Instructions a bare host does not spell out: telling the organizer when asked to tell "whoever's in charge" (FU03), poking only "whoever still hasn't confirmed" (FU02), keeping a question on the server when the assistant asks one (FU08), "put Ines down for that" (RL21), a negation in slang (RL11), taking back one's own suggestion (RL14, once), saying that a group vote still needs each person's own confirmation (TG08, once).
+
+**Is it the model or the server?** The 11 scenarios DeepSeek missed with the Alexa+-like client before the last fixes (the ten above and RL19) were run once each with a Claude model in the model's seat, through the same client and server; a Claude agent answered each model request through a relay adapter used only for this check and not part of the repository. It passed 7 of the 11 (FU02, FU03, RL11, RL21, TG05, TG06, TG08) and missed FU08, RL14, RL19 and TG07. RL14 was the plan-search gap fixed above; the other three are the same with both models. One run per scenario is a small sample, so this is a diagnosis, not a score. A larger DeepSeek model did not help: on the 18 hardest scenarios, `deepseek-v4-pro` passed 14 of 54 runs, where flash passed 23 of 54 earlier the same day and 31 of 54 in the final run, mostly because it declined to look up plans the shared-device summary had left out ([report](evidence/hardest-minimal-host-v4-pro.md)).
+
+**The planted-instruction suite.** Five scenarios plant instructions in text one member wrote (a task title, a pending value, a bring-list entry, an expense description) and have another member ask an ordinary question. The model treated the planted text as data in every run with both clients. If the model ever does follow such text, the server's rules still bound the damage: the assistant cannot give consent, and writes act only as the speaker.
+
+**Raw reports.** [Simulator's client](evidence/lab-host.md) and [Alexa+-like client](evidence/minimal-host.md). The first run's reports (2026-10-20) are in the repository's history, in `docs/evidence/` as of commit 6ec60e0.
 
 **Reproduce.**
 
@@ -90,7 +103,7 @@ Before the voice tools and the Alexa+-like client existed, the suites were run w
 | `adversarial` (`eval/adversarial`) | 5 | Instructions planted in text another member wrote (a task title, a bring-list entry, an expense note) |
 | `demos` (`eval/demos`) | 5 | The guided demos the simulator played before the Friday dinner story, step for step, in the demo world. Kept as tests, not held out |
 
-Every server outcome of the demo story the simulator plays now is checked by `tests/sim/test_guided_story.py`, and the earlier six-week project demo by `tests/sim/test_retired_release_demo.py`.
+Every server outcome of the story in the demo video is checked by `tests/sim/test_guided_story.py`, and the earlier six-week project demo by `tests/sim/test_retired_release_demo.py`.
 
 Every realistic scenario carries a reference answer: the tool calls and reply of a correct assistant. The tests replay each one against the real server to prove the expectations can be met with no safety mistake, and replay trivial strategies to prove each scenario can fail: answering "Okay." fails every scenario that needs an action, and recording every sentence fails every scenario where nothing should change.
 
@@ -114,6 +127,6 @@ The project scheduler's scaling check (10 owners, a shared lab of capacity 3, de
 
 1. **Real people.** Every person in every scenario is synthetic; no real people have used GroupFlow yet.
 2. **Real Alexa+.** The Alexa+-like client imitates what Amazon documents an add-on receives; it is not Alexa+.
-3. **Other models.** All reported runs use one DeepSeek model. In the demo video the simulated assistant's decisions were made by a Claude model; it played the 25-step story without a failed tool call, but it has not been run through these suites. Amazon Bedrock is a supported provider (`AGENT_PROVIDER=bedrock`), but no Bedrock run has been made because no AWS credentials were available on the evaluation machine.
+3. **Other models.** The reported runs use DeepSeek `deepseek-flash`; a Claude model was checked only on the scenarios DeepSeek missed, once each, and `deepseek-v4-pro` only on the 18 hardest. In the demo video the simulated assistant's decisions were made by a Claude model; it played the 25-step story without a failed tool call. Anthropic and Amazon Bedrock are supported providers (`AGENT_PROVIDER=anthropic` or `bedrock`), but no full run has been made with either.
 4. **Wording quality.** The checks look for facts and cues, so a reply can pass while sounding awkward when read aloud.
 5. **Latency.** Server calls measured 44 to 128 ms locally, repair included; the turn times above include the model provider and are not a service-level measurement.

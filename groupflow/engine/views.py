@@ -249,6 +249,7 @@ class SearchHit(BaseModel):
     label: str
     state: str
     owner: str | None = None
+    suggestions: list[SuggestionView] = Field(default_factory=list, description="Open suggestions for this item, with request ids.")
 
 
 class PlaceHit(BaseModel):

@@ -236,3 +236,14 @@ def test_open_items_anyone_may_change(gf):
     assert gf.propose_change("charlie", new_type="shopping", title="Eggs").outcome == "created"
     assert gf.propose_change("bob", item="Eggs", remove=True).outcome == "removed"
     assert task(gf, "linda", "Eggs") is None
+
+
+def test_searching_for_a_suggestion_finds_the_item_and_the_open_request(gf):
+    # "scrap my ice cream idea": the suggestion is not the cake's value, so only its open request can match the words
+    assert gf.propose_change("charlie", item="cake.order", value="Ice cream cake", certainty="tentative").outcome == "tentative"
+    found = gf.search("charlie", "ice cream").model_dump()
+    hit = next(h for h in found["items"] if h["id"] == "cake.order")
+    assert [(s["value"], s["by"], s["firm"]) for s in hit["suggestions"]] == [("Ice cream cake", "Charlie", False)]
+    assert hit["suggestions"][0]["request"], "the request id lets the person take it back"
+    # Linda cannot see the party, so its suggestions never reach her search either
+    assert not gf.search("linda", "ice cream").model_dump()["items"]

@@ -1,7 +1,7 @@
 """Command line entry point.
 
     python -m groupflow sandbox     a playground: server and simulator with their own database; make your own accounts and groups
-    python -m groupflow demo        server and simulator, opening on the story from the demo video
+    python -m groupflow demo        the guided story from the demo video (only where private/demo_story.py is installed)
     python -m groupflow server      only the MCP server (with the human confirmation API)
     python -m groupflow sim         only the simulator (connects to GROUPFLOW_MCP_URL)
     python -m groupflow reset       reset the demo data (a group such as family or friends, friends:<stage>, or all)
@@ -146,6 +146,13 @@ def cmd_demo(args: argparse.Namespace, sandbox: bool = False) -> int:
     from groupflow.core.settings import SimSettings
     from groupflow.sim.app import build_sim_app
 
+    if not sandbox:
+        from groupflow.sim.demo_script import SCRIPTS
+
+        if not SCRIPTS.get("friends"):
+            print("[groupflow] The guided story from the demo video is not part of this repository. To try GroupFlow, run:\n"
+                  "    python -m groupflow sandbox", file=sys.stderr)
+            return 2
     settings, rt = _build_runtime(args, demo=True, sandbox=sandbox)
     try:
         bg = serve_in_background(rt.app, host=settings.host, port=settings.port)
@@ -311,7 +318,7 @@ def main(argv: list[str] | None = None) -> int:
     p_sandbox.add_argument("--fresh", action="store_true", help="start the sandbox over")
     p_sandbox.add_argument("--sim-port", type=int)
     p_sandbox.set_defaults(fn=cmd_sandbox)
-    p_demo = sub.add_parser("demo", help="server and simulator, opening on the story from the demo video")
+    p_demo = sub.add_parser("demo", help="the guided story from the demo video (needs the private story file; use sandbox)")
     server_opts(p_demo)
     p_demo.add_argument("--sim-port", type=int)
     p_demo.set_defaults(fn=cmd_demo)

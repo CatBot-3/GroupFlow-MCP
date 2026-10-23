@@ -188,7 +188,8 @@ def register_voice(mcp: MCPServer, engine: GroupFlow, runner: ToolRunner) -> Non
     @mcp.tool(title="Change a plan", description=(
         "Record what the speaker says about a plan, however casually: a new value, a task done or handed over, a due date, an activity's "
         "time/place/people, a new item (title + new_type), or removing one. A non-owner's change waits for the owner. To accept, reject or "
-        "amend a pending request addressed to the speaker, pass request and decision. depends_on links two items. Hedged ideas: "
+        "amend a pending request addressed to the speaker, or to take back the speaker's own suggestion (reject), pass request and "
+        "decision; ask_about finds suggestions by their words. depends_on links two items. Hedged ideas: "
         'certainty="tentative". Never store a negation as a value.'), annotations=hints("change_plan"))
     async def change_plan(
         ctx: Context,

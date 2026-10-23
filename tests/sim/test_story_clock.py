@@ -2,14 +2,14 @@
 once Alice makes it."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 import httpx
 import pytest
 
 from groupflow.core.serve import serve_in_background
 from groupflow.sim.app import create_sim_app
-from groupflow.sim.demo_script import FRIENDS_SCRIPT, story_time
+from groupflow.sim.demo_script import load_scripts, story_time
 from groupflow.sim.llm.scripted import ScriptedProvider
 from tests.sim.harness import ADMIN_KEY, start_harness
 
@@ -60,14 +60,22 @@ def test_story_days_fall_in_the_week_that_ends_on_the_coming_friday(today, monda
     assert story_time("Friday", "16:30", now, TZ).isoformat().startswith(f"{friday}T16:30")
 
 
-def test_every_chapter_of_the_story_has_a_clock_in_order():
-    days = [(s["chapter"], s["clock"]) for s in FRIENDS_SCRIPT if s.get("chapter")]
-    assert [d for d, _ in days] == ["Monday", "Tuesday", "Wednesday", "Friday"]
-    now = datetime(2026, 10, 22, 16, tzinfo=timezone.utc)
-    times = [story_time(d, c, now, TZ) for d, c in days]
-    assert times == sorted(times)
-    # The check-in skips 26 quiet hours: Tuesday's clock plus 26 hours is about Wednesday's.
-    assert abs((times[2] - times[1]).total_seconds() / 3600 - 26) < 0.5
+def test_no_story_is_loaded_without_its_file_and_a_story_file_gives_the_friends_script(tmp_path):
+    assert load_scripts(tmp_path / "missing.py") == {}
+    story = tmp_path / "story.py"
+    story.write_text('FRIENDS_SCRIPT = [{"kind": "say", "member": "alice", "text": "hi", "note": "Alice says hi."}]\n')
+    assert load_scripts(story) == {"friends": [{"kind": "say", "member": "alice", "text": "hi", "note": "Alice says hi."}]}
+
+
+def test_the_demo_command_points_to_the_sandbox_without_the_story(monkeypatch, capsys):
+    import argparse
+
+    import groupflow.sim.demo_script as demo_script
+    from groupflow.__main__ import cmd_demo
+
+    monkeypatch.setattr(demo_script, "SCRIPTS", {})
+    assert cmd_demo(argparse.Namespace()) == 2
+    assert "python -m groupflow sandbox" in capsys.readouterr().err
 
 
 @pytest.fixture

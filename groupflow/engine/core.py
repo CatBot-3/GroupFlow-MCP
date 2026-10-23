@@ -1537,10 +1537,13 @@ class Core:
         for i in self._visible_items(scope, focus["id"] if focus else None):
             p = scope.plans[i["plan_id"]]
             state = self._item_state(scope, i)
-            hay = f'{i["id"].replace(".", " ").replace("_", " ")} {i["label"]} {" ".join(json.loads(i["aliases"]))} {state} {self.name(i["owner_id"])}'
+            # what people have suggested for it counts too: "scrap my taco idea" must find the open taco suggestion
+            sugg = self._suggestions(scope, i)
+            hay = (f'{i["id"].replace(".", " ").replace("_", " ")} {i["label"]} {" ".join(json.loads(i["aliases"]))} {state} {self.name(i["owner_id"])} '
+                   + " ".join(f"{x.value} {x.by}" for x in sugg))
             if not tokens or hit(hay):
                 items.append(SearchHit(plan=p["title"], id=i["id"], shape=i["shape"], label=i["label"], state=state,
-                                       owner=None if i["shape"] == "activity" else self.name(i["owner_id"])))
+                                       owner=None if i["shape"] == "activity" else self.name(i["owner_id"]), suggestions=sugg))
         places = []
         seen_templates: set[str] = set()
         for p in ([focus] if focus else scope.plans.values()):

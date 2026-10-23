@@ -1,5 +1,7 @@
 # secrets and local data
 .env
+# the guided story from the demo video and its tools, kept out of the public repository
+private/
 data/
 *.db
 *.db-wal

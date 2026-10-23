@@ -83,8 +83,11 @@ def _now() -> str:
 
 
 def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traffic: TrafficLog, mcp_url: str, server_base: str, admin_key: str,
-                   web_dist: str | None = None, demo_passcodes: bool = True, chat_store: ChatStore | None = None, sandbox: bool = False) -> FastAPI:
+                   web_dist: str | None = None, demo_passcodes: bool = True, chat_store: ChatStore | None = None, sandbox: bool = False,
+                   scripts: dict[str, list[dict[str, Any]]] | None = None) -> FastAPI:
     from groupflow.templates import get_template
+
+    scripts = SCRIPTS if scripts is None else scripts  # the guided story, when private/demo_story.py is installed
 
     loop_ref: dict[str, asyncio.AbstractEventLoop] = {}
     backend_clients: dict[str, httpx.AsyncClient] = {}
@@ -131,7 +134,7 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
             "members": [{**members[m["id"]], "label": m.get("label"), "role": m.get("role", "member")} for m in g["members"]],
             "plans": [{"id": spec["id"], "title": spec["title"], "template": spec["template"], "templateName": get_template(spec["template"]).name,
                        "defaultStage": (spec.get("stages") or {}).get("default")} for spec in plans],
-            "stages": stages, "places": places, "script": SCRIPTS.get(g["id"], []),
+            "stages": stages, "places": places, "script": scripts.get(g["id"], []),
         })
 
     transcripts: dict[str, list[dict[str, Any]]] = {}
@@ -189,7 +192,8 @@ def create_sim_app(*, world: World, agent: LlmAgent, sessions: SessionPool, traf
 
         templates = [{"id": t.id, "name": t.name, "description": t.description} for t in load_templates().values()]
         return {"scenarios": scenarios, "templates": templates, "provider": agent.provider_info, "mcpUrl": mcp_url, "serverBase": server_base,
-                **({"sandbox": True} if sandbox else {"showcase": {"group": "friends", "script": SCRIPTS.get("friends", [])}}), "chat": chat is not None}
+                **({"sandbox": True} if sandbox else {"showcase": {"group": "friends", "script": scripts["friends"]}} if scripts.get("friends") else {}),
+                "chat": chat is not None}
 
     @app.get("/api/health")
     async def health() -> JSONResponse:

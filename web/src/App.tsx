@@ -55,6 +55,10 @@ function initialGroup(): string {
 
 const SHORT: Record<string, string> = { family: 'Family', friends: 'Friends', cottage: 'Cottage trip', team: 'Team', study: 'Study group' };
 
+function hasStory(cfg: Config): boolean {
+  return !cfg.sandbox && (cfg.showcase?.script?.length ?? 0) > 0 && cfg.scenarios.some((s) => s.id === 'friends');
+}
+
 export function App() {
   const [mode, setMode] = useState<'demo' | 'lab'>(() => urlParam('mode') === 'lab' || (urlParam('group') && urlParam('group') !== 'friends') ? 'lab' : 'demo');
   const [config, setConfig] = useState<Config | null>(null);
@@ -94,7 +98,7 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    api.config().then((cfg) => { setConfig(cfg); if (cfg.sandbox || !cfg.scenarios.some((s) => s.id === 'friends')) setMode('lab'); }).catch((e) => setFatal((e as Error).message));
+    api.config().then((cfg) => { setConfig(cfg); if (!hasStory(cfg)) setMode('lab'); }).catch((e) => setFatal((e as Error).message));
     api.health().then((h) => setProtocol(h.mcp?.protocol ?? null)).catch(() => setProtocol(null));
     api.traffic().then(setTraffic).catch(() => undefined);
     void loadTranscripts();
@@ -168,8 +172,9 @@ export function App() {
     );
   }
 
-  // The sandbox has no story: its friends group is seeded like every other group, and people make their own in the group chat.
-  const story = mode === 'demo' && !config.sandbox ? config.scenarios.find((sc) => sc.id === 'friends') : undefined;
+  // The guided story plays only where its private script is installed (the server then sends it as the showcase). The sandbox has
+  // no story: its friends group is seeded like every other group, and people make their own in the group chat.
+  const story = mode === 'demo' && hasStory(config) ? config.scenarios.find((sc) => sc.id === 'friends') : undefined;
   if (story) {
     const controls = (
       <>
@@ -193,7 +198,7 @@ export function App() {
         <div className="brand">
           <span className="wordmark">GroupFlow</span>
           <div className="seg" aria-label="Experience">
-            {!config.sandbox && config.scenarios.some((s) => s.id === 'friends') && <button type="button" onClick={() => setMode('demo')}>Story demo</button>}
+            {hasStory(config) && <button type="button" onClick={() => setMode('demo')}>Story demo</button>}
             <button type="button" className="on">{config.sandbox ? 'Sandbox' : 'Test lab'}</button>
           </div>
           <div className="seg scenario-switch" role="radiogroup" aria-label="Group">

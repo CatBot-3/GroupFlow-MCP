@@ -13,19 +13,29 @@ from groupflow.sim.llm.scripted import ScriptedProvider
 from tests.sim.harness import ADMIN_KEY, start_harness
 
 
-@pytest.fixture
-async def sim():
+async def _start(scripts):
     model = ScriptedProvider([])
     h = start_harness(model, stages={"friday_dinner": "committed"})
     app = create_sim_app(world=h.rt.world, agent=h.agent, sessions=h.sessions, traffic=h.traffic, mcp_url=h.url, server_base=h.bg.base,
-                         admin_key=ADMIN_KEY, web_dist=None)
+                         admin_key=ADMIN_KEY, web_dist=None, scripts=scripts)
     bg = serve_in_background(app)
     client = httpx.AsyncClient(base_url=bg.base, timeout=30)
-    client.model, client.h = model, h  # type: ignore[attr-defined]
-    yield client
+    client.model, client.h, client.bg = model, h, bg  # type: ignore[attr-defined]
+    return client
+
+
+async def _stop(client):
     await client.aclose()
-    bg.stop()
-    await h.close()
+    client.bg.stop()
+    await client.h.close()
+
+
+@pytest.fixture
+async def sim():
+    # The guided story is private (private/demo_story.py) and not installed in a public checkout.
+    client = await _start({})
+    yield client
+    await _stop(client)
 
 
 async def test_config_lists_every_group_with_people_plans_scripts_and_provider(sim):
@@ -36,12 +46,22 @@ async def test_config_lists_every_group_with_people_plans_scripts_and_provider(s
     assert [p["id"] for p in family["plans"]] == ["party", "home"]
     assert friends["plans"][0]["template"] == "evening_out" and "committed" in friends["stages"]
     assert any(p["id"] == "restaurant_a" for p in friends["places"])
-    # Only the Friday dinner story has a guided script; the older group scripts are eval cases now (eval/demos).
-    assert family["script"] == [] and friends["script"][0] == {**friends["script"][0], "kind": "say", "member": "alice"}
-    assert cfg["showcase"]["group"] == "friends" and cfg["showcase"]["script"] == friends["script"]
+    # Without the private story file no group has a guided script, and the page opens on the Test lab.
+    assert all(s["script"] == [] for s in cfg["scenarios"]) and "showcase" not in cfg
     assert friends["members"][0]["groups"] == ["family", "friends"], "Alice is in two groups"
     assert len(cfg["templates"]) == 8
     assert cfg["provider"]["id"] == "scripted" and "token" not in str(cfg).lower()
+
+
+async def test_an_installed_story_is_sent_as_the_showcase_for_the_friends_group():
+    step = {"kind": "say", "member": "alice", "text": "Alexa, start a group called Friends.", "note": "Alice starts the group."}
+    client = await _start({"friends": [step]})
+    try:
+        cfg = (await client.get("/api/config")).json()
+        friends = next(s for s in cfg["scenarios"] if s["id"] == "friends")
+        assert friends["script"] == [step] and cfg["showcase"] == {"group": "friends", "script": [step]}
+    finally:
+        await _stop(client)
 
 
 async def test_human_proxy_preserves_query_and_guarded_new_plan_journey(sim):

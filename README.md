@@ -29,8 +29,8 @@ You need Python 3.10 or newer and an API key for one language model, which plays
 1. **Install.**
 
    ```bash
-   git clone https://github.com/CatBot-3/Hackathon26.git
-   cd Hackathon26
+   git clone https://github.com/CatBot-3/GroupFlow-MCP.git
+   cd GroupFlow-MCP
    python -m venv .venv
    .venv\Scripts\activate          # Windows
    source .venv/bin/activate       # macOS, Linux
@@ -78,7 +78,7 @@ You need Python 3.10 or newer and an API key for one language model, which plays
 
 ## What the demo video shows
 
-Four friends plan Friday dinner over four days, each talking only to their own Echo. Every step is live: the language model chooses GroupFlow tools over MCP, and each person's answers go through their own screen. The story and how to replay it are in [docs/DEMO_FRIENDS.md](docs/DEMO_FRIENDS.md).
+Four friends plan Friday dinner over four days, each talking only to their own Echo. Every step is live: the language model chooses GroupFlow tools over MCP, and each person's answers go through their own screen. The script that plays the story is not part of the repository; every server outcome it relies on is checked by `tests/sim/test_guided_story.py`, and the [sandbox](#run-it) is the way to try GroupFlow yourself.
 
 | Day | What happens | What it shows |
 | --- | --- | --- |
@@ -134,18 +134,18 @@ Four friends plan Friday dinner over four days, each talking only to their own E
 
 ## Results
 
-**Automated tests.** `python -m pytest -q` runs 965 tests without any model key: the consent rules over real MCP sessions and the human-only API, the repair search checked against brute force, OAuth flows, shared-device privacy, repeated requests recorded once, eight concurrent MCP sessions on one database with a crash and restart, and every server outcome of the demo story (`tests/sim/test_guided_story.py`). GitHub Actions runs them on every push.
+**Automated tests.** `python -m pytest -q` runs 968 tests without any model key: the consent rules over real MCP sessions and the human-only API, the repair search checked against brute force, OAuth flows, shared-device privacy, repeated requests recorded once, eight concurrent MCP sessions on one database with a crash and restart, and every server outcome of the demo story (`tests/sim/test_guided_story.py`). GitHub Actions runs them on every push.
 
-**With a real language model.** The evaluation plays 57 scenarios that the prompts were never tuned on (slang, typos, requests buried in chatter, people changing their mind, group chats with someone listening), three times each, and checks what the server did, never the exact wording. We ran it two ways, because Alexa+ gives an add-on only two levers, its server instructions and its tool descriptions:
+**With a real language model.** The evaluation plays 57 realistic scenarios (slang, typos, requests buried in chatter, people changing their mind, group chats with someone listening), three times each, and checks what the server did, never the exact wording. We ran it two ways, because Alexa+ gives an add-on only two levers, its server instructions and its tool descriptions:
 
-| DeepSeek `deepseek-flash`, 57 scenarios, 3 runs each | Alexa+-like client: a one-line prompt, GroupFlow's own instructions and the 13 voice tools | The simulator's client: a long prompt, a state read before every turn and a re-check of its replies |
+| DeepSeek `deepseek-flash`, 57 scenarios, 3 runs each (2026-10-22) | The simulator's client: a long prompt, a state read before every turn and a re-check of its replies | Alexa+-like client: a one-line prompt, GroupFlow's own instructions and the 13 voice tools |
 | --- | --- | --- |
-| Runs that passed | 81.9% (140 of 171) | 98.8% (169 of 171) |
-| Scenarios that passed in all three runs | 41 of 57 | 55 of 57 |
+| Runs that passed | 97.7% (167 of 171) | 86.5% (148 of 171) |
+| Scenarios that passed in all three runs | 55 of 57 | 47 of 57 |
 | Safety mistakes, such as confirming for someone, revealing a hidden plan or changing something nobody asked for (eight kinds, counted in every run) | 0 | 0 |
 | Instructions planted in text another member wrote, followed by the model | 0 of 15 runs | 0 of 15 runs |
 
-The Alexa+-like number is the honest one for a plain host. Most of its failures came from the shared-device default: summaries leave out plans hidden from someone, and the model then sometimes said it could not find such a plan instead of looking it up by name. No hidden plan was revealed in any run. The method, the raw reports and what we changed afterwards are in [docs/EVALUATION.md](docs/EVALUATION.md).
+The simulator's client is the one in the demo video. The Alexa+-like client is closer to what a plain host gives an add-on today, and its number rose from 81.9% on the first run (2026-10-20) after we read the failures and fixed what was ours: plan search now finds suggestions, the instructions tell the model to look a plan up by name before saying it does not exist, and three evaluator bugs were fixed. Because these fixes came from reading the failures, the second run is a regression check, not a held-out score. Most of the remaining misses come from the shared-device default, where summaries leave out plans hidden from someone and the model does not always look them up; no hidden plan was revealed in any run. Run once each with a Claude model instead, 7 of the 11 scenarios DeepSeek had missed passed, which suggests that most of what is left depends on the model. The method, the raw reports and every change are in [docs/EVALUATION.md](docs/EVALUATION.md).
 
 **Four instead of sixteen.** `python scripts/compare_confirmation_policies.py` runs the Friday dinner repair twice, once asking everyone again and once keeping the answers about unchanged stops, and both pass the final check: 16 new confirmations against 4. This counts requests, not time saved for real people, because no real people have used GroupFlow yet.
 
@@ -367,7 +367,7 @@ Every setting has a working local default, and `.env.example` lists them. Only t
 | `GROUPFLOW_CHECKINS` | `rules` | Reminders on quiet plans: `rules`, `model` (a language model words them within the server's checks) or `off` |
 | `GROUPFLOW_SIGNUP` | `open` | Account sign-up: `open`, `invite` (needs an invite code) or `off` |
 | `GROUPFLOW_JOIN_URL`, `GROUPFLOW_CHAT_DB` | `http://localhost:8788/chat`, next to the database | Group chat invite links and its message store |
-| `GROUPFLOW_ADMIN_KEY`, `GROUPFLOW_DEMO_ADMIN` | none, `1` | The demo console exists only with an admin key; `python -m groupflow demo` makes a random one per run, and `GROUPFLOW_DEMO_ADMIN=0` turns it off |
+| `GROUPFLOW_ADMIN_KEY`, `GROUPFLOW_DEMO_ADMIN` | none, `1` | The demo console exists only with an admin key; `python -m groupflow sandbox` makes a random one per run, and `GROUPFLOW_DEMO_ADMIN=0` turns it off |
 | `GROUPFLOW_TIMEZONE` | `America/Toronto` | The simulator's time zone |
 
 ## Tests and evaluation commands
@@ -394,7 +394,7 @@ python scripts/benchmark_solver.py        # exact search against CP-SAT
 | `groupflow/repair` | The repair search: options, checks, exact search, CP-SAT, explaining conflicts without names |
 | `groupflow/templates` | Plan templates in YAML (evening out, trip, meeting, gathering, shared tasks, study group, general event, structured project) |
 | `groupflow/human_api` | The human-only API, the OAuth pages and the demo console |
-| `groupflow/sim` | The Alexa+ simulator: one MCP client per person, the language-model assistant, the demo story's script, the group chat |
+| `groupflow/sim` | The Alexa+ simulator: one MCP client per person, the language-model assistant, the guided story player, the group chat |
 | `groupflow/evals` | The evaluation runner |
 | `web/` | The simulator page and the group chat (React); `web/dist` is a built copy |
 | `demo/` | The demo worlds |
@@ -410,7 +410,6 @@ The Echo devices are simulated, and the add-on has not run on a real Alexa+ devi
 
 | Document | What it covers |
 | --- | --- |
-| [DEMO_FRIENDS.md](docs/DEMO_FRIENDS.md) | The story in the demo video, and how to replay it |
 | [EVALUATION.md](docs/EVALUATION.md) | How GroupFlow is tested with and without a language model, and the results |
 | [PRODUCT_FEEDBACK.md](docs/PRODUCT_FEEDBACK.md) | Feedback on each tool, API and SDK we used, and what we would ask Amazon for |
 | [FRICTION_LOG.md](docs/FRICTION_LOG.md) | Problems we hit with the Alexa+ add-on platform and while building |
