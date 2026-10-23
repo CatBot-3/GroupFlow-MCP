@@ -21,7 +21,6 @@ What slowed us down, written so someone else can reproduce it and the owner can 
 | F13. Advertised tool schemas are verbose | MCP Python SDK 2.3.0 | Low |
 | F14. Thinking on by default, and balance errors in the middle of a run | DeepSeek API | Medium |
 | F15. OR-Tools crashed on Windows under Anaconda's Python | Google OR-Tools | High |
-| F16. The Windows event loop stopped accepting connections | Python asyncio on Windows | High |
 
 ## Part 1. Alexa+ add-on friction
 
@@ -176,16 +175,6 @@ What slowed us down, written so someone else can reproduce it and the owner can 
 * **Severity:** High on affected machines (the process dies).
 * **Workaround:** GroupFlow loads the system runtime first, and falls back to exact enumeration when CP-SAT is unavailable.
 * **Suggestion:** Check the runtime version at import and raise a readable error that names the conflicting DLL.
-
-### F16. The Windows event loop stopped accepting connections
-
-* **Task:** Run the server and the simulator on Windows.
-* **Steps:** Close a browser tab abruptly while a response is streaming.
-* **Expected:** Other connections carry on.
-* **Actual:** asyncio's default proactor loop closed its own listening socket (WinError 64), and the server stopped accepting new connections.
-* **Severity:** High on Windows (the server stops serving).
-* **Workaround:** Our servers run on the selector loop on Windows.
-* **Suggestion:** Handle WinError 64 on accept in the proactor loop, or document the selector loop for servers.
 
 ## Part 3. Engineering notes from the build
 
